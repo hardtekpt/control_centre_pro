@@ -44,8 +44,7 @@ export function FloatingSidebar(): JSX.Element | null {
         left: sidebarPeekAnchor.x,
         top: sidebarPeekAnchor.bottom + 4,
         width: sidebarWidth,
-        // Height: fills down to 8px from bottom edge
-        bottom: 8,
+        minHeight: 120,
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
