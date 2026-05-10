@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — warm color palette inspired by the Claude Code design report.
+ * All component styles reference these variables, so swapping themes is one
+ * attribute change on <html data-theme="dark|light">.
+ */
+
+/* ── Light mode (default) ─────────────────────────────────────────────────── */
+:root {
+  --color-bg:              #FAF9F5; /* Warm cream canvas */
+  --color-surface:         #F0EDE4; /* Slightly darker cream — sidebar, panels */
+  --color-surface-raised:  #EDEBE3; /* Cards, dropdowns */
+  --color-border:          #E8E6DC; /* Dividers — warm light gray */
+  --color-text-primary:    #141413; /* Near-black with warm undertone */
+  --color-text-secondary:  #B0AEA5; /* Muted warm gray */
+  --color-accent:          #CC785C; /* Coral — primary action color */
+  --color-accent-hover:    #B86848; /* Darker coral for hover states */
+  --color-accent-subtle:   rgba(204, 120, 92, 0.10); /* Tinted selection bg */
+  --color-hover-overlay:   rgba(0, 0, 0, 0.04);
+  --color-code-bg:         #EDEBE3;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --color-bg:              #141413; /* Warm dark — NOT a blue-dark */
+  --color-surface:         #1A1917; /* Sidebar, panel backgrounds */
+  --color-surface-raised:  #1F1E1C; /* Cards, popovers */
+  --color-border:          #2E2C28; /* Subtle warm dividers */
+  --color-text-primary:    #F5E6D3; /* Warm cream text */
+  --color-text-secondary:  #C4A584; /* Muted tan */
+  --color-accent:          #E67D22; /* Orange — slightly brighter in dark mode */
+  --color-accent-hover:    #F08C38;
+  --color-accent-subtle:   rgba(230, 125, 34, 0.15);
+  --color-hover-overlay:   rgba(255, 255, 255, 0.05);
+  --color-code-bg:         #1A1917;
+}
+
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden; /* The app manages its own scroll per-pane */
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  /* Prefer the modern Segoe UI Variable on Windows 11; fall back gracefully */
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* Prevent accidental text selection on interactive UI chrome */
+  user-select: none;
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+/* Thin, warm-toned scrollbars that match the panel backgrounds */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
+
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+/* Re-enable text selection inside content areas (e.g., log output, settings) */
+.selectable { user-select: text; }
+
+/* Monospace style for code, paths, version strings */
+.mono {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 13px;
+}
