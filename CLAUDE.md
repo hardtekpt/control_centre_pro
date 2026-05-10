@@ -69,8 +69,8 @@ src/
 
 ## Design System
 
-The visual design mirrors the Claude Code desktop app aesthetic — warm and approachable rather
-than clinical. All colors use CSS custom properties; **never hardcode colors in components**.
+The visual design mirrors the Claude Code desktop app aesthetic — neutral and clean. All colors
+use CSS custom properties; **never hardcode colors in components**.
 
 ### Color Tokens
 
@@ -78,25 +78,25 @@ than clinical. All colors use CSS custom properties; **never hardcode colors in 
 /* Reference these in inline styles: style={{ color: 'var(--color-text-primary)' }} */
 
 /* Key light-mode tokens */
---color-bg:             #FAF9F5   /* Warm cream canvas — NOT white */
---color-surface:        #F0EDE4   /* Sidebar, panel backgrounds */
---color-text-primary:   #141413   /* Near-black with warm undertone */
---color-text-secondary: #B0AEA5   /* Muted warm gray */
---color-accent:         #CC785C   /* Coral — the ONLY action/brand color */
---color-border:         #E8E6DC
+--color-bg:             #F5F5F5   /* Light gray canvas */
+--color-surface:        #EBEBEB   /* Sidebar, panel backgrounds */
+--color-text-primary:   #141414   /* Near-black */
+--color-text-secondary: #8C8C8C   /* Muted gray */
+--color-accent:         #525252   /* Dark gray — the ONLY action color */
+--color-border:         #D8D8D8
 
 /* Key dark-mode tokens (toggled via data-theme="dark" on <html>) */
---color-bg:             #141413   /* Warm dark — NOT a blue-dark */
---color-surface:        #1A1917
---color-text-primary:   #F5E6D3   /* Warm cream */
---color-text-secondary: #C4A584
---color-accent:         #E67D22   /* Slightly brighter orange in dark mode */
+--color-bg:             #1C1C1C   /* Dark charcoal */
+--color-surface:        #252525
+--color-text-primary:   #EBEBEB   /* Light gray */
+--color-text-secondary: #888888
+--color-accent:         #B0B0B0   /* Medium gray accent in dark mode */
 ```
 
 ### Design Rules Summary
 
-- **No cool grays** — all neutrals have warm (yellow/brown) undertones.
-- **Coral/orange is the only accent** — never blue, never purple.
+- **Pure neutral grays** — no warm or cool undertones.
+- **Gray is the only accent** — never orange, never blue, never purple.
 - **No heavy shadows** — depth is created by background color steps, not `box-shadow`.
 - **No gradients** — especially no purple gradients.
 - **Tailwind for layout/spacing; CSS vars for colors** — never hardcode color hex in components.
