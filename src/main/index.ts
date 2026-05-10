@@ -3,8 +3,10 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
 import type { NavigateTarget } from '../shared/types'
+import { ServiceManager } from './services/serviceManager'
 
 let mainWindow: BrowserWindow | null = null
+let serviceManager: ServiceManager
 
 // ─── App Menu ─────────────────────────────────────────────────────────────────
 
@@ -159,6 +161,14 @@ function registerIpcHandlers(): void {
     const menu = buildAppMenu()
     menu.popup({ window: mainWindow!, x, y })
   })
+
+  ipcMain.handle(IPC_CHANNELS.SERVICES_LIST, () => serviceManager.getServiceList())
+
+  ipcMain.handle(IPC_CHANNELS.SERVICES_SET_ENABLED, (_, id: string, enabled: boolean) => {
+    serviceManager.setEnabled(id, enabled)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.ARCTIS_GET_STATE, () => serviceManager.getArctisState())
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -170,8 +180,11 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  serviceManager = new ServiceManager()
   registerIpcHandlers()
   createWindow()
+  serviceManager.setWindow(mainWindow!)
+  serviceManager.startAll()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -179,5 +192,6 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  serviceManager?.stopAll()
   if (process.platform !== 'darwin') app.quit()
 })

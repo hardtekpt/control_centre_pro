@@ -1,5 +1,58 @@
-/** About page — version and build information */
+import { useEffect, useRef } from 'react'
+import { useServiceStore } from '../../stores/serviceStore'
+import type { LogEntry } from '@shared/types'
+
+// ─── Log entry row ────────────────────────────────────────────────────────────
+
+function LogRow({ entry }: { entry: LogEntry }): JSX.Element {
+  const time = new Date(entry.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+
+  return (
+    <div
+      className="flex gap-2 px-3 py-0.5 leading-5"
+      style={{
+        fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
+        fontSize: 12,
+      }}
+    >
+      <span style={{ color: 'var(--color-text-secondary)', opacity: 0.7, whiteSpace: 'nowrap' }}>
+        {time}
+      </span>
+      <span style={{ color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+        [{entry.serviceName}]
+      </span>
+      <span
+        style={{
+          color:
+            entry.level === 'error'
+              ? 'var(--color-text-primary)'
+              : 'var(--color-text-secondary)',
+          fontWeight: entry.level === 'error' ? 600 : 400,
+          wordBreak: 'break-all',
+        }}
+      >
+        {entry.message}
+      </span>
+    </div>
+  )
+}
+
+// ─── About page ───────────────────────────────────────────────────────────────
+
+/** About page — version info and live service log */
 export function About(): JSX.Element {
+  const { logs } = useServiceStore()
+  const logEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to the latest entry whenever logs update
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [logs])
+
   return (
     <div className="max-w-lg">
       <div className="mb-7">
@@ -15,7 +68,7 @@ export function About(): JSX.Element {
       </div>
 
       <div
-        className="rounded-lg overflow-hidden"
+        className="rounded-lg overflow-hidden mb-6"
         style={{ border: '1px solid var(--color-border)' }}
       >
         {[
@@ -44,6 +97,45 @@ export function About(): JSX.Element {
           </div>
         ))}
       </div>
+
+      {/* Service log terminal */}
+      <section>
+        <h3
+          className="text-xs font-semibold uppercase tracking-wider mb-2"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          Service Log
+        </h3>
+        <div
+          className="rounded-lg overflow-y-auto"
+          style={{
+            height: 280,
+            background: 'var(--color-code-bg)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          {logs.length === 0 ? (
+            <div
+              className="px-3 py-2"
+              style={{
+                fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
+                fontSize: 12,
+                color: 'var(--color-text-secondary)',
+                opacity: 0.6,
+              }}
+            >
+              Waiting for service output…
+            </div>
+          ) : (
+            <>
+              {logs.map((entry) => (
+                <LogRow key={entry.id} entry={entry} />
+              ))}
+              <div ref={logEndRef} />
+            </>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

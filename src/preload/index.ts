@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget } from '../shared/types'
+import type { NavigateTarget, ServiceInfo, LogEntry, ArctisState } from '../shared/types'
 
 /**
  * The typed API exposed to the renderer via contextBridge.
@@ -48,6 +48,56 @@ const api = {
       callback(target)
     ipcRenderer.on(IPC_CHANNELS.NAVIGATE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.NAVIGATE, handler)
+  },
+
+  // ── Background services ────────────────────────────────────────────────────
+
+  servicesList: (): Promise<ServiceInfo[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SERVICES_LIST),
+
+  setServiceEnabled: (id: string, enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SERVICES_SET_ENABLED, id, enabled),
+
+  onServicesStateChange: (callback: (services: ServiceInfo[]) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, services: ServiceInfo[]): void =>
+      callback(services)
+    ipcRenderer.on(IPC_CHANNELS.SERVICES_STATE_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SERVICES_STATE_CHANGE, handler)
+  },
+
+  onServiceLog: (callback: (entry: LogEntry) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, entry: LogEntry): void => callback(entry)
+    ipcRenderer.on(IPC_CHANNELS.SERVICE_LOG, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SERVICE_LOG, handler)
+  },
+
+  // ── Arctis Nova Pro HID ────────────────────────────────────────────────────
+
+  arctisGetState: (): Promise<ArctisState | null> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ARCTIS_GET_STATE),
+
+  onArctisConnected: (callback: (state: ArctisState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: ArctisState): void => callback(state)
+    ipcRenderer.on(IPC_CHANNELS.ARCTIS_CONNECTED, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ARCTIS_CONNECTED, handler)
+  },
+
+  onArctisDisconnected: (callback: () => void): (() => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on(IPC_CHANNELS.ARCTIS_DISCONNECTED, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ARCTIS_DISCONNECTED, handler)
+  },
+
+  onArctisEvent: (
+    callback: (eventName: string, data: Record<string, unknown>) => void,
+  ): (() => void) => {
+    const handler = (
+      _: Electron.IpcRendererEvent,
+      eventName: string,
+      data: Record<string, unknown>,
+    ): void => callback(eventName, data)
+    ipcRenderer.on(IPC_CHANNELS.ARCTIS_EVENT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ARCTIS_EVENT, handler)
   },
 }
 

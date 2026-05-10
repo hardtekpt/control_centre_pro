@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { useAppStore } from './stores/appStore'
+import { useServiceStore } from './stores/serviceStore'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 import { FloatingSidebar } from './components/layout/FloatingSidebar'
+import type { ArctisState } from '@shared/types'
 
 /**
  * Root component — decides which top-level layout to render and wires up
@@ -11,6 +13,8 @@ import { FloatingSidebar } from './components/layout/FloatingSidebar'
  */
 export default function App(): JSX.Element {
   const { currentView, theme, setMaximized, setView, setSettingsTab, toggleSidebar } = useAppStore()
+  const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState } =
+    useServiceStore()
 
   // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {
@@ -61,6 +65,46 @@ export default function App(): JSX.Element {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [toggleSidebar])
+
+  // Load initial service list and subscribe to changes
+  useEffect(() => {
+    window.api.servicesList().then(setServices)
+    const cleanups = [
+      window.api.onServicesStateChange(setServices),
+      window.api.onServiceLog(addLog),
+    ]
+    return () => cleanups.forEach((fn) => fn())
+  }, [setServices, addLog])
+
+  // Load initial Arctis state and subscribe to device events
+  useEffect(() => {
+    window.api.arctisGetState().then((state) => {
+      if (state) setArctisConnected(state)
+    })
+    const cleanups = [
+      window.api.onArctisConnected(setArctisConnected),
+      window.api.onArctisDisconnected(setArctisDisconnected),
+      window.api.onArctisEvent((eventName, data) => {
+        switch (eventName) {
+          case 'VolumeEvent':
+            updateArctisState({ volume: (data as { volume: number }).volume })
+            break
+          case 'BatteryEvent': {
+            const d = data as { batteryHeadset: number; batteryDock: number }
+            updateArctisState({ batteryHeadset: d.batteryHeadset, batteryDock: d.batteryDock })
+            break
+          }
+          case 'AncModeEvent':
+            updateArctisState({ ancMode: (data as { ancMode: ArctisState['ancMode'] }).ancMode })
+            break
+          case 'MicMuteEvent':
+            updateArctisState({ micMuted: (data as { micMuted: boolean }).micMuted })
+            break
+        }
+      }),
+    ]
+    return () => cleanups.forEach((fn) => fn())
+  }, [setArctisConnected, setArctisDisconnected, updateArctisState])
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>

@@ -1,12 +1,18 @@
 import { useAppStore } from '../../stores/appStore'
+import { useServiceStore } from '../../stores/serviceStore'
+import type { ServiceInfo } from '@shared/types'
 
 type Theme = 'light' | 'dark' | 'system'
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── General settings page ────────────────────────────────────────────────────
 
-/** General settings page — appearance and app-wide preferences */
 export function GeneralSettings(): JSX.Element {
   const { theme, setTheme } = useAppStore()
+  const { services } = useServiceStore()
+
+  function handleToggleService(svc: ServiceInfo): void {
+    window.api.setServiceEnabled(svc.id, !svc.enabled)
+  }
 
   return (
     <div className="max-w-lg">
@@ -38,7 +44,84 @@ export function GeneralSettings(): JSX.Element {
           </select>
         </SettingRow>
       </SettingsSection>
+
+      <SettingsSection title="Services">
+        {services.length === 0 ? (
+          <div
+            className="px-4 py-3 text-sm"
+            style={{
+              background: 'var(--color-surface)',
+              color: 'var(--color-text-secondary)',
+            }}
+          >
+            No services registered
+          </div>
+        ) : (
+          services.map((svc, i) => (
+            <SettingRow
+              key={svc.id}
+              label={svc.name}
+              helper={svc.description}
+              last={i === services.length - 1}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs mono"
+                  style={{
+                    color: svc.running ? 'var(--color-text-secondary)' : 'var(--color-text-secondary)',
+                    opacity: svc.enabled ? 1 : 0.5,
+                  }}
+                >
+                  {svc.running ? 'running' : 'stopped'}
+                </span>
+                <Toggle checked={svc.enabled} onChange={() => handleToggleService(svc)} />
+              </div>
+            </SettingRow>
+          ))
+        )}
+      </SettingsSection>
     </div>
+  )
+}
+
+// ─── Toggle switch ────────────────────────────────────────────────────────────
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: () => void
+}): JSX.Element {
+  return (
+    <button
+      onClick={onChange}
+      style={{
+        width: 36,
+        height: 20,
+        borderRadius: 10,
+        background: checked ? 'var(--color-accent)' : 'var(--color-border)',
+        border: 'none',
+        cursor: 'pointer',
+        position: 'relative',
+        transition: 'background 150ms',
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: checked ? 18 : 2,
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          background: '#ffffff',
+          transition: 'left 150ms',
+          display: 'block',
+        }}
+      />
+    </button>
   )
 }
 
