@@ -168,6 +168,12 @@ function registerIpcHandlers(): void {
     serviceManager.setEnabled(id, enabled)
   })
 
+  ipcMain.handle(IPC_CHANNELS.SERVICES_GET_CONFIG, () => serviceManager.getServiceConfig())
+
+  ipcMain.handle(IPC_CHANNELS.SERVICES_SET_PYTHON_PATH, (_, path: string) => {
+    serviceManager.setPythonPath(path)
+  })
+
   ipcMain.handle(IPC_CHANNELS.ARCTIS_GET_STATE, () => serviceManager.getArctisState())
 }
 

@@ -6,7 +6,7 @@ import type { BrowserWindow } from 'electron'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../../shared/types'
-import type { ServiceInfo, LogEntry, ArctisState } from '../../shared/types'
+import type { ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../../shared/types'
 
 // ─── Service registry ─────────────────────────────────────────────────────────
 
@@ -26,11 +26,19 @@ const SERVICE_DEFS: ServiceDef[] = [
   },
 ]
 
+// ─── Persisted config shape ───────────────────────────────────────────────────
+
+interface SavedConfig {
+  pythonPath?: string
+  services?: Record<string, boolean>
+}
+
 // ─── Service Manager ──────────────────────────────────────────────────────────
 
 export class ServiceManager {
   private processes = new Map<string, ChildProcess | null>()
-  private config: Record<string, boolean> = {}
+  private enabled: Record<string, boolean> = {}
+  private pythonPath = 'python'
   private configPath: string
   private window: BrowserWindow | null = null
   private lastArctisState: ArctisState | null = null
@@ -56,29 +64,41 @@ export class ServiceManager {
 
   private loadConfig(): void {
     if (existsSync(this.configPath)) {
-      const saved = JSON.parse(readFileSync(this.configPath, 'utf-8')) as Record<string, boolean>
+      const saved = JSON.parse(readFileSync(this.configPath, 'utf-8')) as SavedConfig
+      this.pythonPath = saved.pythonPath ?? 'python'
+      const svcMap = saved.services ?? {}
       for (const def of SERVICE_DEFS) {
-        this.config[def.id] = saved[def.id] ?? true
+        this.enabled[def.id] = svcMap[def.id] ?? true
       }
     } else {
       for (const def of SERVICE_DEFS) {
-        this.config[def.id] = true
+        this.enabled[def.id] = true
       }
     }
   }
 
   private saveConfig(): void {
-    writeFileSync(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8')
+    const payload: SavedConfig = {
+      pythonPath: this.pythonPath,
+      services: { ...this.enabled },
+    }
+    writeFileSync(this.configPath, JSON.stringify(payload, null, 2), 'utf-8')
   }
+
+  // ── Public API ──────────────────────────────────────────────────────────────
 
   getServiceList(): ServiceInfo[] {
     return SERVICE_DEFS.map((def) => ({
       id: def.id,
       name: def.name,
       description: def.description,
-      enabled: this.config[def.id] ?? true,
+      enabled: this.enabled[def.id] ?? true,
       running: (this.processes.get(def.id) ?? null) !== null,
     }))
+  }
+
+  getServiceConfig(): ServiceConfig {
+    return { pythonPath: this.pythonPath }
   }
 
   getArctisState(): ArctisState | null {
@@ -86,13 +106,12 @@ export class ServiceManager {
   }
 
   setEnabled(id: string, enabled: boolean): void {
-    this.config[id] = enabled
+    this.enabled[id] = enabled
     this.saveConfig()
     if (enabled) {
       this.startService(id)
     } else {
       this.stopService(id)
-      // If disabling the arctis service, also clear its state
       if (id === 'arctis-hid') {
         this.lastArctisState = null
         this.push(IPC_CHANNELS.ARCTIS_DISCONNECTED)
@@ -101,9 +120,20 @@ export class ServiceManager {
     this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
   }
 
+  setPythonPath(path: string): void {
+    this.pythonPath = path
+    this.saveConfig()
+    // Restart all running services so they pick up the new interpreter
+    for (const def of SERVICE_DEFS) {
+      if (this.enabled[def.id]) {
+        this.startService(def.id)
+      }
+    }
+  }
+
   startAll(): void {
     for (const def of SERVICE_DEFS) {
-      if (this.config[def.id] ?? true) {
+      if (this.enabled[def.id] ?? true) {
         this.startService(def.id)
       }
     }
@@ -115,13 +145,15 @@ export class ServiceManager {
     }
   }
 
+  // ── Private ─────────────────────────────────────────────────────────────────
+
   private startService(id: string): void {
     this.stopService(id)
 
     const def = SERVICE_DEFS.find((d) => d.id === id)!
     const scriptPath = join(this.servicesDir(), def.script)
 
-    const child = spawn('python', [scriptPath], {
+    const child = spawn(this.pythonPath, [scriptPath], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 

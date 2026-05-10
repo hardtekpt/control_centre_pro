@@ -27,7 +27,11 @@ def main() -> None:
             MicMuteEvent, ConnectivityEvent,
         )
     except ImportError as exc:
-        emit({"type": "fatal", "message": f"arctis_hid package not found: {exc}"})
+        emit({"type": "fatal", "message": (
+            f"arctis_hid package not found: {exc}. "
+            f"Install it with: {sys.executable} -m pip install "
+            f"git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development"
+        )})
         sys.exit(1)
 
     while True:

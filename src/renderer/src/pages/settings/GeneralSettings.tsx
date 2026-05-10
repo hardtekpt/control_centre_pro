@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ServiceInfo } from '@shared/types'
@@ -10,8 +11,26 @@ export function GeneralSettings(): JSX.Element {
   const { theme, setTheme } = useAppStore()
   const { services } = useServiceStore()
 
+  // Python path input — local state so edits don't round-trip through IPC
+  const [pythonPath, setPythonPathLocal] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    window.api.getServiceConfig().then((cfg) => setPythonPathLocal(cfg.pythonPath))
+  }, [])
+
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
+  }
+
+  function handleApplyPythonPath(): void {
+    const val = pythonPath.trim()
+    if (val) window.api.setPythonPath(val)
+  }
+
+  function handlePythonPathKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === 'Enter') handleApplyPythonPath()
+    if (e.key === 'Escape') inputRef.current?.blur()
   }
 
   return (
@@ -46,12 +65,50 @@ export function GeneralSettings(): JSX.Element {
       </SettingsSection>
 
       <SettingsSection title="Services">
+        {/* Python interpreter path — applies to all Python-based services */}
+        <SettingRow
+          label="Python executable"
+          helper="Path or command used to launch Python services (e.g. python, python3, C:\…\python.exe)"
+        >
+          <div className="flex items-center gap-1.5">
+            <input
+              ref={inputRef}
+              type="text"
+              className="text-sm mono px-2 py-1 rounded"
+              style={{
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                width: 180,
+              }}
+              value={pythonPath}
+              onChange={(e) => setPythonPathLocal(e.target.value)}
+              onKeyDown={handlePythonPathKeyDown}
+              spellCheck={false}
+            />
+            <button
+              onClick={handleApplyPythonPath}
+              className="text-xs px-2 py-1 rounded"
+              style={{
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                cursor: 'pointer',
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        </SettingRow>
+
         {services.length === 0 ? (
           <div
             className="px-4 py-3 text-sm"
             style={{
               background: 'var(--color-surface)',
               color: 'var(--color-text-secondary)',
+              borderTop: '1px solid var(--color-border)',
             }}
           >
             No services registered
@@ -68,7 +125,7 @@ export function GeneralSettings(): JSX.Element {
                 <span
                   className="text-xs mono"
                   style={{
-                    color: svc.running ? 'var(--color-text-secondary)' : 'var(--color-text-secondary)',
+                    color: 'var(--color-text-secondary)',
                     opacity: svc.enabled ? 1 : 0.5,
                   }}
                 >

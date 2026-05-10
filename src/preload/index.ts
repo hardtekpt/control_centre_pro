@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, ServiceInfo, LogEntry, ArctisState } from '../shared/types'
+import type { NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../shared/types'
 
 /**
  * The typed API exposed to the renderer via contextBridge.
@@ -57,6 +57,12 @@ const api = {
 
   setServiceEnabled: (id: string, enabled: boolean): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SERVICES_SET_ENABLED, id, enabled),
+
+  getServiceConfig: (): Promise<ServiceConfig> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SERVICES_GET_CONFIG),
+
+  setPythonPath: (path: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SERVICES_SET_PYTHON_PATH, path),
 
   onServicesStateChange: (callback: (services: ServiceInfo[]) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, services: ServiceInfo[]): void =>

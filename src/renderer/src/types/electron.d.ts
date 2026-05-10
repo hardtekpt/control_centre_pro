@@ -1,4 +1,4 @@
-import type { NavigateTarget, ServiceInfo, LogEntry, ArctisState } from '../../../shared/types'
+import type { NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../../../shared/types'
 
 /**
  * TypeScript declarations for the API exposed by the preload script via
@@ -33,6 +33,8 @@ declare global {
     setServiceEnabled: (id: string, enabled: boolean) => Promise<void>
     onServicesStateChange: (callback: (services: ServiceInfo[]) => void) => () => void
     onServiceLog: (callback: (entry: LogEntry) => void) => () => void
+    getServiceConfig: () => Promise<ServiceConfig>
+    setPythonPath: (path: string) => Promise<void>
 
     // Arctis Nova Pro HID
     arctisGetState: () => Promise<ArctisState | null>

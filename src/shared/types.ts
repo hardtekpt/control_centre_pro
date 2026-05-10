@@ -28,6 +28,8 @@ export const IPC_CHANNELS = {
   SERVICES_LIST: 'services:list',           // renderer → main invoke
   SERVICES_SET_ENABLED: 'services:setEnabled', // renderer → main invoke
   SERVICES_STATE_CHANGE: 'services:stateChange', // main → renderer push
+  SERVICES_GET_CONFIG: 'services:getConfig', // renderer → main invoke
+  SERVICES_SET_PYTHON_PATH: 'services:setPythonPath', // renderer → main invoke
 
   // Per-service log stream
   SERVICE_LOG: 'service:log',               // main → renderer push
@@ -84,6 +86,11 @@ export interface ServiceInfo {
   description: string
   enabled: boolean
   running: boolean
+}
+
+/** Global configuration for all services */
+export interface ServiceConfig {
+  pythonPath: string
 }
 
 /** A single log entry emitted by a background service */
