@@ -4,14 +4,14 @@ import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 
 /**
- * Root component — decides which top-level layout to render.
- * Also handles theme application and window state synchronisation.
+ * Root component — decides which top-level layout to render and wires up
+ * cross-cutting effects: theme, window state sync, menu navigation, and
+ * global keyboard shortcuts.
  */
 export default function App(): JSX.Element {
-  const { currentView, theme, setMaximized } = useAppStore()
+  const { currentView, theme, setMaximized, setView, setSettingsTab, toggleSidebar } = useAppStore()
 
-  // Apply / remove the data-theme attribute on <html> whenever theme changes.
-  // CSS variables defined in globals.css react to this attribute.
+  // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'dark') {
@@ -19,7 +19,6 @@ export default function App(): JSX.Element {
     } else if (theme === 'light') {
       root.removeAttribute('data-theme')
     } else {
-      // 'system' — follow the OS color scheme preference
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
       prefersDark
         ? root.setAttribute('data-theme', 'dark')
@@ -27,16 +26,40 @@ export default function App(): JSX.Element {
     }
   }, [theme])
 
-  // Keep isMaximized in sync with the real window state.
-  // The main process pushes events when the window is maximized / restored.
+  // Sync isMaximized with real window state
   useEffect(() => {
-    // Check the current state on mount
     window.api.isMaximized().then(setMaximized)
-
-    // Subscribe to future state changes
     const cleanup = window.api.onWindowStateChange(setMaximized)
     return cleanup
   }, [setMaximized])
+
+  // Handle navigation events pushed from the main process (e.g. via File menu)
+  useEffect(() => {
+    const cleanup = window.api.onNavigate((target) => {
+      if (target === 'settings') {
+        setView('settings')
+      } else if (target === 'settings:about') {
+        setView('settings')
+        setSettingsTab('about')
+      } else if (target === 'home') {
+        setView('home')
+      }
+    })
+    return cleanup
+  }, [setView, setSettingsTab])
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      // Ctrl+B — toggle sidebar (matches Claude Code convention)
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault()
+        toggleSidebar()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [toggleSidebar])
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>

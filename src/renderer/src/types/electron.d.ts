@@ -1,23 +1,23 @@
+import type { NavigateTarget } from '../../../shared/types'
+
 /**
- * TypeScript declarations for the API exposed by the preload script.
- * The preload calls contextBridge.exposeInMainWorld('api', ...) which puts
- * this object on window.api — but TypeScript doesn't know about it unless
- * we declare it here.
+ * TypeScript declarations for the API exposed by the preload script via
+ * contextBridge.exposeInMainWorld('api', ...).
+ * These must stay in sync with src/preload/index.ts.
  */
 interface Window {
   api: {
-    /** Minimize the application window */
+    // Window controls
     minimize: () => Promise<void>
-    /** Toggle maximize / restore the application window */
     maximize: () => Promise<void>
-    /** Close the application window */
     close: () => Promise<void>
-    /** Returns true if the window is currently maximized */
     isMaximized: () => Promise<boolean>
-    /**
-     * Subscribe to window maximize / restore events.
-     * Returns a cleanup function — call it in useEffect's return.
-     */
     onWindowStateChange: (callback: (isMaximized: boolean) => void) => () => void
+
+    // Native app menu
+    showMenu: (x: number, y: number) => Promise<void>
+
+    // Navigation pushed from main process
+    onNavigate: (callback: (target: NavigateTarget) => void) => () => void
   }
 }

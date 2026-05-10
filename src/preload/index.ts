@@ -1,40 +1,54 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
+import type { NavigateTarget } from '../shared/types'
 
 /**
- * The API surface exposed to the renderer via contextBridge.
- * The renderer calls window.api.xxx() — it never sees ipcRenderer directly.
- * This keeps the renderer sandboxed while still allowing controlled IPC.
+ * The typed API exposed to the renderer via contextBridge.
+ * Renderer calls window.api.xxx() — it never sees ipcRenderer directly.
  */
 const api = {
-  /** Minimize the application window */
+  // ── Window controls ────────────────────────────────────────────────────────
+
   minimize: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
 
-  /** Toggle maximize / restore the application window */
   maximize: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MAXIMIZE),
 
-  /** Close the application window */
   close: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
 
-  /** Returns true if the window is currently maximized */
   isMaximized: (): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.WINDOW_IS_MAXIMIZED),
 
-  /**
-   * Subscribe to window maximize / restore events pushed from the main process.
-   * Returns a cleanup function — call it in useEffect's return to unsubscribe.
-   */
   onWindowStateChange: (callback: (isMaximized: boolean) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, isMaximized: boolean): void =>
       callback(isMaximized)
     ipcRenderer.on(IPC_CHANNELS.WINDOW_STATE_CHANGE, handler)
-    // Return a cleanup function so React can call it on unmount
     return () => ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE_CHANGE, handler)
+  },
+
+  // ── Native app menu ────────────────────────────────────────────────────────
+
+  /**
+   * Pop up the native OS application menu at the given screen coordinates.
+   * Pass the button's bounding rect bottom-left corner for a natural dropdown.
+   */
+  showMenu: (x: number, y: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MENU_SHOW, x, y),
+
+  // ── Navigation events from main process ────────────────────────────────────
+
+  /**
+   * Subscribe to navigation events pushed from menu click handlers.
+   * Returns a cleanup function — call it in useEffect's return.
+   */
+  onNavigate: (callback: (target: NavigateTarget) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, target: NavigateTarget): void =>
+      callback(target)
+    ipcRenderer.on(IPC_CHANNELS.NAVIGATE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.NAVIGATE, handler)
   },
 }
 
-// Expose the API on window.api — accessible from any renderer component
 contextBridge.exposeInMainWorld('api', api)

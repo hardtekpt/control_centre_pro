@@ -14,6 +14,12 @@ export const IPC_CHANNELS = {
   WINDOW_IS_MAXIMIZED: 'window:isMaximized',
   WINDOW_STATE_CHANGE: 'window:stateChange', // main → renderer push event
 
+  // Native app menu popup
+  MENU_SHOW: 'menu:show',
+
+  // Navigation events pushed from main process (e.g. via menu actions)
+  NAVIGATE: 'app:navigate',
+
   // Persistent settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
@@ -45,3 +51,6 @@ export type AppView = 'home' | 'settings'
 
 /** Tabs within the settings view */
 export type SettingsTab = 'general' | 'about'
+
+/** Navigate targets that can be pushed from the main process */
+export type NavigateTarget = AppView | 'settings:about'
