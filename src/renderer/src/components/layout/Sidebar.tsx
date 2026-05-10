@@ -6,8 +6,7 @@ import type { AppView } from '@shared/types'
 
 const SIDEBAR_MIN_WIDTH = 180
 const SIDEBAR_MAX_WIDTH = 320
-const SIDEBAR_COLLAPSED_WIDTH = 48
-const SIDEBAR_FLOAT_GAP = 6  // px gap on left / top / bottom from window edges
+const SIDEBAR_FLOAT_GAP = 6
 const SIDEBAR_RADIUS = 10
 
 // ─── Nav item definitions ─────────────────────────────────────────────────────
@@ -25,36 +24,17 @@ const MAIN_NAV: NavItemDef[] = [
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 /**
- * Floating collapsible sidebar.
- *
- * Floating effect: outer div carries the margin (gap from window edges);
- * inner card has border-radius, border, and overflow-hidden.
- * The resize handle lives on the outer div so it isn't clipped by border-radius.
- *
- * Peek: when collapsed, hovering the sidebar-toggle icon in TopBar calls
- * showPeek() which temporarily sets sidebarPeek=true.  Moving into the
- * sidebar calls cancelPeekHide() so the peek persists while the user browses.
- * Moving away schedules the hide with a 180ms delay.
+ * Floating sidebar — rendered only when not collapsed.
+ * Outer div carries margin (gap from window edges); inner card has
+ * border-radius + overflow-hidden. Resize handle is on the outer div
+ * so it isn't clipped by the border-radius.
  */
 export function Sidebar(): JSX.Element {
-  const {
-    sidebarCollapsed,
-    sidebarPeek,
-    sidebarWidth,
-    currentView,
-    setSidebarWidth,
-    setView,
-    cancelPeekHide,
-    schedulePeekHide,
-  } = useAppStore()
+  const { sidebarWidth, currentView, setSidebarWidth, setView } = useAppStore()
 
   const isResizing = useRef(false)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
-
-  // The sidebar shows at full width when: not collapsed, OR peek is active
-  const isExpanded = !sidebarCollapsed || sidebarPeek
-  const effectiveWidth = isExpanded ? sidebarWidth : SIDEBAR_COLLAPSED_WIDTH
 
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -92,18 +72,9 @@ export function Sidebar(): JSX.Element {
     <div
       className="relative flex-shrink-0 flex flex-col"
       style={{
-        width: effectiveWidth,
-        // top:6 right:0 bottom:8 left:6
+        width: sidebarWidth,
         margin: `${SIDEBAR_FLOAT_GAP}px 0 8px ${SIDEBAR_FLOAT_GAP}px`,
-        // Peek: fast transition; normal toggle: 150ms
-        transition: sidebarPeek
-          ? 'width 100ms ease'
-          : 'width 150ms ease',
       }}
-      // Peek mouse-enter: cancel any pending hide timer
-      onMouseEnter={() => { if (sidebarCollapsed) cancelPeekHide() }}
-      // Peek mouse-leave: schedule the hide
-      onMouseLeave={() => { if (sidebarCollapsed) schedulePeekHide() }}
     >
       {/* ── Inner floating card ────────────────────────────────────────────── */}
       <div
@@ -111,7 +82,6 @@ export function Sidebar(): JSX.Element {
         style={{
           background: 'var(--color-surface)',
           borderRadius: SIDEBAR_RADIUS,
-          // Subtle border makes the floating card visible against the bg
           border: '1px solid var(--color-border)',
         }}
       >
@@ -122,39 +92,35 @@ export function Sidebar(): JSX.Element {
               key={item.id}
               item={item}
               isActive={currentView === item.id}
-              collapsed={!isExpanded}
               onClick={() => setView(item.id as AppView)}
             />
           ))}
         </nav>
 
-        {/* Settings — no top divider, just natural spacing */}
+        {/* Settings */}
         <div className="pb-2 px-1.5">
           <NavButton
             item={{ id: 'settings', label: 'Settings', icon: <CogIcon /> }}
             isActive={currentView === 'settings'}
-            collapsed={!isExpanded}
             onClick={() => setView('settings')}
           />
         </div>
       </div>
 
       {/* Resize handle — on outer div, not clipped by border-radius */}
-      {!sidebarCollapsed && (
-        <div
-          onMouseDown={handleResizeMouseDown}
-          className="absolute top-0 right-0 bottom-0 z-20"
-          style={{ width: 6, cursor: 'col-resize' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--color-accent)'
-            e.currentTarget.style.opacity = '0.35'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.opacity = '1'
-          }}
-        />
-      )}
+      <div
+        onMouseDown={handleResizeMouseDown}
+        className="absolute top-0 right-0 bottom-0 z-20"
+        style={{ width: 6, cursor: 'col-resize' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--color-accent)'
+          e.currentTarget.style.opacity = '0.35'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.opacity = '1'
+        }}
+      />
     </div>
   )
 }
@@ -164,22 +130,19 @@ export function Sidebar(): JSX.Element {
 interface NavButtonProps {
   item: NavItemDef
   isActive: boolean
-  collapsed: boolean
   onClick: () => void
 }
 
-function NavButton({ item, isActive, collapsed, onClick }: NavButtonProps): JSX.Element {
+function NavButton({ item, isActive, onClick }: NavButtonProps): JSX.Element {
   return (
     <button
       onClick={onClick}
-      title={collapsed ? item.label : undefined}
       className="flex items-center gap-2.5 w-full rounded-lg px-2 py-2 text-sm transition-colors duration-100"
       style={{
         background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
         color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
         border: 'none',
         textAlign: 'left',
-        justifyContent: collapsed ? 'center' : 'flex-start',
         cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
@@ -198,9 +161,7 @@ function NavButton({ item, isActive, collapsed, onClick }: NavButtonProps): JSX.
       <span className="shrink-0 w-4 h-4 flex items-center justify-center">
         {item.icon}
       </span>
-      {!collapsed && (
-        <span className="truncate leading-none">{item.label}</span>
-      )}
+      <span className="truncate leading-none">{item.label}</span>
     </button>
   )
 }
@@ -215,7 +176,6 @@ function HomeIcon(): JSX.Element {
   )
 }
 
-/** Traditional gear/cog icon with 8 teeth — Feather-icon style */
 function CogIcon(): JSX.Element {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
