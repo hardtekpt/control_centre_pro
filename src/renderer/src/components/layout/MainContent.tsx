@@ -1,9 +1,14 @@
 import { useAppStore } from '../../stores/appStore'
 import { Home } from '../../pages/Home'
 
+const FLOAT_GAP = 6 // matches Sidebar's SIDEBAR_FLOAT_GAP
+
 /**
- * Main content area — renders whichever page the user has navigated to.
- * New pages: add a case here and a NavItemDef entry in Sidebar.tsx.
+ * Main content area — renders the active page.
+ * Top/right/bottom padding matches the sidebar's float gap so the visual
+ * baseline of the content aligns with the top of the floating sidebar card.
+ *
+ * New pages: add a case here and a NavItemDef in Sidebar.tsx.
  */
 export function MainContent(): JSX.Element {
   const { currentView } = useAppStore()
@@ -11,9 +16,15 @@ export function MainContent(): JSX.Element {
   return (
     <main
       className="flex-1 overflow-y-auto selectable"
-      style={{ background: 'var(--color-bg)' }}
+      style={{
+        background: 'var(--color-bg)',
+        padding: `${FLOAT_GAP}px ${FLOAT_GAP}px ${FLOAT_GAP}px 0`,
+      }}
     >
-      {currentView === 'home' && <Home />}
+      {/* Inner card that mirrors the floating sidebar card height */}
+      <div className="h-full">
+        {currentView === 'home' && <Home />}
+      </div>
     </main>
   )
 }

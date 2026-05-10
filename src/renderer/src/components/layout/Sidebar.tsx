@@ -6,7 +6,9 @@ import type { AppView } from '@shared/types'
 
 const SIDEBAR_MIN_WIDTH = 180
 const SIDEBAR_MAX_WIDTH = 320
-const SIDEBAR_COLLAPSED_WIDTH = 56 // Icon-only mode
+const SIDEBAR_COLLAPSED_WIDTH = 48 // Icon-only mode
+const SIDEBAR_FLOAT_GAP = 6       // px gap between sidebar and window edges
+const SIDEBAR_RADIUS = 10         // px border-radius on the floating card
 
 // ─── Nav item definitions ─────────────────────────────────────────────────────
 
@@ -16,35 +18,34 @@ interface NavItemDef {
   icon: JSX.Element
 }
 
-/** Main navigation items shown in the sidebar body */
+/** Main navigation items — add new sections here */
 const MAIN_NAV: NavItemDef[] = [
-  {
-    id: 'home',
-    label: 'Home',
-    icon: <HomeIcon />,
-  },
+  { id: 'home', label: 'Home', icon: <HomeIcon /> },
 ]
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 /**
- * Collapsible left sidebar with drag-to-resize.
+ * Floating collapsible left sidebar.
  *
- * Collapse: clicking the chevron button toggles icon-only mode (56px wide).
- * Resize:   dragging the right edge lets the user set any width between
- *           SIDEBAR_MIN_WIDTH and SIDEBAR_MAX_WIDTH.
+ * Visual structure:
+ *  - An outer positioning div (handles margin / width / resize dragging)
+ *  - An inner rounded card (background, border-radius, overflow-hidden)
+ *    so the content is cleanly clipped to the rounded shape
+ *
+ * Collapse: toggled by the hamburger icon in TopBar (calls toggleSidebar in store).
+ * Resize:   drag the right edge (outside the rounded card) to set any width
+ *           between SIDEBAR_MIN_WIDTH and SIDEBAR_MAX_WIDTH.
  */
 export function Sidebar(): JSX.Element {
   const {
     sidebarCollapsed,
     sidebarWidth,
     currentView,
-    toggleSidebar,
     setSidebarWidth,
     setView,
   } = useAppStore()
 
-  // Refs for tracking the drag state — we don't want React re-renders mid-drag
   const isResizing = useRef(false)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
@@ -52,9 +53,9 @@ export function Sidebar(): JSX.Element {
   const effectiveWidth = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth
 
   /**
-   * Starts a drag-resize session when the user presses down on the resize handle.
-   * Global mouse listeners are added so the drag works even when the cursor moves
-   * outside the handle area (common when dragging quickly).
+   * Begin a drag-resize session when the user presses on the resize handle.
+   * Global listeners are added so the drag continues even when the cursor
+   * moves outside the handle strip.
    */
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -63,14 +64,14 @@ export function Sidebar(): JSX.Element {
       dragStartX.current = e.clientX
       dragStartWidth.current = sidebarWidth
 
-      const onMouseMove = (moveEvent: MouseEvent): void => {
+      const onMouseMove = (ev: MouseEvent): void => {
         if (!isResizing.current) return
-        const delta = moveEvent.clientX - dragStartX.current
-        const newWidth = Math.min(
+        const delta = ev.clientX - dragStartX.current
+        const next = Math.min(
           SIDEBAR_MAX_WIDTH,
           Math.max(SIDEBAR_MIN_WIDTH, dragStartWidth.current + delta)
         )
-        setSidebarWidth(newWidth)
+        setSidebarWidth(next)
       }
 
       const onMouseUp = (): void => {
@@ -83,7 +84,6 @@ export function Sidebar(): JSX.Element {
 
       document.addEventListener('mousemove', onMouseMove)
       document.addEventListener('mouseup', onMouseUp)
-      // Lock cursor and disable text selection during drag
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
     },
@@ -91,83 +91,86 @@ export function Sidebar(): JSX.Element {
   )
 
   return (
-    <aside
-      className="relative flex flex-col shrink-0 h-full overflow-hidden"
+    /*
+     * Outer div: controls width + floating margin + transition.
+     * Does NOT have overflow-hidden so the resize handle extends to its edge.
+     */
+    <div
+      className="relative flex-shrink-0 flex flex-col"
       style={{
         width: effectiveWidth,
-        minWidth: effectiveWidth,
-        background: 'var(--color-surface)',
-        borderRight: '1px solid var(--color-border)',
-        transition: 'width 150ms ease, min-width 150ms ease',
+        margin: `${SIDEBAR_FLOAT_GAP}px 0 ${SIDEBAR_FLOAT_GAP}px ${SIDEBAR_FLOAT_GAP}px`,
+        transition: sidebarCollapsed
+          ? 'width 150ms ease'
+          : 'width 0ms', // instant while dragging
       }}
     >
-      {/* ── Collapse / expand toggle ── */}
-      <button
-        onClick={toggleSidebar}
-        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className="absolute top-3 -right-3 z-20 w-6 h-6 rounded-full flex items-center justify-center transition-colors duration-100"
+      {/*
+       * Inner card: the visible floating surface.
+       * border-radius + overflow-hidden ensure content clips to rounded shape.
+       */}
+      <div
+        className="flex flex-col flex-1 overflow-hidden"
         style={{
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text-secondary)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--color-accent)'
-          e.currentTarget.style.color = 'var(--color-accent)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'var(--color-border)'
-          e.currentTarget.style.color = 'var(--color-text-secondary)'
+          background: 'var(--color-surface)',
+          borderRadius: SIDEBAR_RADIUS,
         }}
       >
-        <ChevronIcon collapsed={sidebarCollapsed} />
-      </button>
+        {/* ── Main nav ── */}
+        <nav className="flex-1 overflow-y-auto py-2 px-1.5">
+          {MAIN_NAV.map((item) => (
+            <NavButton
+              key={item.id}
+              item={item}
+              isActive={currentView === item.id}
+              collapsed={sidebarCollapsed}
+              onClick={() => setView(item.id as AppView)}
+            />
+          ))}
+        </nav>
 
-      {/* ── Main nav items ── */}
-      <nav className="flex-1 overflow-y-auto py-2 px-1">
-        {MAIN_NAV.map((item) => (
+        {/* ── Footer: Settings ── */}
+        <div
+          className="py-2 px-1.5"
+          style={{ borderTop: '1px solid var(--color-border)' }}
+        >
           <NavButton
-            key={item.id}
-            item={item}
-            isActive={currentView === item.id}
+            item={{ id: 'settings', label: 'Settings', icon: <SettingsIcon /> }}
+            isActive={currentView === 'settings'}
             collapsed={sidebarCollapsed}
-            onClick={() => setView(item.id as AppView)}
+            onClick={() => setView('settings')}
           />
-        ))}
-      </nav>
-
-      {/* ── Footer: Settings ── */}
-      <div className="py-2 px-1" style={{ borderTop: '1px solid var(--color-border)' }}>
-        <NavButton
-          item={{ id: 'settings', label: 'Settings', icon: <SettingsIcon /> }}
-          isActive={currentView === 'settings'}
-          collapsed={sidebarCollapsed}
-          onClick={() => setView('settings')}
-        />
+        </div>
       </div>
 
-      {/* ── Resize handle (hidden when collapsed) ── */}
+      {/* ── Resize handle ─────────────────────────────────────────────────── */}
+      {/*
+       * Positioned on the outer div (outside the rounded card) so it spans
+       * the full height and triggers resize from the true right edge.
+       */}
       {!sidebarCollapsed && (
         <div
           onMouseDown={handleResizeMouseDown}
-          className="absolute right-0 top-0 bottom-0 w-1 z-10 cursor-col-resize"
+          className="absolute top-0 right-0 bottom-0 z-20"
+          style={{
+            width: 6,
+            cursor: 'col-resize',
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--color-accent)'
-            e.currentTarget.style.opacity = '0.4'
+            e.currentTarget.style.opacity = '0.35'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent'
             e.currentTarget.style.opacity = '1'
           }}
-          style={{ background: 'transparent', transition: 'background 100ms ease' }}
         />
       )}
-    </aside>
+    </div>
   )
 }
 
-// ─── Nav Button ───────────────────────────────────────────────────────────────
+// ─── Nav button ───────────────────────────────────────────────────────────────
 
 interface NavButtonProps {
   item: NavItemDef
@@ -177,21 +180,22 @@ interface NavButtonProps {
 }
 
 /**
- * A single navigation row in the sidebar.
- * In collapsed mode only the icon is visible; the label is shown as a tooltip.
+ * A single nav row.  In collapsed mode only the icon is visible (label
+ * shown as a native tooltip via `title`).
  */
 function NavButton({ item, isActive, collapsed, onClick }: NavButtonProps): JSX.Element {
   return (
     <button
       onClick={onClick}
       title={collapsed ? item.label : undefined}
-      className="flex items-center gap-2.5 w-full rounded-md px-2 py-2 text-sm transition-colors duration-100"
+      className="flex items-center gap-2.5 w-full rounded-lg px-2 py-2 text-sm transition-colors duration-100"
       style={{
         background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
         color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
         border: 'none',
         textAlign: 'left',
         justifyContent: collapsed ? 'center' : 'flex-start',
+        cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
         if (!isActive) {
@@ -217,26 +221,6 @@ function NavButton({ item, isActive, collapsed, onClick }: NavButtonProps): JSX.
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-
-function ChevronIcon({ collapsed }: { collapsed: boolean }): JSX.Element {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      style={{
-        transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-        transition: 'transform 150ms ease',
-      }}
-    >
-      <path d="M6.5 2L3 5l3.5 3" />
-    </svg>
-  )
-}
 
 function HomeIcon(): JSX.Element {
   return (
