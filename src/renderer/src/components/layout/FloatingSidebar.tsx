@@ -66,10 +66,9 @@ export function FloatingSidebar(): JSX.Element | null {
         ))}
       </nav>
 
-      {/* Settings */}
-      <div className="pb-2 px-1.5">
-        <NavButton
-          item={{ id: 'settings', label: 'Settings', icon: <CogIcon /> }}
+      {/* Settings chip */}
+      <div className="p-2">
+        <SettingsChip
           isActive={currentView === 'settings'}
           onClick={() => setView('settings')}
         />
@@ -78,6 +77,64 @@ export function FloatingSidebar(): JSX.Element | null {
   )
 
   return ReactDOM.createPortal(panel, document.body)
+}
+
+// ─── Settings chip ────────────────────────────────────────────────────────────
+
+interface SettingsChipProps {
+  isActive: boolean
+  onClick: () => void
+}
+
+function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Settings"
+      className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 transition-colors duration-100"
+      style={{
+        background: isActive ? 'var(--color-accent-subtle)' : 'var(--color-surface-raised)',
+        border: '1px solid var(--color-border)',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--color-hover-overlay)'
+          e.currentTarget.style.borderColor = 'var(--color-text-secondary)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--color-surface-raised)'
+          e.currentTarget.style.borderColor = 'var(--color-border)'
+        }
+      }}
+    >
+      {/* Icon badge */}
+      <span
+        className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md"
+        style={{
+          background: isActive ? 'var(--color-accent)' : 'var(--color-border)',
+          color: isActive ? 'var(--color-surface)' : 'var(--color-text-secondary)',
+        }}
+      >
+        <CogIcon />
+      </span>
+
+      {/* Label */}
+      <span
+        className="flex-1 text-sm text-left truncate leading-none"
+        style={{ color: isActive ? 'var(--color-accent)' : 'var(--color-text-primary)' }}
+      >
+        Settings
+      </span>
+
+      {/* Chevron */}
+      <span style={{ color: 'var(--color-text-secondary)' }}>
+        <ChevronDownIcon />
+      </span>
+    </button>
+  )
 }
 
 // ─── Nav button ───────────────────────────────────────────────────────────────
@@ -133,9 +190,17 @@ function HomeIcon(): JSX.Element {
 
 function CogIcon(): JSX.Element {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon(): JSX.Element {
+  return (
+    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 1l4 4 4-4" />
     </svg>
   )
 }
