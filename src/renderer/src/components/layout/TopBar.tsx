@@ -1,36 +1,52 @@
+import { useRef } from 'react'
 import { useAppStore } from '../../stores/appStore'
 
 /**
- * Custom frameless title bar.
+ * Custom frameless title bar — same background as the main canvas so there
+ * is no visual divider between the bar and the content below it.
  *
- * Left icon toolbar (left → right):
- *   1. Hamburger  → opens the native OS application menu (File/Edit/View/Help)
- *   2. Sidebar    → click to toggle; hover when collapsed shows a peek preview
- *   3. Search     → placeholder
- *   4. Back/Fwd   → placeholder navigation arrows (disabled)
+ * Left toolbar icons:
+ *  1. Hamburger     → native OS application menu (File / Edit / View / Help)
+ *  2. Sidebar       → click toggles; hover while collapsed shows floating peek
+ *                     icon changes to reflect current collapsed/expanded state
+ *  3. Search        → placeholder
+ *  4. Back / Fwd    → disabled navigation arrows
  *
  * Right: Windows window controls (— □ ×)
- * The whole bar is a drag region; interactive elements opt out via no-drag.
- *
- * Top bar uses var(--color-bg) — same as the main content area — so there
- * is no visual separation between the bar and the canvas beneath it.
  */
 export function TopBar(): JSX.Element {
-  const { isMaximized, sidebarCollapsed, toggleSidebar, showPeek, schedulePeekHide } =
-    useAppStore()
+  const {
+    isMaximized,
+    sidebarCollapsed,
+    toggleSidebar,
+    showPeek,
+    schedulePeekHide,
+  } = useAppStore()
 
-  /** Open the native application menu below the hamburger button */
+  /** Ref attached to the sidebar-toggle button so we can read its position */
+  const sidebarBtnRef = useRef<HTMLButtonElement>(null)
+
+  /** Open the native app menu below the hamburger button */
   const handleShowMenu = (e: React.MouseEvent<HTMLButtonElement>): void => {
     const rect = e.currentTarget.getBoundingClientRect()
     window.api.showMenu(Math.round(rect.left), Math.round(rect.bottom))
+  }
+
+  /** When hovering the sidebar button, capture its position and show peek */
+  const handleSidebarBtnEnter = (): void => {
+    const btn = sidebarBtnRef.current
+    if (btn) {
+      const rect = btn.getBoundingClientRect()
+      showPeek({ x: rect.left, bottom: rect.bottom })
+    }
   }
 
   return (
     <div
       className="flex items-center h-10 shrink-0 select-none"
       style={{
-        // Same color as the main canvas — no divider, seamless with the content
         background: 'var(--color-bg)',
+        // No borderBottom — top bar blends into the canvas
         WebkitAppRegion: 'drag' as React.CSSProperties['WebkitAppRegion'],
       }}
     >
@@ -44,14 +60,15 @@ export function TopBar(): JSX.Element {
           <HamburgerIcon />
         </ToolbarBtn>
 
-        {/* 2. Sidebar toggle — hover shows peek when collapsed */}
+        {/* 2. Sidebar toggle — icon reflects collapsed/expanded state */}
         <ToolbarBtn
+          ref={sidebarBtnRef}
           onClick={toggleSidebar}
           label={sidebarCollapsed ? 'Expand sidebar · Ctrl+B' : 'Collapse sidebar · Ctrl+B'}
-          onMouseEnter={() => showPeek()}
-          onMouseLeave={() => schedulePeekHide()}
+          onMouseEnter={handleSidebarBtnEnter}
+          onMouseLeave={schedulePeekHide}
         >
-          <SidebarIcon />
+          {sidebarCollapsed ? <SidebarClosedIcon /> : <SidebarOpenIcon />}
         </ToolbarBtn>
 
         {/* 3. Search */}
@@ -59,13 +76,13 @@ export function TopBar(): JSX.Element {
           <SearchIcon />
         </ToolbarBtn>
 
-        {/* Thin vertical divider */}
+        {/* Divider */}
         <div
           className="mx-0.5 h-4 w-px shrink-0"
           style={{ background: 'var(--color-border)' }}
         />
 
-        {/* 4. Navigation arrows (disabled — placeholder) */}
+        {/* 4. Nav arrows */}
         <ToolbarBtn onClick={() => {}} label="Go back" disabled>
           <BackArrowIcon />
         </ToolbarBtn>
@@ -77,7 +94,7 @@ export function TopBar(): JSX.Element {
       {/* ── Drag spacer ────────────────────────────────────────────────────── */}
       <div className="flex-1" />
 
-      {/* ── Right: Windows window controls ────────────────────────────────── */}
+      {/* ── Right: window controls ─────────────────────────────────────────── */}
       <div
         className="flex items-center h-full"
         style={{ WebkitAppRegion: 'no-drag' as React.CSSProperties['WebkitAppRegion'] }}
@@ -101,6 +118,8 @@ export function TopBar(): JSX.Element {
 
 // ─── Toolbar button ───────────────────────────────────────────────────────────
 
+import { forwardRef } from 'react'
+
 interface ToolbarBtnProps {
   children: React.ReactNode
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void
@@ -110,16 +129,10 @@ interface ToolbarBtnProps {
   onMouseLeave?: () => void
 }
 
-function ToolbarBtn({
-  children,
-  onClick,
-  label,
-  disabled = false,
-  onMouseEnter,
-  onMouseLeave,
-}: ToolbarBtnProps): JSX.Element {
-  return (
+const ToolbarBtn = forwardRef<HTMLButtonElement, ToolbarBtnProps>(
+  ({ children, onClick, label, disabled = false, onMouseEnter, onMouseLeave }, ref) => (
     <button
+      ref={ref}
       onClick={onClick}
       aria-label={label}
       title={label}
@@ -141,13 +154,16 @@ function ToolbarBtn({
       onMouseLeave={(e) => {
         onMouseLeave?.()
         e.currentTarget.style.background = 'transparent'
-        e.currentTarget.style.color = disabled ? 'var(--color-border)' : 'var(--color-text-secondary)'
+        e.currentTarget.style.color = disabled
+          ? 'var(--color-border)'
+          : 'var(--color-text-secondary)'
       }}
     >
       {children}
     </button>
   )
-}
+)
+ToolbarBtn.displayName = 'ToolbarBtn'
 
 // ─── Window control button ────────────────────────────────────────────────────
 
@@ -191,12 +207,43 @@ function HamburgerIcon(): JSX.Element {
   )
 }
 
-/** Window-with-left-panel sidebar icon */
-function SidebarIcon(): JSX.Element {
+/**
+ * Sidebar is OPEN — left panel divider is solid, indicating the sidebar is visible.
+ * Clicking will collapse the sidebar.
+ */
+function SidebarOpenIcon(): JSX.Element {
   return (
     <svg width="16" height="13" viewBox="0 0 16 13" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
       <rect x="0.625" y="0.625" width="14.75" height="11.75" rx="2.375" />
+      {/* Solid left panel divider — sidebar is visible */}
       <line x1="5.25" y1="0.625" x2="5.25" y2="12.375" />
+    </svg>
+  )
+}
+
+/**
+ * Sidebar is CLOSED — left panel section is filled/shaded, showing the sidebar
+ * is tucked away. The dashed divider suggests it can be revealed.
+ * Hovering shows the floating peek panel; clicking expands the sidebar.
+ */
+function SidebarClosedIcon(): JSX.Element {
+  return (
+    <svg width="16" height="13" viewBox="0 0 16 13" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      {/* Outer window frame */}
+      <rect x="0.625" y="0.625" width="14.75" height="11.75" rx="2.375" />
+      {/* Filled left panel — sidebar area is "behind" the window */}
+      <path
+        d="M0.625 3A2.375 2.375 0 0 1 3 0.625h2.25V12.375H3A2.375 2.375 0 0 1 0.625 10V3z"
+        fill="currentColor"
+        fillOpacity="0.2"
+        stroke="none"
+      />
+      {/* Dashed divider indicating the hidden panel boundary */}
+      <line
+        x1="5.25" y1="0.625"
+        x2="5.25" y2="12.375"
+        strokeDasharray="2.5 2"
+      />
     </svg>
   )
 }
@@ -225,8 +272,6 @@ function ForwardArrowIcon(): JSX.Element {
     </svg>
   )
 }
-
-// ─── Window control icons ─────────────────────────────────────────────────────
 
 function MinimizeIcon(): JSX.Element {
   return (

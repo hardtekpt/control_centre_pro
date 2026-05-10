@@ -1,6 +1,9 @@
 import { TopBar } from '../layout/TopBar'
 import { SettingsSidebar } from './SettingsSidebar'
 import { GeneralSettings } from '../../pages/settings/GeneralSettings'
+import { AppSettings } from '../../pages/settings/AppSettings'
+import { GGSonarSettings } from '../../pages/settings/GGSonarSettings'
+import { DDCSettings } from '../../pages/settings/DDCSettings'
 import { About } from '../../pages/settings/About'
 import { useAppStore } from '../../stores/appStore'
 
@@ -27,6 +30,9 @@ export function SettingsLayout(): JSX.Element {
         >
           <div className="px-8 py-6">
             {currentSettingsTab === 'general' && <GeneralSettings />}
+            {currentSettingsTab === 'app' && <AppSettings />}
+            {currentSettingsTab === 'gg-sonar' && <GGSonarSettings />}
+            {currentSettingsTab === 'ddc' && <DDCSettings />}
             {currentSettingsTab === 'about' && <About />}
           </div>
         </main>

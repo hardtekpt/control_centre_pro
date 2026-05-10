@@ -47,10 +47,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
 // ─── Navigation ──────────────────────────────────────────────────────────────
 
 /** Top-level views the app can show */
-export type AppView = 'home' | 'settings'
+export type AppView =
+  | 'home'
+  | 'gg-sonar'
+  | 'shortcuts'
+  | 'sonar-preset-switcher'
+  | 'notifications'
+  | 'settings'
 
 /** Tabs within the settings view */
-export type SettingsTab = 'general' | 'about'
+export type SettingsTab = 'general' | 'app' | 'gg-sonar' | 'ddc' | 'about'
 
 /** Navigate targets that can be pushed from the main process */
 export type NavigateTarget = AppView | 'settings:about'

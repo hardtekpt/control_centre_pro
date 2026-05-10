@@ -1,5 +1,9 @@
 import { useAppStore } from '../../stores/appStore'
 import { Home } from '../../pages/Home'
+import { GGSonar } from '../../pages/GGSonar'
+import { Shortcuts } from '../../pages/Shortcuts'
+import { SonarPresetSwitcher } from '../../pages/SonarPresetSwitcher'
+import { Notifications } from '../../pages/Notifications'
 
 const FLOAT_GAP = 6 // matches Sidebar's SIDEBAR_FLOAT_GAP
 
@@ -24,6 +28,10 @@ export function MainContent(): JSX.Element {
       {/* Inner card that mirrors the floating sidebar card height */}
       <div className="h-full">
         {currentView === 'home' && <Home />}
+        {currentView === 'gg-sonar' && <GGSonar />}
+        {currentView === 'shortcuts' && <Shortcuts />}
+        {currentView === 'sonar-preset-switcher' && <SonarPresetSwitcher />}
+        {currentView === 'notifications' && <Notifications />}
       </div>
     </main>
   )
