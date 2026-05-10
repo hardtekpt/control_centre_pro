@@ -136,21 +136,15 @@ function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
       aria-label="Settings"
       className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 transition-colors duration-100"
       style={{
-        background: isActive ? 'var(--color-accent-subtle)' : 'var(--color-surface-raised)',
-        border: '1px solid var(--color-border)',
+        background: isActive ? 'var(--color-nav-active)' : 'var(--color-surface-raised)',
+        border: 'none',
         cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.background = 'var(--color-hover-overlay)'
-          e.currentTarget.style.borderColor = 'var(--color-text-secondary)'
-        }
+        if (!isActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
       }}
       onMouseLeave={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.background = 'var(--color-surface-raised)'
-          e.currentTarget.style.borderColor = 'var(--color-border)'
-        }
+        if (!isActive) e.currentTarget.style.background = 'var(--color-surface-raised)'
       }}
     >
       {/* Icon badge */}
@@ -166,8 +160,8 @@ function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
 
       {/* Label */}
       <span
-        className="flex-1 text-sm text-left truncate leading-none"
-        style={{ color: isActive ? 'var(--color-accent)' : 'var(--color-text-primary)' }}
+        className="flex-1 text-xs font-semibold text-left truncate leading-none"
+        style={{ color: isActive ? 'var(--color-text-primary)' : 'var(--color-nav-text)' }}
       >
         Settings
       </span>
@@ -192,10 +186,10 @@ function NavButton({ item, isActive, onClick }: NavButtonProps): JSX.Element {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 w-full rounded-lg px-2 py-2 mb-0.5 text-sm transition-colors duration-100"
+      className="flex items-center gap-2.5 w-full rounded-lg px-2 py-2 mb-0.5 text-sm font-medium transition-colors duration-100"
       style={{
         background: isActive ? 'var(--color-nav-active)' : 'transparent',
-        color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+        color: isActive ? 'var(--color-text-primary)' : 'var(--color-nav-text)',
         border: 'none',
         textAlign: 'left',
         cursor: 'pointer',
@@ -209,7 +203,7 @@ function NavButton({ item, isActive, onClick }: NavButtonProps): JSX.Element {
       onMouseLeave={(e) => {
         if (!isActive) {
           e.currentTarget.style.background = 'transparent'
-          e.currentTarget.style.color = 'var(--color-text-secondary)'
+          e.currentTarget.style.color = 'var(--color-nav-text)'
         }
       }}
     >

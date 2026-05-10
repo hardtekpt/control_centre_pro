@@ -43,9 +43,9 @@ export function SettingsSidebar(): JSX.Element {
         {/* Back to main app */}
         <button
           onClick={() => setView('home')}
-          className="flex items-center gap-2 w-full px-2 py-2 mb-1 rounded-lg text-sm transition-colors duration-100"
+          className="flex items-center gap-2 w-full px-2 py-2 mb-1 rounded-lg text-sm font-medium transition-colors duration-100"
           style={{
-            color: 'var(--color-text-secondary)',
+            color: 'var(--color-nav-text)',
             border: 'none',
             background: 'transparent',
             textAlign: 'left',
@@ -57,7 +57,7 @@ export function SettingsSidebar(): JSX.Element {
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.color = 'var(--color-text-secondary)'
+            e.currentTarget.style.color = 'var(--color-nav-text)'
           }}
         >
           <BackIcon />
@@ -83,10 +83,10 @@ export function SettingsSidebar(): JSX.Element {
               <button
                 key={item.id}
                 onClick={() => setSettingsTab(item.id)}
-                className="flex items-center w-full px-2 py-2 rounded-lg text-sm transition-colors duration-100"
+                className="flex items-center w-full px-2 py-2 mb-0.5 rounded-lg text-sm font-medium transition-colors duration-100"
                 style={{
-                  background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
-                  color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                  background: isActive ? 'var(--color-nav-active)' : 'transparent',
+                  color: isActive ? 'var(--color-text-primary)' : 'var(--color-nav-text)',
                   border: 'none',
                   textAlign: 'left',
                   cursor: 'pointer',
@@ -100,7 +100,7 @@ export function SettingsSidebar(): JSX.Element {
                 onMouseLeave={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = 'var(--color-text-secondary)'
+                    e.currentTarget.style.color = 'var(--color-nav-text)'
                   }
                 }}
               >

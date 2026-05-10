@@ -15,7 +15,8 @@
   --color-accent-hover:    #333333;
   --color-accent-subtle:   rgba(82, 82, 82, 0.10);
   --color-hover-overlay:   rgba(0, 0, 0, 0.05);
-  --color-nav-active:      rgba(0, 0, 0, 0.14);
+  --color-nav-active:      #D0D0D0;
+  --color-nav-text:        #686868;
   --color-code-bg:         #E5E5E5;
 }
 
@@ -30,7 +31,8 @@
   --color-accent-hover:    #CACACA;
   --color-accent-subtle:   rgba(176, 176, 176, 0.12);
   --color-hover-overlay:   rgba(255, 255, 255, 0.06);
-  --color-nav-active:      rgba(255, 255, 255, 0.13);
+  --color-nav-active:      #1C1C1C;
+  --color-nav-text:        #ABABAB;
   --color-code-bg:         #252525;
 }
 

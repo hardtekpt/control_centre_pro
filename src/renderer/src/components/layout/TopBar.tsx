@@ -140,7 +140,7 @@ const ToolbarBtn = forwardRef<HTMLButtonElement, ToolbarBtnProps>(
       className="w-8 h-8 flex items-center justify-center rounded transition-colors duration-100"
       style={{
         background: 'transparent',
-        color: disabled ? 'var(--color-border)' : 'var(--color-text-secondary)',
+        color: disabled ? 'var(--color-border)' : 'var(--color-nav-text)',
         border: 'none',
         cursor: disabled ? 'default' : 'pointer',
       }}
@@ -156,7 +156,7 @@ const ToolbarBtn = forwardRef<HTMLButtonElement, ToolbarBtnProps>(
         e.currentTarget.style.background = 'transparent'
         e.currentTarget.style.color = disabled
           ? 'var(--color-border)'
-          : 'var(--color-text-secondary)'
+          : 'var(--color-nav-text)'
       }}
     >
       {children}
@@ -180,14 +180,14 @@ function WindowControl({ children, onClick, label, isClose = false }: WindowCont
       onClick={onClick}
       aria-label={label}
       className="w-11 h-10 flex items-center justify-center transition-colors duration-100"
-      style={{ color: 'var(--color-text-secondary)', background: 'transparent', border: 'none' }}
+      style={{ color: 'var(--color-nav-text)', background: 'transparent', border: 'none' }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isClose ? '#c42b1c' : 'var(--color-hover-overlay)'
         if (isClose) e.currentTarget.style.color = '#fff'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent'
-        e.currentTarget.style.color = 'var(--color-text-secondary)'
+        e.currentTarget.style.color = 'var(--color-nav-text)'
       }}
     >
       {children}
