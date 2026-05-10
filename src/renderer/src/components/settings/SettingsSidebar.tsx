@@ -25,7 +25,7 @@ export function SettingsSidebar(): JSX.Element {
     <div
       className="w-44 shrink-0 flex flex-col"
       style={{
-        margin: `${FLOAT_GAP}px 0 ${FLOAT_GAP}px ${FLOAT_GAP}px`,
+        margin: `${FLOAT_GAP}px 0 8px ${FLOAT_GAP}px`,
       }}
     >
       {/* Floating card */}
@@ -34,6 +34,7 @@ export function SettingsSidebar(): JSX.Element {
         style={{
           background: 'var(--color-surface)',
           borderRadius: SIDEBAR_RADIUS,
+          border: '1px solid var(--color-border)',
         }}
       >
         {/* Back to main app */}

@@ -1,15 +1,93 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
+import type { NavigateTarget } from '../shared/types'
 
-/** Reference to the single main window — null before creation and after close */
 let mainWindow: BrowserWindow | null = null
 
+// ─── App Menu ─────────────────────────────────────────────────────────────────
+
 /**
- * Creates the frameless main application window.
- * We use frame:false so we can draw our own title bar in React with the correct
- * warm-tone design. Window chrome is handled entirely in the renderer.
+ * Builds the native application menu shown when the hamburger icon is clicked.
+ * Uses menu.popup() so it appears as a floating dropdown rather than an OS menu bar.
+ */
+function buildAppMenu(): Electron.Menu {
+  return Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Conversation',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => { /* placeholder — wire to session creation */ },
+        },
+        {
+          label: 'Settings...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => navigate('settings'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Close Window',
+          accelerator: 'CmdOrCtrl+W',
+          click: () => mainWindow?.close(),
+        },
+        {
+          label: 'Exit',
+          click: () => app.quit(),
+        },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About Control Centre Pro',
+          click: () => navigate('settings:about'),
+        },
+      ],
+    },
+  ])
+}
+
+/** Push a navigation event to the renderer (used by menu click handlers) */
+function navigate(target: NavigateTarget): void {
+  mainWindow?.webContents.send(IPC_CHANNELS.NAVIGATE, target)
+}
+
+// ─── Window ───────────────────────────────────────────────────────────────────
+
+/**
+ * Creates the frameless main window.
+ * frame:false lets us draw our own title bar in React.
+ * backgroundColor matches --color-bg dark mode to prevent white flash on load.
  */
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -17,46 +95,40 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    show: false, // Show only after content is ready (prevents white flash)
+    show: false,
     autoHideMenuBar: true,
-    frame: false, // Custom title bar drawn in React
-    backgroundColor: '#141413', // Warm dark — matches CSS var(--color-bg) dark mode
+    frame: false,
+    backgroundColor: '#141413',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      contextIsolation: true, // Required — renderer cannot access Node.js directly
-      nodeIntegration: false, // Required — never expose Node in the renderer
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   })
 
-  // Show window once the renderer has finished painting its first frame
-  mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
-  })
+  mainWindow.on('ready-to-show', () => mainWindow?.show())
 
-  // Open DevTools in a detached panel during development
   if (is.dev) {
     mainWindow.webContents.on('did-finish-load', () => {
       mainWindow?.webContents.openDevTools({ mode: 'detach' })
     })
   }
 
-  // Intercept window.open() — open external URLs in the OS browser instead
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
   })
 
-  // Push maximize/restore state changes to the renderer so the title bar
-  // can swap the maximize ↔ restore icon in real time
-  mainWindow.on('maximize', () => {
+  // Notify the renderer when the window maximize state changes so the
+  // title bar can swap the maximize ↔ restore icon
+  mainWindow.on('maximize', () =>
     mainWindow?.webContents.send(IPC_CHANNELS.WINDOW_STATE_CHANGE, true)
-  })
-  mainWindow.on('unmaximize', () => {
+  )
+  mainWindow.on('unmaximize', () =>
     mainWindow?.webContents.send(IPC_CHANNELS.WINDOW_STATE_CHANGE, false)
-  })
+  )
 
-  // Load the renderer — dev server URL in development, static file in production
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -64,42 +136,36 @@ function createWindow(): void {
   }
 }
 
-/**
- * Registers all IPC handlers for window controls.
- * Handlers use ipcMain.handle (async request/response) so the renderer
- * can await them via ipcRenderer.invoke through the preload bridge.
- */
+// ─── IPC Handlers ─────────────────────────────────────────────────────────────
+
 function registerIpcHandlers(): void {
-  ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => {
-    mainWindow?.minimize()
-  })
+  ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, () => {
-    // Toggle between maximize and restore
-    if (mainWindow?.isMaximized()) {
-      mainWindow.restore()
-    } else {
-      mainWindow?.maximize()
-    }
+    mainWindow?.isMaximized() ? mainWindow.restore() : mainWindow?.maximize()
   })
 
-  ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, () => {
-    mainWindow?.close()
-  })
+  ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, () => mainWindow?.close())
 
-  // Renderer calls this once on startup to get the initial maximize state
-  ipcMain.handle(IPC_CHANNELS.WINDOW_IS_MAXIMIZED, () => {
-    return mainWindow?.isMaximized() ?? false
+  ipcMain.handle(IPC_CHANNELS.WINDOW_IS_MAXIMIZED, () =>
+    mainWindow?.isMaximized() ?? false
+  )
+
+  /**
+   * Popup the native app menu at the position of the clicked button.
+   * x, y are screen-space coordinates sent from the renderer.
+   */
+  ipcMain.handle(IPC_CHANNELS.MENU_SHOW, (_, x: number, y: number) => {
+    const menu = buildAppMenu()
+    menu.popup({ window: mainWindow!, x, y })
   })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
-  // Set the Windows App User Model ID for notifications and taskbar grouping
   electronApp.setAppUserModelId('com.controlcentrepro.app')
 
-  // Enable useful keyboard shortcuts in development (F12 DevTools, Ctrl+R reload)
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -107,17 +173,11 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   createWindow()
 
-  // macOS: re-create the window when the dock icon is clicked and no windows exist
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit on all windows closed (standard on Windows/Linux; macOS handles via activate)
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (process.platform !== 'darwin') app.quit()
 })
