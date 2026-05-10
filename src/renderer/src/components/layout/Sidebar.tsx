@@ -136,7 +136,7 @@ function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
       aria-label="Settings"
       className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 transition-colors duration-100"
       style={{
-        background: isActive ? 'var(--color-nav-active)' : 'var(--color-surface-raised)',
+        background: isActive ? 'var(--color-nav-active)' : 'var(--color-surface)',
         border: 'none',
         cursor: 'pointer',
       }}
@@ -144,7 +144,7 @@ function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
         if (!isActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
       }}
       onMouseLeave={(e) => {
-        if (!isActive) e.currentTarget.style.background = 'var(--color-surface-raised)'
+        if (!isActive) e.currentTarget.style.background = 'var(--color-surface)'
       }}
     >
       {/* Icon badge */}
@@ -152,7 +152,7 @@ function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
         className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md"
         style={{
           background: isActive ? 'var(--color-accent)' : 'var(--color-border)',
-          color: isActive ? 'var(--color-surface)' : 'var(--color-text-secondary)',
+          color: isActive ? 'var(--color-surface)' : 'var(--color-text-primary)',
         }}
       >
         <CogIcon />
@@ -161,13 +161,13 @@ function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
       {/* Label */}
       <span
         className="flex-1 text-xs font-semibold text-left truncate leading-none"
-        style={{ color: isActive ? 'var(--color-text-primary)' : 'var(--color-nav-text)' }}
+        style={{ color: 'var(--color-text-primary)' }}
       >
         Settings
       </span>
 
       {/* Chevron */}
-      <span style={{ color: 'var(--color-text-secondary)' }}>
+      <span style={{ color: 'var(--color-text-primary)' }}>
         <ChevronDownIcon />
       </span>
     </button>
