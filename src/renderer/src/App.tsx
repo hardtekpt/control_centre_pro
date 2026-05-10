@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAppStore } from './stores/appStore'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
+import { FloatingSidebar } from './components/layout/FloatingSidebar'
 
 /**
  * Root component — decides which top-level layout to render and wires up
@@ -64,6 +65,7 @@ export default function App(): JSX.Element {
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>
       {currentView === 'settings' ? <SettingsLayout /> : <MainLayout />}
+      <FloatingSidebar />
     </div>
   )
 }
