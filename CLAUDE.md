@@ -107,12 +107,39 @@ use CSS custom properties; **never hardcode colors in components**.
 
 ## Sidebar Behaviour
 
-- Default width: **240px** | Min: **180px** | Max: **320px** | Collapsed (icon-only): **56px**
-- Collapse toggle: small chevron button positioned at `-right-3` (hangs off the sidebar edge)
-- Resize handle: 4px-wide invisible div on the right edge; turns accent-colored on hover
+- Default width: **240px** | Min: **180px** | Max: **320px**
+- **Collapsed state**: sidebar unmounts entirely — no icon-only strip. The toggle button's icon
+  switches between `SidebarOpenIcon` (solid divider) and `SidebarClosedIcon` (dashed divider +
+  filled panel region) to communicate state.
+- **Peek panel**: hovering the sidebar-toggle button while collapsed shows `FloatingSidebar` — a
+  `ReactDOM.createPortal` panel anchored via `getBoundingClientRect()` to the button's position.
+  Mouse entering the panel cancels the hide timer; leaving schedules a 180ms hide. Mounted in
+  `App.tsx` so it works from both main and settings views.
+- Resize handle: 6px-wide invisible div on the right edge of the outer container; turns
+  accent-colored on hover. Lives on the **outer** div, not inside the rounded card, so it isn't
+  clipped by `border-radius` + `overflow: hidden`.
 - During drag: lock `document.body.style.cursor = 'col-resize'` and `userSelect = 'none'`
   to prevent flickering and text selection — restore both in the `mouseup` cleanup.
-- Width state lives in Zustand (`appStore.ts`) — add localStorage persistence later.
+- Width and collapsed state live in Zustand (`appStore.ts`) — add localStorage persistence later.
+
+## Floating UI Patterns
+
+- **Portal rendering**: any overlay that must escape `overflow: hidden` parents uses
+  `ReactDOM.createPortal(element, document.body)` with `position: fixed`.
+- **DOM measurements**: use `useRef` + `getBoundingClientRect()` to anchor floating elements.
+  Child components that expose a ref must be wrapped in `forwardRef`.
+- **Debounce timers shared between siblings**: declare as a module-level variable in the store
+  file (`let _timer = null`) — never put a timer ID in Zustand state.
+- **Content-sized panels**: use `minHeight` with no `bottom` constraint. A `bottom` value
+  stretches the panel to fill the window regardless of content.
+
+## Settings Button
+
+The bottom of the sidebar uses a chip-style button (not a plain nav row):
+- Left: small icon inside a `rounded-md` badge (`--color-border` bg → `--color-accent` when active)
+- Center: label text
+- Right: chevron-down indicator
+- Border: `1px solid var(--color-border)` gives it the contained/selector look
 
 ---
 
@@ -167,10 +194,12 @@ npm run package      # Build + package as Windows installer
 
 ## Known Gaps / Next Steps
 
-- [ ] **`npm install`** has not been run yet — run it before `npm run dev`
-- [ ] Sidebar width not persisted to localStorage (add in `appStore.ts`)
+- [ ] Sidebar width + collapsed state not persisted — wire up `localStorage` or `electron-store`
 - [ ] No real device or service integration yet — Home page is a placeholder
 - [ ] JetBrains Mono loaded from Google Fonts — bundle the font files for offline use
 - [ ] Settings (theme choice) not persisted — wire up `electron-store` or `localStorage`
 - [ ] Auto-updater (`electron-updater`) not configured — needs a release server URL
 - [ ] No test suite yet — add Vitest for renderer, Vitest + mocks for main process services
+- [ ] `FloatingSidebar` and `Sidebar` duplicate nav item definitions — extract shared `MAIN_NAV`
+      and icon components into a `src/renderer/src/components/layout/nav.tsx` shared module
+- [ ] Settings chip chevron currently decorative — could open a settings sub-menu or just navigate
