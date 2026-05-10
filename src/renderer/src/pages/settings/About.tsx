@@ -54,7 +54,7 @@ export function About(): JSX.Element {
   }, [logs])
 
   return (
-    <div className="max-w-lg">
+    <div>
       <div className="mb-7">
         <h2
           className="text-lg font-semibold mb-1 tracking-tight"
@@ -68,7 +68,7 @@ export function About(): JSX.Element {
       </div>
 
       <div
-        className="rounded-lg overflow-hidden mb-6"
+        className="max-w-lg rounded-lg overflow-hidden mb-6"
         style={{ border: '1px solid var(--color-border)' }}
       >
         {[
