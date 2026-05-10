@@ -6,8 +6,8 @@
 custom background services. Think of it as a personal control panel: monitor connected devices,
 start/stop services, and get at-a-glance status for everything running on the machine.
 
-The app is designed as an extensible shell — the MVP establishes the layout and navigation
-patterns; device and service plugins will be added as sidebar sections over time.
+The app is designed as an extensible shell — the MVP establishes the layout, navigation patterns,
+and service infrastructure; device and service plugins are added as sidebar sections over time.
 
 ---
 
@@ -21,15 +21,22 @@ patterns; device and service plugins will be added as sidebar sections over time
 | Styling | **Tailwind CSS** | Utility-first; design tokens via CSS custom properties |
 | State | **Zustand** | Simple store without Redux boilerplate |
 | Packaging | **electron-builder** | Mature Windows NSIS/MSIX packaging + auto-update integration |
+| Services | **Python subprocesses** | Hardware HID services written in Python; communicate via newline-delimited JSON on stdout |
 
 ---
 
 ## Project Structure
 
 ```
+resources/
+└── services/             # Python service scripts (spawned as subprocesses by main process)
+    └── arctis_hid_service.py
+
 src/
 ├── main/               # Node.js (Electron main process)
-│   └── index.ts        # Window creation, IPC handlers, app lifecycle
+│   ├── index.ts        # Window creation, IPC handlers, app lifecycle
+│   └── services/
+│       └── serviceManager.ts  # Spawns/monitors Python subprocesses, routes events to renderer
 ├── preload/
 │   └── index.ts        # contextBridge — exposes window.api to the renderer
 ├── shared/
@@ -37,19 +44,22 @@ src/
 └── renderer/           # Browser (React)
     ├── index.html
     └── src/
-        ├── App.tsx               # Theme application + window state sync
+        ├── App.tsx               # Theme, window state sync, IPC event subscriptions
         ├── main.tsx              # ReactDOM entry
-        ├── stores/appStore.ts    # Zustand: currentView, sidebarCollapsed, theme, etc.
+        ├── stores/
+        │   ├── appStore.ts       # Zustand: currentView, sidebarCollapsed, theme, etc.
+        │   └── serviceStore.ts   # Zustand: services list, log entries, ArctisState
         ├── types/electron.d.ts   # window.api type declarations for TS
         ├── styles/globals.css    # CSS tokens + Tailwind base
         ├── components/
         │   ├── layout/           # TopBar, Sidebar, MainLayout, MainContent
-        │   └── settings/         # SettingsLayout, SettingsSidebar
+        │   ├── settings/         # SettingsLayout, SettingsSidebar
+        │   └── home/             # HeadsetCard (and future home dashboard widgets)
         └── pages/
-            ├── Home.tsx
+            ├── Home.tsx          # Dashboard — Audio section with HeadsetCard
             └── settings/
-                ├── GeneralSettings.tsx
-                └── About.tsx
+                ├── GeneralSettings.tsx   # Appearance + Services (Python path, enable/disable)
+                └── About.tsx             # Version info + live service terminal log
 ```
 
 ---
@@ -80,17 +90,21 @@ use CSS custom properties; **never hardcode colors in components**.
 /* Key light-mode tokens */
 --color-bg:             #F5F5F5   /* Light gray canvas */
 --color-surface:        #EBEBEB   /* Sidebar, panel backgrounds */
+--color-surface-raised: #E3E3E3   /* Inputs, dropdowns */
 --color-text-primary:   #141414   /* Near-black */
 --color-text-secondary: #8C8C8C   /* Muted gray */
 --color-accent:         #525252   /* Dark gray — the ONLY action color */
 --color-border:         #D8D8D8
+--color-code-bg:        #E5E5E5   /* Terminal / monospace areas */
 
 /* Key dark-mode tokens (toggled via data-theme="dark" on <html>) */
 --color-bg:             #1C1C1C   /* Dark charcoal */
 --color-surface:        #252525
+--color-surface-raised: #2C2C2C
 --color-text-primary:   #EBEBEB   /* Light gray */
 --color-text-secondary: #888888
 --color-accent:         #B0B0B0   /* Medium gray accent in dark mode */
+--color-code-bg:        #252525
 ```
 
 ### Design Rules Summary
@@ -143,6 +157,100 @@ The bottom of the sidebar uses a chip-style button (not a plain nav row):
 
 ---
 
+## Service System
+
+### Overview
+
+Background services run as Python subprocesses managed by `ServiceManager` (main process).
+Each service is a Python script in `resources/services/` that communicates exclusively via
+newline-delimited JSON on **stdout**. Stderr is forwarded as error-level log entries.
+
+### Message Protocol (Python → Electron)
+
+Every line written to stdout must be a valid JSON object with a `type` field:
+
+```json
+{ "type": "log",         "level": "info|warn|error", "message": "..." }
+{ "type": "connected",   "data": { ...ArctisState fields... } }
+{ "type": "disconnected" }
+{ "type": "event",       "event": "EventClassName",  "data": { ... } }
+{ "type": "fatal",       "message": "..." }   // exits the subprocess
+```
+
+`fatal` causes the process to call `sys.exit(1)` — use it only for unrecoverable errors
+(e.g. missing Python package). `log` entries appear in the About page terminal log.
+
+### Adding a New Service
+
+1. Create `resources/services/<id>_service.py` following the JSON message protocol above.
+   Use an internal reconnect loop so the process stays alive across device disconnects.
+2. Add an entry to `SERVICE_DEFS` in [serviceManager.ts](src/main/services/serviceManager.ts):
+   ```typescript
+   { id: 'my-service', name: 'My Service', description: '...', script: 'my_service.py' }
+   ```
+3. Add any device-specific IPC channels to `IPC_CHANNELS` in [shared/types.ts](src/shared/types.ts).
+4. Handle the new message types in `ServiceManager.handleMessage()`.
+5. Expose new IPC channels through [preload/index.ts](src/preload/index.ts) and declare them
+   in [electron.d.ts](src/renderer/src/types/electron.d.ts).
+6. Subscribe to the new IPC push events in `App.tsx` and update the relevant Zustand store.
+
+### Service Config Persistence
+
+`ServiceManager` persists its config to `app.getPath('userData')/services.json`:
+
+```json
+{
+  "pythonPath": "python",
+  "services": {
+    "arctis-hid": true
+  }
+}
+```
+
+`pythonPath` is the executable used for all Python services (configurable in General Settings).
+Each service id maps to a boolean (enabled/disabled). Defaults: all enabled, `pythonPath = "python"`.
+
+### Renderer-side Service State
+
+`serviceStore.ts` (Zustand) holds:
+- `services: ServiceInfo[]` — populated on startup via `window.api.servicesList()`, kept live
+  via `onServicesStateChange` push events.
+- `logs: LogEntry[]` — up to 500 entries, displayed in the About page terminal log.
+- `arctisState: ArctisState | null` — `null` when headset is disconnected.
+
+All IPC subscriptions are wired in `App.tsx` via `useEffect` so they're active globally.
+
+---
+
+## Arctis Nova Pro HID Service
+
+**Package**: [`arctis_nova_pro_hid`](https://github.com/hardtekpt/arctis_nova_pro_hid/tree/development)
+(import name: `arctis_hid`) — direct USB HID control, no SteelSeries GG required.
+
+**Script**: [resources/services/arctis_hid_service.py](resources/services/arctis_hid_service.py)
+
+**Behaviour**:
+- Calls `discover()` to find the headset; on `DeviceNotFoundError` emits `disconnected` and
+  retries every 3 seconds.
+- On connect: reads initial state via `get_status()` + `get_mic_eq()`, emits `connected` with
+  the full `ArctisState` snapshot, then calls `listen()` (blocks, fires event callbacks).
+- On `DeviceIOError` (USB pulled): emits `disconnected`, closes handles, sleeps 2 s, retries.
+- Subprocess stays alive indefinitely — it only exits on `fatal` (missing package).
+
+**ArctisState shape** (shared type in `types.ts`):
+```typescript
+{ batteryHeadset: number, batteryDock: number, ancMode: 'OFF'|'TRANSPARENCY'|'ANC',
+  micMuted: boolean, volume: number }
+```
+
+**Events handled** (update `arctisState` in `serviceStore` via `updateArctisState`):
+`VolumeEvent`, `BatteryEvent`, `AncModeEvent`, `MicMuteEvent`
+
+**Home page widget**: `HeadsetCard` in [components/home/HeadsetCard.tsx](src/renderer/src/components/home/HeadsetCard.tsx)
+mounts/unmounts automatically based on `arctisState !== null`.
+
+---
+
 ## Adding a New Page / Section
 
 1. Add a new `NavItemDef` entry to the `MAIN_NAV` array in [Sidebar.tsx](src/renderer/src/components/layout/Sidebar.tsx).
@@ -192,12 +300,17 @@ npm run build        # Build all processes for production
 npm run package      # Build + package as Windows installer
 ```
 
+The Arctis HID service requires the `arctis_hid` Python package. Install it with:
+```powershell
+python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development
+```
+If you use a non-default Python environment, set the executable path in **General Settings → Services → Python executable**.
+
 ---
 
 ## Known Gaps / Next Steps
 
 - [ ] Sidebar width + collapsed state not persisted — wire up `localStorage` or `electron-store`
-- [ ] No real device or service integration yet — Home page is a placeholder
 - [ ] JetBrains Mono loaded from Google Fonts — bundle the font files for offline use
 - [ ] Settings (theme choice) not persisted — wire up `electron-store` or `localStorage`
 - [ ] Auto-updater (`electron-updater`) not configured — needs a release server URL
@@ -205,3 +318,7 @@ npm run package      # Build + package as Windows installer
 - [ ] `FloatingSidebar` and `Sidebar` duplicate nav item definitions — extract shared `MAIN_NAV`
       and icon components into a `src/renderer/src/components/layout/nav.tsx` shared module
 - [ ] Settings chip chevron currently decorative — could open a settings sub-menu or just navigate
+- [ ] HeadsetCard updates on events only — add periodic state polling for initial sync on late attach
+- [ ] Arctis service: no write commands wired yet (volume, ANC mode, mute) — UI controls TBD
+- [ ] Service log in About tab not clearable — add a Clear button
+- [ ] Home page has no empty state when no devices are connected (Audio section shows blank)
