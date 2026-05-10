@@ -4,10 +4,11 @@ import { GeneralSettings } from '../../pages/settings/GeneralSettings'
 import { About } from '../../pages/settings/About'
 import { useAppStore } from '../../stores/appStore'
 
+const FLOAT_GAP = 6
+
 /**
- * Settings view layout — replaces MainLayout when the user opens settings.
- * Has its own dedicated sidebar so settings navigation is separate from the
- * main app navigation. The TopBar is shared so window controls remain accessible.
+ * Settings view layout — same floating sidebar pattern as MainLayout.
+ * The TopBar is shared so window controls remain accessible in settings too.
  */
 export function SettingsLayout(): JSX.Element {
   const { currentSettingsTab } = useAppStore()
@@ -18,11 +19,16 @@ export function SettingsLayout(): JSX.Element {
       <div className="flex flex-1 overflow-hidden">
         <SettingsSidebar />
         <main
-          className="flex-1 overflow-y-auto p-8 selectable"
-          style={{ background: 'var(--color-bg)' }}
+          className="flex-1 overflow-y-auto selectable"
+          style={{
+            background: 'var(--color-bg)',
+            padding: `${FLOAT_GAP}px ${FLOAT_GAP}px ${FLOAT_GAP}px 0`,
+          }}
         >
-          {currentSettingsTab === 'general' && <GeneralSettings />}
-          {currentSettingsTab === 'about' && <About />}
+          <div className="px-8 py-6">
+            {currentSettingsTab === 'general' && <GeneralSettings />}
+            {currentSettingsTab === 'about' && <About />}
+          </div>
         </main>
       </div>
     </div>
