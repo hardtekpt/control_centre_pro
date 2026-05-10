@@ -179,6 +179,8 @@ The bottom of the sidebar uses a chip-style button (not a plain nav row):
 
 Commit format: `type: short description` where type is `feat`, `fix`, `chore`, `docs`, `refactor`.
 
+**Auto-commit:** After completing any set of code changes, commit them to the current branch immediately without waiting for the user to ask. Stage only the files that were modified as part of the task — never include `.claude/`, `tsconfig.*.tsbuildinfo`, or other build/tooling artifacts.
+
 ---
 
 ## Running the App (once `npm install` is done)
