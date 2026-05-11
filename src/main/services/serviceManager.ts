@@ -53,7 +53,9 @@ export class ServiceManager {
   }
 
   private push(channel: string, ...args: unknown[]): void {
-    this.window?.webContents.send(channel, ...args)
+    if (this.window && !this.window.isDestroyed()) {
+      this.window.webContents.send(channel, ...args)
+    }
   }
 
   private servicesDir(): string {
