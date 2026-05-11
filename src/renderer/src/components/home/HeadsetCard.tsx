@@ -409,17 +409,17 @@ function AncModeControl({
           <button
             key={opt.value}
             onClick={() => onModeChange(opt.value)}
-            onWheel={isTransparency && isActive ? handleWheel : undefined}
+            onWheel={isTransparency ? handleWheel : undefined}
             className="flex-1 text-xs py-1 px-2 transition-colors flex items-center justify-center gap-1"
             style={{
               background: isActive ? 'var(--color-accent)' : 'var(--color-surface-raised)',
               color: isActive ? 'var(--color-bg)' : 'var(--color-text-secondary)',
               borderRight: i < ANC_OPTIONS.length - 1 ? '1px solid var(--color-border)' : 'none',
-              cursor: isTransparency && isActive ? 'ns-resize' : 'pointer',
+              cursor: isTransparency ? 'ns-resize' : 'pointer',
             }}
           >
             <span>{opt.label}</span>
-            {isTransparency && isActive && (
+            {isTransparency && (
               <span
                 className="mono"
                 style={{
