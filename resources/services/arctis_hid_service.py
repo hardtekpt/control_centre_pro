@@ -128,27 +128,10 @@ def _read_full_state(headset) -> dict:
         "homescreenMode": enum_name(display, "home_screen_mode", default="DETAILED") if display else "DETAILED",
         "micLedBrightness": getattr(status, "mic_led_brightness", 5),
         "autoOffTimeout": enum_name(status, "auto_off_timeout", default="OFF"),
-        # ── EQ ───────────────────────────────────────────────────────────────
-        "eqMode": "PRESET",
-        "eqPreset": "FLAT",
-        "eqCustomBands": [0] * 10,
+        # ── EQ (from mic_eq — same packet as volume/gain/sidetone) ───────────
+        "eqPresetIndex": getattr(mic_eq, "eq_preset_index", 0),
+        "eqBands":       list(getattr(mic_eq, "eq_bands", [20] * 10)),
     }
-
-    # Try to read EQ state (may not be available on all firmware versions)
-    try:
-        eq_data = headset.get_eq()
-        if eq_data is not None:
-            mode_val = getattr(eq_data, "mode", None)
-            if mode_val is not None:
-                state["eqMode"] = getattr(mode_val, "name", str(mode_val))
-            preset_val = getattr(eq_data, "preset", None)
-            if preset_val is not None:
-                state["eqPreset"] = getattr(preset_val, "name", str(preset_val))
-            bands = getattr(eq_data, "bands", None)
-            if bands is not None:
-                state["eqCustomBands"] = list(bands)
-    except Exception as exc:
-        log("warn", f"get_eq() unavailable: {exc}")
 
     # Log any fields that fell back to defaults so we can spot wrong attr names
     _warn_defaults(state, mic_eq, status, display)
@@ -243,16 +226,11 @@ def _handle_cmd(cmd: str, value) -> None:
         elif cmd == "setChatmixEnabled":
             h.set_chatmix_enabled(bool(value))
 
-        elif cmd == "setEqMode":
-            from arctis_hid import EqMode
-            h.set_eq_mode(EqMode[str(value)])
-
         elif cmd == "setEqPreset":
-            from arctis_hid import EqPreset as EqPresetEnum
-            h.set_eq_preset(EqPresetEnum[str(value)])
+            h.set_eq_preset(int(value))
 
         elif cmd == "setEqBands":
-            h.set_eq_custom_bands(list(value))
+            h.set_eq_bands([int(v) for v in value])
 
         else:
             log("warn", f"Unknown command: {cmd}")
@@ -294,6 +272,7 @@ def main() -> None:
             WirelessModeEvent, BtDefaultEvent, BtAutoMuteEvent,
             AudioOutputEvent, StreamVolumesEvent, DimTimeoutEvent,
             HomeScreenEvent, MicLedEvent, AutoOffEvent,
+            EqPresetEvent, EqBandEvent,
         )
     except ImportError as exc:
         emit({"type": "fatal", "message": (
@@ -459,12 +438,30 @@ def main() -> None:
             }))
             headset.on("MicLedEvent", lambda e: emit({
                 "type": "event", "event": "MicLedEvent",
-                "data": {"micLedBrightness": e.brightness},
+                "data": {"micLedBrightness": e.level},
             }))
             headset.on("AutoOffEvent", lambda e: emit({
                 "type": "event", "event": "AutoOffEvent",
                 "data": {"autoOffTimeout": e.step.name},
             }))
+
+            # ── EQ ───────────────────────────────────────────────────────────
+            headset.on("EqPresetEvent", lambda e: emit({
+                "type": "event", "event": "EqPresetEvent",
+                "data": {"eqPresetIndex": e.index},
+            }))
+
+            # EqBandEvent fires once per band (1-indexed, 1–10). Accumulate
+            # individual updates into a mutable bands list so the renderer
+            # always receives the full 10-value array.
+            _eq_bands_buf = list(getattr(mic_eq, "eq_bands", [20] * 10))
+
+            def on_eq_band_event(e, buf=_eq_bands_buf):
+                buf[e.band - 1] = e.level
+                emit({"type": "event", "event": "EqBandEvent",
+                      "data": {"eqBands": list(buf)}})
+
+            headset.on("EqBandEvent", on_eq_band_event)
 
             headset.listen()  # blocks until DeviceIOError or stop()
 
