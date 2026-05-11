@@ -114,6 +114,7 @@ def _read_full_state(headset) -> dict:
         "btDefault":    getattr(status, "bt_default", False),
         "btAutoMute":   enum_name(status, "bt_auto_mute", default="OFF"),
         # ── ChatMix (hardware dial — events update this live) ────────────────
+        "chatmixEnabled": getattr(mic_eq, "chatmix_enabled", True),
         "chatmixGame": getattr(mic_eq, "chatmix_game", 50),
         "chatmixChat": getattr(mic_eq, "chatmix_chat", 50),
         # ── Audio Output ──────────────────────────────────────────────────────

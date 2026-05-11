@@ -447,7 +447,6 @@ const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
 
 export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
   const { updateArctisState } = useServiceStore()
-  const [chatmixEnabled, setChatmixEnabled] = useState(true)
 
   function cmd<K extends keyof ArctisState>(
     cmdName: string,
@@ -502,22 +501,22 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── ChatMix balance (hardware dial — display only) ── */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => setChatmixEnabled((v) => !v)}
+          onClick={() => cmd('setChatmixEnabled', !state.chatmixEnabled, { chatmixEnabled: !state.chatmixEnabled })}
           className="text-xs shrink-0 w-32 text-left"
           style={{
-            color: chatmixEnabled ? 'var(--color-text-secondary)' : 'var(--color-text-secondary)',
-            textDecoration: chatmixEnabled ? 'none' : 'line-through',
+            textDecoration: state.chatmixEnabled ? 'none' : 'line-through',
             background: 'none',
             border: 'none',
             padding: 0,
             cursor: 'pointer',
+            color: 'var(--color-text-secondary)',
           }}
         >
           ChatMix
         </button>
         <div
           className="flex-1 flex items-center gap-1.5"
-          style={{ opacity: chatmixEnabled ? 1 : 0.3, transition: 'opacity 150ms ease', pointerEvents: 'none' }}
+          style={{ opacity: state.chatmixEnabled ? 1 : 0.3, transition: 'opacity 150ms ease', pointerEvents: 'none' }}
         >
           <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
             Game {state.chatmixGame}

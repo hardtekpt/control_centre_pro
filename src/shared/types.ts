@@ -147,7 +147,8 @@ export interface ArctisState {
   btDefault: boolean
   btAutoMute: 'OFF' | 'DB_MINUS_12' | 'FULL'       // BtAutoMute enum
 
-  // ── ChatMix (hardware dial — read only) ──────────────────────────────────────
+  // ── ChatMix (hardware dial) ───────────────────────────────────────────────────
+  chatmixEnabled: boolean        // dial active; false = flat 50/50 mix
   chatmixGame: number            // 0–100
   chatmixChat: number            // 0–100
 
