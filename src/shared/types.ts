@@ -119,6 +119,14 @@ export type TimeoutStep =
   | 'THIRTY_MIN'
   | 'SIXTY_MIN'
 
+/** EQ preset names — mirrors arctis_hid.EqPreset enum */
+export type EqPreset =
+  | 'FLAT'
+  | 'BASS_BOOST'
+  | 'SMILEY'
+  | 'HIGH_BOOST'
+  | 'VOCAL'
+
 /** Live state snapshot of the connected Arctis Nova Pro Wireless headset */
 export interface ArctisState {
   // ── Status ──────────────────────────────────────────────────────────────────
@@ -164,4 +172,9 @@ export interface ArctisState {
   homescreenMode: 'DETAILED' | 'SIMPLE'             // HomeScreenMode enum
   micLedBrightness: number       // 1–10
   autoOffTimeout: TimeoutStep    // TimeoutStep enum
+
+  // ── EQ ───────────────────────────────────────────────────────────────────────
+  eqMode: 'PRESET' | 'CUSTOM'
+  eqPreset: EqPreset
+  eqCustomBands: number[]        // 10 band levels, -10 to +10 dB
 }

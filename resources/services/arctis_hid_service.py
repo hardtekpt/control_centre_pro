@@ -128,7 +128,27 @@ def _read_full_state(headset) -> dict:
         "homescreenMode": enum_name(display, "home_screen_mode", default="DETAILED") if display else "DETAILED",
         "micLedBrightness": getattr(status, "mic_led_brightness", 5),
         "autoOffTimeout": enum_name(status, "auto_off_timeout", default="OFF"),
+        # ── EQ ───────────────────────────────────────────────────────────────
+        "eqMode": "PRESET",
+        "eqPreset": "FLAT",
+        "eqCustomBands": [0] * 10,
     }
+
+    # Try to read EQ state (may not be available on all firmware versions)
+    try:
+        eq_data = headset.get_eq()
+        if eq_data is not None:
+            mode_val = getattr(eq_data, "mode", None)
+            if mode_val is not None:
+                state["eqMode"] = getattr(mode_val, "name", str(mode_val))
+            preset_val = getattr(eq_data, "preset", None)
+            if preset_val is not None:
+                state["eqPreset"] = getattr(preset_val, "name", str(preset_val))
+            bands = getattr(eq_data, "bands", None)
+            if bands is not None:
+                state["eqCustomBands"] = list(bands)
+    except Exception as exc:
+        log("warn", f"get_eq() unavailable: {exc}")
 
     # Log any fields that fell back to defaults so we can spot wrong attr names
     _warn_defaults(state, mic_eq, status, display)
@@ -222,6 +242,17 @@ def _handle_cmd(cmd: str, value) -> None:
 
         elif cmd == "setChatmixEnabled":
             h.set_chatmix_enabled(bool(value))
+
+        elif cmd == "setEqMode":
+            from arctis_hid import EqMode
+            h.set_eq_mode(EqMode[str(value)])
+
+        elif cmd == "setEqPreset":
+            from arctis_hid import EqPreset as EqPresetEnum
+            h.set_eq_preset(EqPresetEnum[str(value)])
+
+        elif cmd == "setEqBands":
+            h.set_eq_custom_bands(list(value))
 
         else:
             log("warn", f"Unknown command: {cmd}")

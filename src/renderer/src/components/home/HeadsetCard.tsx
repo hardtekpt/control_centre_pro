@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
-import type { ArctisState, TimeoutStep } from '@shared/types'
+import type { ArctisState, TimeoutStep, EqPreset } from '@shared/types'
 
 // ─── Primitive controls ───────────────────────────────────────────────────────
 
@@ -423,6 +423,29 @@ const HOMESCREEN_OPTIONS: Option<ArctisState['homescreenMode']>[] = [
   { value: 'SIMPLE', label: 'Simple' },
 ]
 
+const EQ_MODE_OPTIONS: Option<ArctisState['eqMode']>[] = [
+  { value: 'PRESET', label: 'Preset' },
+  { value: 'CUSTOM', label: 'Custom' },
+]
+
+const EQ_PRESET_OPTIONS: Option<EqPreset>[] = [
+  { value: 'FLAT', label: 'Flat' },
+  { value: 'BASS_BOOST', label: 'Bass Boost' },
+  { value: 'SMILEY', label: 'Smiley' },
+  { value: 'HIGH_BOOST', label: 'High Boost' },
+  { value: 'VOCAL', label: 'Vocal' },
+]
+
+const EQ_PRESET_LABELS: Record<EqPreset, string> = {
+  FLAT: 'Flat',
+  BASS_BOOST: 'Bass Boost',
+  SMILEY: 'Smiley',
+  HIGH_BOOST: 'High Boost',
+  VOCAL: 'Vocal',
+}
+
+const EQ_BAND_FREQS = ['31', '62', '125', '250', '500', '1K', '2K', '4K', '8K', '16K']
+
 const TIMEOUT_OPTIONS: Option<TimeoutStep>[] = [
   { value: 'OFF', label: 'Off' },
   { value: 'ONE_MIN', label: '1 min' },
@@ -724,6 +747,83 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
             onChange={(v) => cmd('setAutoOffTimeout', v, { autoOffTimeout: v })}
           />
         </ControlRow>
+      </Section>
+
+      {/* ── EQ ── */}
+      <Section
+        title="EQ"
+        summary={state.eqMode === 'PRESET' ? EQ_PRESET_LABELS[state.eqPreset] : 'Custom'}
+      >
+        <ControlRow label="Mode">
+          <OptionGroup
+            value={state.eqMode}
+            options={EQ_MODE_OPTIONS}
+            onChange={(v) => cmd('setEqMode', v, { eqMode: v })}
+          />
+        </ControlRow>
+
+        {state.eqMode === 'PRESET' && (
+          <ControlRow label="Preset">
+            <SelectControl
+              value={state.eqPreset}
+              options={EQ_PRESET_OPTIONS}
+              onChange={(v) => cmd('setEqPreset', v, { eqPreset: v })}
+            />
+          </ControlRow>
+        )}
+
+        {state.eqMode === 'CUSTOM' && (
+          <div className="flex flex-col gap-1.5">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(10, 1fr)',
+                gap: '0 4px',
+              }}
+            >
+              {EQ_BAND_FREQS.map((freq, i) => {
+                const level = state.eqCustomBands[i] ?? 0
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <span
+                      className="mono"
+                      style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}
+                    >
+                      {freq}
+                    </span>
+                    <input
+                      type="range"
+                      min={-10}
+                      max={10}
+                      step={1}
+                      value={level}
+                      onChange={(e) => {
+                        const newBands = [...(state.eqCustomBands ?? Array(10).fill(0))]
+                        newBands[i] = Number(e.target.value)
+                        cmd('setEqBands', newBands, { eqCustomBands: newBands })
+                      }}
+                      style={{
+                        accentColor: 'var(--color-accent)',
+                        cursor: 'pointer',
+                        width: '100%',
+                        writingMode: 'vertical-lr',
+                        direction: 'rtl',
+                        height: 72,
+                        appearance: 'slider-vertical',
+                      }}
+                    />
+                    <span
+                      className="mono"
+                      style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}
+                    >
+                      {level > 0 ? `+${level}` : level}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </Section>
     </div>
   )
