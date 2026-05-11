@@ -81,8 +81,9 @@ def _read_full_state(headset) -> dict:
                 return getattr(val, "name", str(val))
         return default
 
-    bt_active    = getattr(status, "bt_active", False)
-    bt_connected = getattr(connectivity, "bt_connected", False) if connectivity else False
+    _conn_mode   = getattr(getattr(connectivity, "connectivity_mode", None), "name", "")
+    bt_active    = (_conn_mode == "WIRELESS_AND_BT") if connectivity else getattr(status, "bt_active", False)
+    bt_connected = getattr(connectivity, "bt_connected", bt_active) if connectivity else False
 
     state = {
         # ── Always-available status fields ───────────────────────────────────
@@ -305,22 +306,28 @@ def main() -> None:
 
             # ── Connectivity ─────────────────────────────────────────────────
             def on_connectivity_event(e):
-                bt_active = getattr(e, "bt_active", False)
-                wireless  = getattr(e, "wireless", True)
-
-                # Query device for authoritative connectivity state
-                bt_connected = False
+                # Query device — connectivity_mode is the single source of truth
                 mode_name    = "UNKNOWN"
+                bt_active    = False
+                bt_connected = False
+                wireless     = False
                 with _headset_lock:
                     h = _headset
                 if h is not None:
                     try:
-                        conn         = h.get_connectivity()
-                        bt_connected = conn.bt_connected
-                        mode_name    = getattr(conn.connectivity_mode, "name",
-                                               str(conn.connectivity_mode))
+                        conn      = h.get_connectivity()
+                        mode_name = getattr(conn.connectivity_mode, "name",
+                                            str(conn.connectivity_mode))
+                        # WIRELESS_AND_BT → BT radio on; WIRELESS_ONLY → BT off
+                        bt_active    = (mode_name == "WIRELESS_AND_BT")
+                        # bt_connected: explicit field; fall back to True when mode confirms BT
+                        bt_connected = getattr(conn, "bt_connected", bt_active)
+                        wireless     = mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
                     except Exception as exc:
                         log("warn", f"get_connectivity() failed: {exc}")
+                        # Fall back to event attributes only when the query fails
+                        bt_active = getattr(e, "bt_active", False)
+                        wireless  = getattr(e, "wireless", True)
 
                 emit({
                     "type": "event", "event": "ConnectivityEvent",
