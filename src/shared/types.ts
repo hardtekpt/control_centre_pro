@@ -39,7 +39,7 @@ export const IPC_CHANNELS = {
   ARCTIS_CONNECTED: 'arctis:connected',     // main → renderer push
   ARCTIS_DISCONNECTED: 'arctis:disconnected', // main → renderer push
   ARCTIS_EVENT: 'arctis:event',             // main → renderer push
-  ARCTIS_CMD: 'arctis:cmd',                 // renderer → main invoke (write command)
+  ARCTIS_CMD: 'arctis:cmd',                 // renderer → main invoke (write/query command)
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -106,6 +106,19 @@ export interface LogEntry {
 
 // ─── Arctis Nova Pro HID ──────────────────────────────────────────────────────
 
+/**
+ * Screen-dim / auto-off timeout — mirrors arctis_hid.TimeoutStep enum.
+ * OFF = disabled; other values are the inactivity delay before triggering.
+ */
+export type TimeoutStep =
+  | 'OFF'
+  | 'ONE_MIN'
+  | 'FIVE_MIN'
+  | 'TEN_MIN'
+  | 'FIFTEEN_MIN'
+  | 'THIRTY_MIN'
+  | 'SIXTY_MIN'
+
 /** Live state snapshot of the connected Arctis Nova Pro Wireless headset */
 export interface ArctisState {
   // ── Status ──────────────────────────────────────────────────────────────────
@@ -115,33 +128,37 @@ export interface ArctisState {
   volume: number                 // 0–100 %
 
   // ── Connectivity ────────────────────────────────────────────────────────────
-  wirelessConnected: boolean     // 2.4 GHz link to base station active
+  wirelessConnected: boolean     // 2.4 GHz link active
   btActive: boolean              // Bluetooth link active
 
   // ── ANC ─────────────────────────────────────────────────────────────────────
-  ancMode: 'OFF' | 'TRANSPARENCY' | 'ANC'
+  ancMode: 'OFF' | 'TRANSPARENCY' | 'ANC'   // AncMode enum
   transparencyLevel: number      // 1–10
 
   // ── Audio Options ────────────────────────────────────────────────────────────
-  micGain: 'LOW' | 'HIGH'
-  sidetone: 'OFF' | 'LOW' | 'MEDIUM' | 'HIGH'
-  micVolume: number              // 1–10
+  micGain: 'LOW' | 'HIGH'                           // GainLevel enum
+  sidetone: 'OFF' | 'LOW' | 'MEDIUM' | 'HIGH'      // SidetoneLevel enum
+  micVolume: number                                 // 1–10
 
   // ── Wireless ────────────────────────────────────────────────────────────────
-  wirelessMode: 'SPEED' | 'RANGE'
+  wirelessMode: 'PERFORMANCE' | 'EXTENDED_RANGE'    // WirelessMode enum
   btDefault: boolean
-  autoMute: 'OFF' | 'ON' | 'DB12'
+  btAutoMute: 'OFF' | 'DB_MINUS_12' | 'FULL'       // BtAutoMute enum
+
+  // ── ChatMix (hardware dial — read only) ──────────────────────────────────────
+  chatmixGame: number            // 0–100
+  chatmixChat: number            // 0–100
 
   // ── Audio Output ────────────────────────────────────────────────────────────
-  audioOutput: 'SPEAKERS' | 'STREAM'
-  streamMain: number             // 0–100 %
-  streamAux: number              // 0–100 %
-  streamMic: number              // 0–100 %
+  audioOutput: 'SPEAKERS' | 'STREAM'                // AudioOutput enum
+  streamMain: number             // 0–100
+  streamAux: number              // 0–100
+  streamMic: number              // 0–100
 
   // ── Base Station ─────────────────────────────────────────────────────────────
-  oledBrightness: number         // 0–100 %
-  dimScreen: boolean
-  homescreenMode: 'DEFAULT' | 'LOGO' | 'CLOCK'
-  micLedBrightness: number       // 0–100 %
-  autoOff: boolean
+  oledBrightness: number         // 1–10
+  dimTimeout: TimeoutStep        // TimeoutStep enum
+  homescreenMode: 'DETAILED' | 'SIMPLE'             // HomeScreenMode enum
+  micLedBrightness: number       // 1–10
+  autoOffTimeout: TimeoutStep    // TimeoutStep enum
 }

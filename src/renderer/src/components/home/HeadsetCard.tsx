@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
-import type { ArctisState } from '@shared/types'
+import type { ArctisState, TimeoutStep } from '@shared/types'
 
 // ─── Primitive controls ───────────────────────────────────────────────────────
 
@@ -31,8 +31,7 @@ function OptionGroup<T extends string>({
           style={{
             background: value === opt.value ? 'var(--color-accent)' : 'var(--color-surface-raised)',
             color: value === opt.value ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-            borderRight:
-              i < options.length - 1 ? '1px solid var(--color-border)' : 'none',
+            borderRight: i < options.length - 1 ? '1px solid var(--color-border)' : 'none',
             cursor: 'pointer',
           }}
         >
@@ -40,6 +39,36 @@ function OptionGroup<T extends string>({
         </button>
       ))}
     </div>
+  )
+}
+
+function SelectControl<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: Option<T>[]
+  onChange: (v: T) => void
+}): JSX.Element {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as T)}
+      className="flex-1 text-xs rounded px-2 py-1 w-full"
+      style={{
+        background: 'var(--color-surface-raised)',
+        color: 'var(--color-text-primary)',
+        border: '1px solid var(--color-border)',
+        cursor: 'pointer',
+      }}
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -89,10 +118,7 @@ function ControlRow({
 }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span
-        className="text-xs shrink-0 w-32"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
+      <span className="text-xs shrink-0 w-32" style={{ color: 'var(--color-text-secondary)' }}>
         {label}
       </span>
       <div className="flex-1">{children}</div>
@@ -116,6 +142,7 @@ function ChevronIcon({ open }: { open: boolean }): JSX.Element {
       style={{
         transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
         transition: 'transform 150ms ease',
+        flexShrink: 0,
       }}
     >
       <polyline points="6 9 12 15 18 9" />
@@ -136,14 +163,11 @@ function Section({
   return (
     <div style={{ borderTop: '1px solid var(--color-border)' }}>
       <button
-        className="w-full flex items-center justify-between py-2.5"
+        className="w-full flex items-center justify-between"
         onClick={() => setOpen((o) => !o)}
-        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: '10px 0' }}
       >
-        <span
-          className="text-xs font-semibold"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
+        <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {title}
         </span>
         <div className="flex items-center gap-2">
@@ -162,23 +186,12 @@ function Section({
   )
 }
 
-// ─── Status bar ───────────────────────────────────────────────────────────────
+// ─── Read-only stat bar ───────────────────────────────────────────────────────
 
-function StatBar({
-  label,
-  value,
-  bar,
-}: {
-  label: string
-  value: string
-  bar: number
-}): JSX.Element {
+function StatBar({ label, value, bar }: { label: string; value: string; bar: number }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span
-        className="text-xs w-32 shrink-0"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
+      <span className="text-xs w-32 shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
         {label}
       </span>
       <div
@@ -194,10 +207,7 @@ function StatBar({
           }}
         />
       </div>
-      <span
-        className="text-xs mono w-9 text-right shrink-0"
-        style={{ color: 'var(--color-text-primary)' }}
-      >
+      <span className="text-xs mono w-9 text-right shrink-0" style={{ color: 'var(--color-text-primary)' }}>
         {value}
       </span>
     </div>
@@ -208,19 +218,19 @@ function StatBar({
 
 function UsbIcon(): JSX.Element {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2v10" />
-      <path d="M8 6H5v4h3" />
-      <path d="M16 6h3v4h-3" />
-      <path d="M6 18a3 3 0 0 0 6 0v-6H6v6z" />
-      <path d="M18 18a3 3 0 0 0-6 0v-6h6v6z" />
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v12" />
+      <path d="M9 5H6v4h3" />
+      <path d="M15 5h3v4h-3" />
+      <path d="M7 18a3 3 0 0 0 5 0v-4H7v4z" />
+      <path d="M17 18a3 3 0 0 0-5 0v-4h5v4z" />
     </svg>
   )
 }
 
 function WirelessIcon(): JSX.Element {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12.55a11 11 0 0 1 14.08 0" />
       <path d="M1.42 9a16 16 0 0 1 21.16 0" />
       <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
@@ -231,30 +241,24 @@ function WirelessIcon(): JSX.Element {
 
 function BluetoothIcon(): JSX.Element {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5" />
     </svg>
   )
 }
 
-function ConnectivityDot({
-  icon,
-  active,
-  title,
-}: {
-  icon: React.ReactNode
-  active: boolean
-  title: string
-}): JSX.Element {
+function ConnectivityDot({ icon, active, title }: { icon: React.ReactNode; active: boolean; title: string }): JSX.Element {
   return (
     <div
       title={title}
       className="w-6 h-6 rounded-full flex items-center justify-center"
       style={{
-        background: active ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'var(--color-surface-raised)',
+        background: active
+          ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
+          : 'var(--color-surface-raised)',
         border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`,
         color: active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-        opacity: active ? 1 : 0.45,
+        opacity: active ? 1 : 0.4,
       }}
     >
       {icon}
@@ -273,7 +277,7 @@ function HeadphonesIcon(): JSX.Element {
   )
 }
 
-// ─── HeadsetCard ──────────────────────────────────────────────────────────────
+// ─── Option sets ──────────────────────────────────────────────────────────────
 
 const ANC_OPTIONS: Option<ArctisState['ancMode']>[] = [
   { value: 'OFF', label: 'Off' },
@@ -281,30 +285,30 @@ const ANC_OPTIONS: Option<ArctisState['ancMode']>[] = [
   { value: 'ANC', label: 'ANC' },
 ]
 
-const SIDETONE_OPTIONS: Option<ArctisState['sidetone']>[] = [
-  { value: 'OFF', label: 'Off' },
-  { value: 'LOW', label: 'Low' },
-  { value: 'MEDIUM', label: 'Medium' },
-  { value: 'HIGH', label: 'High' },
-]
-
 const GAIN_OPTIONS: Option<ArctisState['micGain']>[] = [
   { value: 'LOW', label: 'Low' },
   { value: 'HIGH', label: 'High' },
 ]
 
-const WIRELESS_MODE_OPTIONS: Option<ArctisState['wirelessMode']>[] = [
-  { value: 'SPEED', label: 'Speed' },
-  { value: 'RANGE', label: 'Range' },
-]
-
-const AUTO_MUTE_OPTIONS: Option<ArctisState['autoMute']>[] = [
+const SIDETONE_OPTIONS: Option<ArctisState['sidetone']>[] = [
   { value: 'OFF', label: 'Off' },
-  { value: 'ON', label: 'On' },
-  { value: 'DB12', label: '-12 dB' },
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Med' },
+  { value: 'HIGH', label: 'High' },
 ]
 
-const BOOL_OPTIONS: Option<'ON' | 'OFF'>[] = [
+const WIRELESS_MODE_OPTIONS: Option<ArctisState['wirelessMode']>[] = [
+  { value: 'PERFORMANCE', label: 'Performance' },
+  { value: 'EXTENDED_RANGE', label: 'Range' },
+]
+
+const BT_AUTO_MUTE_OPTIONS: Option<ArctisState['btAutoMute']>[] = [
+  { value: 'OFF', label: 'Off' },
+  { value: 'DB_MINUS_12', label: '-12 dB' },
+  { value: 'FULL', label: 'Full' },
+]
+
+const BOOL_OPTIONS: Option<'OFF' | 'ON'>[] = [
   { value: 'OFF', label: 'Off' },
   { value: 'ON', label: 'On' },
 ]
@@ -315,10 +319,31 @@ const AUDIO_OUTPUT_OPTIONS: Option<ArctisState['audioOutput']>[] = [
 ]
 
 const HOMESCREEN_OPTIONS: Option<ArctisState['homescreenMode']>[] = [
-  { value: 'DEFAULT', label: 'Default' },
-  { value: 'LOGO', label: 'Logo' },
-  { value: 'CLOCK', label: 'Clock' },
+  { value: 'DETAILED', label: 'Detailed' },
+  { value: 'SIMPLE', label: 'Simple' },
 ]
+
+const TIMEOUT_OPTIONS: Option<TimeoutStep>[] = [
+  { value: 'OFF', label: 'Off' },
+  { value: 'ONE_MIN', label: '1 min' },
+  { value: 'FIVE_MIN', label: '5 min' },
+  { value: 'TEN_MIN', label: '10 min' },
+  { value: 'FIFTEEN_MIN', label: '15 min' },
+  { value: 'THIRTY_MIN', label: '30 min' },
+  { value: 'SIXTY_MIN', label: '60 min' },
+]
+
+const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
+  OFF: 'Off',
+  ONE_MIN: '1 min',
+  FIVE_MIN: '5 min',
+  TEN_MIN: '10 min',
+  FIFTEEN_MIN: '15 min',
+  THIRTY_MIN: '30 min',
+  SIXTY_MIN: '60 min',
+}
+
+// ─── HeadsetCard ──────────────────────────────────────────────────────────────
 
 export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
   const { updateArctisState } = useServiceStore()
@@ -333,48 +358,58 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
   }
 
   const batteryHeadset = Math.round(state.batteryHeadset)
-  const batteryDock = Math.round(state.batteryDock)
-  const volume = Math.round(state.volume)
+  const batteryDock    = Math.round(state.batteryDock)
+  const volume         = Math.round(state.volume)
 
   return (
     <div
       className="rounded-lg px-4 py-3 flex flex-col"
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-      }}
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span style={{ color: 'var(--color-accent)' }}>
-            <HeadphonesIcon />
-          </span>
-          <span
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
+          <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
+          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             Arctis Nova Pro Wireless
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <ConnectivityDot icon={<UsbIcon />} active={true} title="USB / Dongle" />
-          <ConnectivityDot icon={<WirelessIcon />} active={state.wirelessConnected} title="2.4 GHz" />
-          <ConnectivityDot icon={<BluetoothIcon />} active={state.btActive} title="Bluetooth" />
+          <ConnectivityDot icon={<UsbIcon />}       active={true}                   title="USB / Dongle" />
+          <ConnectivityDot icon={<WirelessIcon />}  active={state.wirelessConnected} title="2.4 GHz" />
+          <ConnectivityDot icon={<BluetoothIcon />} active={state.btActive}          title="Bluetooth" />
         </div>
       </div>
 
-      {/* ── Status bars ── */}
-      <div className="flex flex-col gap-2 mb-1">
+      {/* ── Battery (read-only) ── */}
+      <div className="flex flex-col gap-2 mb-2">
         <StatBar label="Headset battery" value={`${batteryHeadset}%`} bar={batteryHeadset} />
-        <StatBar label="Dock battery" value={`${batteryDock}%`} bar={batteryDock} />
-        <StatBar label="Volume" value={`${volume}%`} bar={volume} />
+        <StatBar label="Dock battery"    value={`${batteryDock}%`}    bar={batteryDock} />
+      </div>
+
+      {/* ── Volume (always visible, controllable) ── */}
+      <div className="mb-1">
+        <ControlRow label="Volume">
+          <Slider
+            value={volume}
+            min={0}
+            max={100}
+            unit="%"
+            onChange={(v) => cmd('setVolume', v, { volume: v })}
+          />
+        </ControlRow>
       </div>
 
       {/* ── ANC ── */}
       <Section
         title="ANC"
-        summary={state.ancMode === 'OFF' ? 'Off' : state.ancMode === 'ANC' ? 'ANC' : `Transparency · ${state.transparencyLevel}`}
+        summary={
+          state.ancMode === 'OFF'
+            ? 'Off'
+            : state.ancMode === 'ANC'
+            ? 'ANC'
+            : `Transparency · ${state.transparencyLevel}`
+        }
       >
         <ControlRow label="Mode">
           <OptionGroup
@@ -398,7 +433,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── Audio Options ── */}
       <Section
         title="Audio Options"
-        summary={`Gain: ${state.micGain === 'LOW' ? 'Low' : 'High'} · Sidetone: ${state.sidetone === 'OFF' ? 'Off' : state.sidetone.charAt(0) + state.sidetone.slice(1).toLowerCase()}`}
+        summary={`Gain: ${state.micGain === 'LOW' ? 'Low' : 'High'} · Sidetone: ${state.sidetone.charAt(0) + state.sidetone.slice(1).toLowerCase()}`}
       >
         <ControlRow label="Gain">
           <OptionGroup
@@ -427,7 +462,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── Wireless ── */}
       <Section
         title="Wireless"
-        summary={`${state.wirelessMode === 'SPEED' ? 'Speed' : 'Range'} · BT ${state.btDefault ? 'On' : 'Off'}`}
+        summary={`${state.wirelessMode === 'PERFORMANCE' ? 'Performance' : 'Range'} · BT ${state.btDefault ? 'On' : 'Off'}`}
       >
         <ControlRow label="2.4 GHz Mode">
           <OptionGroup
@@ -446,13 +481,25 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
             }}
           />
         </ControlRow>
-        <ControlRow label="Auto Mute">
+        <ControlRow label="BT Auto Mute">
           <OptionGroup
-            value={state.autoMute}
-            options={AUTO_MUTE_OPTIONS}
-            onChange={(v) => cmd('setAutoMute', v, { autoMute: v })}
+            value={state.btAutoMute}
+            options={BT_AUTO_MUTE_OPTIONS}
+            onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
           />
         </ControlRow>
+      </Section>
+
+      {/* ── ChatMix (hardware dial — display only) ── */}
+      <Section
+        title="ChatMix"
+        summary={`Game ${state.chatmixGame} · Chat ${state.chatmixChat}`}
+      >
+        <StatBar label="Game" value={String(state.chatmixGame)} bar={state.chatmixGame} />
+        <StatBar label="Chat" value={String(state.chatmixChat)} bar={state.chatmixChat} />
+        <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          Controlled by the hardware ChatMix dial
+        </span>
       </Section>
 
       {/* ── Audio Output ── */}
@@ -477,11 +524,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
                 unit="%"
                 onChange={(v) => {
                   updateArctisState({ streamMain: v })
-                  window.api.arctisCmd('setStreamLevels', {
-                    main: v,
-                    aux: state.streamAux,
-                    mic: state.streamMic,
-                  }).catch(console.error)
+                  window.api.arctisCmd('setStreamVolumes', { main: v, aux: state.streamAux, mic: state.streamMic }).catch(console.error)
                 }}
               />
             </ControlRow>
@@ -493,11 +536,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
                 unit="%"
                 onChange={(v) => {
                   updateArctisState({ streamAux: v })
-                  window.api.arctisCmd('setStreamLevels', {
-                    main: state.streamMain,
-                    aux: v,
-                    mic: state.streamMic,
-                  }).catch(console.error)
+                  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: v, mic: state.streamMic }).catch(console.error)
                 }}
               />
             </ControlRow>
@@ -509,11 +548,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
                 unit="%"
                 onChange={(v) => {
                   updateArctisState({ streamMic: v })
-                  window.api.arctisCmd('setStreamLevels', {
-                    main: state.streamMain,
-                    aux: state.streamAux,
-                    mic: v,
-                  }).catch(console.error)
+                  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: state.streamAux, mic: v }).catch(console.error)
                 }}
               />
             </ControlRow>
@@ -524,51 +559,43 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── Base Station ── */}
       <Section
         title="Base Station"
-        summary={`OLED ${state.oledBrightness}% · ${state.homescreenMode.charAt(0) + state.homescreenMode.slice(1).toLowerCase()}`}
+        summary={`OLED ${state.oledBrightness} · Dim ${TIMEOUT_LABELS[state.dimTimeout]}`}
       >
         <ControlRow label="OLED Brightness">
           <Slider
             value={state.oledBrightness}
-            min={0}
-            max={100}
-            unit="%"
+            min={1}
+            max={10}
             onChange={(v) => cmd('setOledBrightness', v, { oledBrightness: v })}
           />
         </ControlRow>
         <ControlRow label="Dim Screen">
-          <OptionGroup
-            value={state.dimScreen ? 'ON' : 'OFF'}
-            options={BOOL_OPTIONS}
-            onChange={(v) => {
-              const val = v === 'ON'
-              cmd('setDimScreen', val, { dimScreen: val })
-            }}
+          <SelectControl
+            value={state.dimTimeout}
+            options={TIMEOUT_OPTIONS}
+            onChange={(v) => cmd('setDimTimeout', v, { dimTimeout: v })}
           />
         </ControlRow>
         <ControlRow label="Homescreen">
           <OptionGroup
             value={state.homescreenMode}
             options={HOMESCREEN_OPTIONS}
-            onChange={(v) => cmd('setHomescreenMode', v, { homescreenMode: v })}
+            onChange={(v) => cmd('setHomeScreenMode', v, { homescreenMode: v })}
           />
         </ControlRow>
         <ControlRow label="Mic LED">
           <Slider
             value={state.micLedBrightness}
-            min={0}
-            max={100}
-            unit="%"
+            min={1}
+            max={10}
             onChange={(v) => cmd('setMicLedBrightness', v, { micLedBrightness: v })}
           />
         </ControlRow>
         <ControlRow label="Auto Off">
-          <OptionGroup
-            value={state.autoOff ? 'ON' : 'OFF'}
-            options={BOOL_OPTIONS}
-            onChange={(v) => {
-              const val = v === 'ON'
-              cmd('setAutoOff', val, { autoOff: val })
-            }}
+          <SelectControl
+            value={state.autoOffTimeout}
+            options={TIMEOUT_OPTIONS}
+            onChange={(v) => cmd('setAutoOffTimeout', v, { autoOffTimeout: v })}
           />
         </ControlRow>
       </Section>

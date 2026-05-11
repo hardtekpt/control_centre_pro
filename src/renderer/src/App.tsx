@@ -79,13 +79,19 @@ export default function App(): JSX.Element {
   // Load initial Arctis state and subscribe to device events
   useEffect(() => {
     window.api.arctisGetState().then((state) => {
-      if (state) setArctisConnected(state)
+      if (state) {
+        setArctisConnected(state)
+        // Trigger a fresh full read so the UI always shows live values on open/reload
+        window.api.arctisCmd('refresh', null).catch(console.error)
+      }
     })
     const cleanups = [
       window.api.onArctisConnected(setArctisConnected),
       window.api.onArctisDisconnected(setArctisDisconnected),
       window.api.onArctisEvent((eventName, data) => {
+        // Each event carries only the fields it owns — updateArctisState merges them in
         switch (eventName) {
+          // ── Status ────────────────────────────────────────────────────────
           case 'VolumeEvent':
             updateArctisState({ volume: (data as { volume: number }).volume })
             break
@@ -94,17 +100,73 @@ export default function App(): JSX.Element {
             updateArctisState({ batteryHeadset: d.batteryHeadset, batteryDock: d.batteryDock })
             break
           }
-          case 'AncModeEvent':
-            updateArctisState({ ancMode: (data as { ancMode: ArctisState['ancMode'] }).ancMode })
-            break
           case 'MicMuteEvent':
             updateArctisState({ micMuted: (data as { micMuted: boolean }).micMuted })
             break
+          // ── Connectivity ──────────────────────────────────────────────────
           case 'ConnectivityEvent': {
             const d = data as { btActive: boolean; wirelessConnected: boolean }
             updateArctisState({ btActive: d.btActive, wirelessConnected: d.wirelessConnected })
             break
           }
+          // ── ANC ───────────────────────────────────────────────────────────
+          case 'AncModeEvent':
+            updateArctisState({ ancMode: (data as { ancMode: ArctisState['ancMode'] }).ancMode })
+            break
+          case 'TransparencyEvent':
+            updateArctisState({ transparencyLevel: (data as { transparencyLevel: number }).transparencyLevel })
+            break
+          // ── Audio Options ─────────────────────────────────────────────────
+          case 'GainEvent':
+            updateArctisState({ micGain: (data as { micGain: ArctisState['micGain'] }).micGain })
+            break
+          case 'MicVolumeEvent':
+            updateArctisState({ micVolume: (data as { micVolume: number }).micVolume })
+            break
+          case 'SidetoneEvent':
+            updateArctisState({ sidetone: (data as { sidetone: ArctisState['sidetone'] }).sidetone })
+            break
+          // ── Wireless ──────────────────────────────────────────────────────
+          case 'WirelessModeEvent':
+            updateArctisState({ wirelessMode: (data as { wirelessMode: ArctisState['wirelessMode'] }).wirelessMode })
+            break
+          case 'BtDefaultEvent':
+            updateArctisState({ btDefault: (data as { btDefault: boolean }).btDefault })
+            break
+          case 'BtAutoMuteEvent':
+            updateArctisState({ btAutoMute: (data as { btAutoMute: ArctisState['btAutoMute'] }).btAutoMute })
+            break
+          // ── ChatMix ───────────────────────────────────────────────────────
+          case 'ChatMixEvent': {
+            const d = data as { chatmixGame: number; chatmixChat: number }
+            updateArctisState({ chatmixGame: d.chatmixGame, chatmixChat: d.chatmixChat })
+            break
+          }
+          // ── Audio Output ──────────────────────────────────────────────────
+          case 'AudioOutputEvent':
+            updateArctisState({ audioOutput: (data as { audioOutput: ArctisState['audioOutput'] }).audioOutput })
+            break
+          case 'StreamVolumesEvent': {
+            const d = data as { streamMain: number; streamAux: number; streamMic: number }
+            updateArctisState({ streamMain: d.streamMain, streamAux: d.streamAux, streamMic: d.streamMic })
+            break
+          }
+          // ── Base Station ──────────────────────────────────────────────────
+          case 'OledBrightnessEvent':
+            updateArctisState({ oledBrightness: (data as { oledBrightness: number }).oledBrightness })
+            break
+          case 'DimTimeoutEvent':
+            updateArctisState({ dimTimeout: (data as { dimTimeout: ArctisState['dimTimeout'] }).dimTimeout })
+            break
+          case 'HomeScreenEvent':
+            updateArctisState({ homescreenMode: (data as { homescreenMode: ArctisState['homescreenMode'] }).homescreenMode })
+            break
+          case 'MicLedEvent':
+            updateArctisState({ micLedBrightness: (data as { micLedBrightness: number }).micLedBrightness })
+            break
+          case 'AutoOffEvent':
+            updateArctisState({ autoOffTimeout: (data as { autoOffTimeout: ArctisState['autoOffTimeout'] }).autoOffTimeout })
+            break
         }
       }),
     ]
