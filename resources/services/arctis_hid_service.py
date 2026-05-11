@@ -39,50 +39,97 @@ def _clear_headset() -> None:
 
 # ─── Initial full state read ──────────────────────────────────────────────────
 
-def _read_full_state(headset) -> dict:
-    """Read all available state from the headset and return as a flat dict."""
-    from arctis_hid import AncMode, GainLevel, SidetoneLevel, AudioOutput
-    from arctis_hid import WirelessMode, BtAutoMute, TimeoutStep, HomeScreenMode
+def _attr(obj, *names, default=None, transform=None):
+    """Return the first attribute that exists on obj, applying transform if given."""
+    for name in names:
+        val = getattr(obj, name, None)
+        if val is not None:
+            return transform(val) if transform else val
+    if default is not None:
+        return default
+    return None
 
+
+def _read_full_state(headset) -> dict:
+    """Read all available state from the headset and return as a flat dict.
+
+    Every field is fetched defensively so an unexpected attribute name on any
+    data object never crashes the service — it falls back to a safe default and
+    logs a warning for the first occurrence.
+    """
     status = headset.get_status()
     mic_eq = headset.get_mic_eq()
-    display = headset.get_display()
 
-    return {
-        # Status
-        "batteryHeadset": status.headset_battery_pct,
-        "batteryDock": status.dock_battery_pct,
-        "micMuted": status.mic_muted,
-        "volume": mic_eq.volume_pct,
-        # Connectivity
+    # get_display() may not exist on all firmware versions
+    display = None
+    try:
+        display = headset.get_display()
+    except Exception as exc:
+        log("warn", f"get_display() unavailable: {exc}")
+
+    def enum_name(obj, *attrs, default="OFF"):
+        for a in attrs:
+            val = getattr(obj, a, None)
+            if val is not None:
+                return getattr(val, "name", str(val))
+        return default
+
+    state = {
+        # ── Always-available status fields ───────────────────────────────────
+        "batteryHeadset": getattr(status, "headset_battery_pct", 0),
+        "batteryDock":    getattr(status, "dock_battery_pct", 0),
+        "micMuted":       getattr(status, "mic_muted", getattr(status, "mic_mute", False)),
+        "volume":         getattr(mic_eq, "volume_pct", 0),
+        # ── Connectivity ────────────────────────────────────────────────────
         "wirelessConnected": True,
-        "btActive": status.bt_active,
-        # ANC
-        "ancMode": status.anc_mode.name,
-        "transparencyLevel": 5,          # not exposed by get_status; default
-        # Audio Options
-        "micGain": mic_eq.gain.name,
-        "sidetone": mic_eq.sidetone.name,
-        "micVolume": mic_eq.mic_volume,
-        # Wireless
-        "wirelessMode": status.wireless_mode.name,
-        "btDefault": status.bt_default,
-        "btAutoMute": status.bt_auto_mute.name,
-        # ChatMix (hardware dial — read from mic eq)
-        "chatmixGame": mic_eq.game_volume,
-        "chatmixChat": mic_eq.chat_volume,
-        # Audio Output
-        "audioOutput": mic_eq.audio_output.name,
-        "streamMain": mic_eq.stream_main,
-        "streamAux": mic_eq.stream_aux,
-        "streamMic": mic_eq.stream_mic,
-        # Base Station
-        "oledBrightness": display.oled_brightness,
-        "dimTimeout": display.dim_timeout.name,
-        "homescreenMode": display.home_screen_mode.name,
-        "micLedBrightness": status.mic_led_brightness,
-        "autoOffTimeout": status.auto_off_timeout.name,
+        "btActive": getattr(status, "bt_active", False),
+        # ── ANC ─────────────────────────────────────────────────────────────
+        "ancMode":          enum_name(status, "anc_mode", default="OFF"),
+        "transparencyLevel": 5,
+        # ── Audio Options ────────────────────────────────────────────────────
+        "micGain":   enum_name(mic_eq, "gain", default="LOW"),
+        "sidetone":  enum_name(mic_eq, "sidetone", default="OFF"),
+        "micVolume": getattr(mic_eq, "mic_volume", 5),
+        # ── Wireless ─────────────────────────────────────────────────────────
+        "wirelessMode": enum_name(status, "wireless_mode", default="PERFORMANCE"),
+        "btDefault":    getattr(status, "bt_default", False),
+        "btAutoMute":   enum_name(status, "bt_auto_mute", default="OFF"),
+        # ── ChatMix (hardware dial — events update this live) ────────────────
+        "chatmixGame": getattr(mic_eq, "game_volume",
+                        getattr(mic_eq, "chatmix_game",
+                        getattr(mic_eq, "chat_game", 50))),
+        "chatmixChat": getattr(mic_eq, "chat_volume",
+                        getattr(mic_eq, "chatmix_chat",
+                        getattr(mic_eq, "chat_chat", 50))),
+        # ── Audio Output ──────────────────────────────────────────────────────
+        "audioOutput": enum_name(mic_eq, "audio_output", default="SPEAKERS"),
+        "streamMain":  getattr(mic_eq, "stream_main", getattr(mic_eq, "main", 100)),
+        "streamAux":   getattr(mic_eq, "stream_aux",  getattr(mic_eq, "aux",  100)),
+        "streamMic":   getattr(mic_eq, "stream_mic",  getattr(mic_eq, "mic",  100)),
+        # ── Base Station (from display object if available) ───────────────────
+        "oledBrightness": getattr(display, "oled_brightness", 5) if display else 5,
+        "dimTimeout":     enum_name(display, "dim_timeout", default="OFF") if display else "OFF",
+        "homescreenMode": enum_name(display, "home_screen_mode", default="DETAILED") if display else "DETAILED",
+        "micLedBrightness": getattr(status, "mic_led_brightness", 5),
+        "autoOffTimeout": enum_name(status, "auto_off_timeout", default="OFF"),
     }
+
+    # Log any fields that fell back to defaults so we can spot wrong attr names
+    _warn_defaults(state, mic_eq, status, display)
+    return state
+
+
+def _warn_defaults(state, mic_eq, status, display) -> None:
+    """Emit a single grouped warning if any fields couldn't be read from the device."""
+    missing = []
+    if state["chatmixGame"] == 50 and not hasattr(mic_eq, "game_volume"):
+        missing.append("chatmixGame (game_volume missing from MicEqData)")
+    if state["chatmixChat"] == 50 and not hasattr(mic_eq, "chat_volume"):
+        missing.append("chatmixChat (chat_volume missing from MicEqData)")
+    if state["streamMain"] == 100 and not hasattr(mic_eq, "stream_main"):
+        missing.append("streamMain (stream_main missing from MicEqData)")
+    if missing:
+        log("warn", "Some fields fell back to defaults — attr names may differ: " + ", ".join(missing))
 
 
 # ─── Write command dispatch ────────────────────────────────────────────────────
