@@ -425,12 +425,26 @@ const HOMESCREEN_OPTIONS: Option<ArctisState['homescreenMode']>[] = [
 
 const EQ_CUSTOM_INDEX = 0x04
 
-// Named factory presets — indices 0x00–0x03 (confirmed by hardware protocol)
+// Factory preset index → label mapping (index 0x04 is custom, excluded from selector)
 const EQ_NAMED_PRESETS: { index: number; label: string }[] = [
   { index: 0x00, label: 'Flat' },
   { index: 0x01, label: 'Bass Boost' },
-  { index: 0x02, label: 'Treble Boost' },
-  { index: 0x03, label: 'Vocal' },
+  { index: 0x02, label: 'Focus' },
+  { index: 0x03, label: 'Smiley' },
+  { index: 0x05, label: 'Apex Legends' },
+  { index: 0x06, label: "Baldur's Gate 3" },
+  { index: 0x07, label: 'COD Modern Warfare II' },
+  { index: 0x08, label: 'COD Warzone 2' },
+  { index: 0x09, label: 'Destiny 2' },
+  { index: 0x0A, label: 'Diablo IV' },
+  { index: 0x0B, label: 'Fortnite' },
+  { index: 0x0C, label: 'FPS Footsteps' },
+  { index: 0x0D, label: 'GTA V' },
+  { index: 0x0E, label: 'Minecraft' },
+  { index: 0x0F, label: 'Overwatch 2' },
+  { index: 0x10, label: 'Player Unknown Battleground' },
+  { index: 0x11, label: 'Rainbow Six Siege' },
+  { index: 0x12, label: 'Rocket League' },
 ]
 
 const EQ_BAND_FREQS = ['31', '62', '125', '250', '500', '1K', '2K', '4K', '8K', '16K']
@@ -746,33 +760,37 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         const bands = state.eqBands?.length === 10 ? state.eqBands : Array(10).fill(20)
         return (
           <Section title="EQ" summary={summary}>
-            {/* Mode toggle */}
+            {/* Mode toggle — Custom first, then Preset */}
             <ControlRow label="Mode">
               <OptionGroup
                 value={isCustom ? 'CUSTOM' : 'PRESET'}
                 options={[
-                  { value: 'PRESET', label: 'Preset' },
                   { value: 'CUSTOM', label: 'Custom' },
+                  { value: 'PRESET', label: 'Preset' },
                 ] as Option<'PRESET' | 'CUSTOM'>[]}
                 onChange={(v) => {
                   if (v === 'CUSTOM') {
                     cmd('setEqBands', bands, { eqPresetIndex: EQ_CUSTOM_INDEX })
                   } else {
-                    const defaultIndex = 0x00
+                    const defaultIndex = EQ_NAMED_PRESETS[0].index
                     cmd('setEqPreset', defaultIndex, { eqPresetIndex: defaultIndex })
                   }
                 }}
               />
             </ControlRow>
 
-            {/* Preset selector (named mode) */}
+            {/* Preset selector — custom index is hidden; selecting it switches to custom mode */}
             {!isCustom && (
               <ControlRow label="Preset">
                 <select
                   value={state.eqPresetIndex}
                   onChange={(e) => {
                     const idx = Number(e.target.value)
-                    cmd('setEqPreset', idx, { eqPresetIndex: idx })
+                    if (idx === EQ_CUSTOM_INDEX) {
+                      cmd('setEqBands', bands, { eqPresetIndex: EQ_CUSTOM_INDEX })
+                    } else {
+                      cmd('setEqPreset', idx, { eqPresetIndex: idx })
+                    }
                   }}
                   className="flex-1 text-xs rounded px-2 py-1 w-full"
                   style={{
@@ -785,7 +803,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
                   {EQ_NAMED_PRESETS.map((p) => (
                     <option key={p.index} value={p.index}>{p.label}</option>
                   ))}
-                  {/* Show current index if it's not one of the four named ones */}
+                  {/* Fallback for unknown indices reported by the device */}
                   {!EQ_NAMED_PRESETS.some((p) => p.index === state.eqPresetIndex) && (
                     <option value={state.eqPresetIndex}>Preset {state.eqPresetIndex}</option>
                   )}
