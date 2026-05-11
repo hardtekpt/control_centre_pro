@@ -95,12 +95,8 @@ def _read_full_state(headset) -> dict:
         "btDefault":    getattr(status, "bt_default", False),
         "btAutoMute":   enum_name(status, "bt_auto_mute", default="OFF"),
         # ── ChatMix (hardware dial — events update this live) ────────────────
-        "chatmixGame": getattr(mic_eq, "game_volume",
-                        getattr(mic_eq, "chatmix_game",
-                        getattr(mic_eq, "chat_game", 50))),
-        "chatmixChat": getattr(mic_eq, "chat_volume",
-                        getattr(mic_eq, "chatmix_chat",
-                        getattr(mic_eq, "chat_chat", 50))),
+        "chatmixGame": getattr(mic_eq, "chatmix_game", 50),
+        "chatmixChat": getattr(mic_eq, "chatmix_chat", 50),
         # ── Audio Output ──────────────────────────────────────────────────────
         "audioOutput": enum_name(mic_eq, "audio_output", default="SPEAKERS"),
         "streamMain":  getattr(mic_eq, "stream_main", getattr(mic_eq, "main", 100)),
@@ -342,7 +338,7 @@ def main() -> None:
             # ── ChatMix ──────────────────────────────────────────────────────
             headset.on("ChatMixEvent", lambda e: emit({
                 "type": "event", "event": "ChatMixEvent",
-                "data": {"chatmixGame": e.game_volume, "chatmixChat": e.chat_volume},
+                "data": {"chatmixGame": e.game, "chatmixChat": e.chat},
             }))
 
             # ── Audio Output ──────────────────────────────────────────────────
