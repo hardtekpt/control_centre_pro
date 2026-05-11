@@ -226,6 +226,7 @@ All IPC subscriptions are wired in `App.tsx` via `useEffect` so they're active g
 
 **Package**: [`arctis_nova_pro_hid`](https://github.com/hardtekpt/arctis_nova_pro_hid/tree/development)
 (import name: `arctis_hid`) — direct USB HID control, no SteelSeries GG required.
+Full API reference: [DOCUMENTATION.md](https://github.com/hardtekpt/arctis_nova_pro_hid/blob/development/src/package/DOCUMENTATION.md)
 
 **Script**: [resources/services/arctis_hid_service.py](resources/services/arctis_hid_service.py)
 
