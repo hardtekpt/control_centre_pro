@@ -450,13 +450,13 @@ const EQ_NAMED_PRESETS: { index: number; label: string }[] = [
 const EQ_BAND_FREQS = ['31', '62', '125', '250', '500', '1K', '2K', '4K', '8K', '16K']
 
 const TIMEOUT_OPTIONS: Option<TimeoutStep>[] = [
-  { value: 'OFF', label: 'Off' },
-  { value: 'ONE_MIN', label: '1 min' },
-  { value: 'FIVE_MIN', label: '5 min' },
-  { value: 'TEN_MIN', label: '10 min' },
-  { value: 'FIFTEEN_MIN', label: '15 min' },
-  { value: 'THIRTY_MIN', label: '30 min' },
-  { value: 'SIXTY_MIN', label: '60 min' },
+  { value: 'OFF',         label: 'Off' },
+  { value: 'ONE_MIN',     label: '1m' },
+  { value: 'FIVE_MIN',    label: '5m' },
+  { value: 'TEN_MIN',     label: '10m' },
+  { value: 'FIFTEEN_MIN', label: '15m' },
+  { value: 'THIRTY_MIN',  label: '30m' },
+  { value: 'SIXTY_MIN',   label: '60m' },
 ]
 
 const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
@@ -711,7 +711,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── Base Station ── */}
       <Section
         title="Base Station"
-        summary={`OLED ${state.oledBrightness} · Dim ${TIMEOUT_LABELS[state.dimTimeout]} · ${state.homescreenMode === 'DETAILED' ? 'Detailed' : 'Simple'} · Mic LED ${state.micLedBrightness} · Auto Off ${TIMEOUT_LABELS[state.autoOffTimeout]}`}
+        summary={`OLED ${state.oledBrightness} · Dim-Screen ${TIMEOUT_LABELS[state.dimTimeout]} · Homescreen ${state.homescreenMode === 'DETAILED' ? 'Detailed' : 'Simple'} · Mic-LED ${state.micLedBrightness} · Auto-Off ${TIMEOUT_LABELS[state.autoOffTimeout]}`}
       >
         <ControlRow label="OLED Brightness">
           <Slider
@@ -722,7 +722,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           />
         </ControlRow>
         <ControlRow label="Dim Screen">
-          <SelectControl
+          <OptionGroup
             value={state.dimTimeout}
             options={TIMEOUT_OPTIONS}
             onChange={(v) => cmd('setDimTimeout', v, { dimTimeout: v })}
@@ -744,7 +744,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           />
         </ControlRow>
         <ControlRow label="Auto Off">
-          <SelectControl
+          <OptionGroup
             value={state.autoOffTimeout}
             options={TIMEOUT_OPTIONS}
             onChange={(v) => cmd('setAutoOffTimeout', v, { autoOffTimeout: v })}
