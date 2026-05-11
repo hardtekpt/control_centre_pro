@@ -24,6 +24,71 @@ def log(level: str, message: str) -> None:
 _headset = None
 _headset_lock = threading.Lock()
 
+# ─── Debounced ConnectivityEvent query ───────────────────────────────────────
+# A single timer is kept here; each new ConnectivityEvent cancels the previous
+# one so that only one get_connectivity() call runs per burst of events.
+
+_conn_timer: threading.Timer | None = None
+_conn_timer_lock = threading.Lock()
+
+
+def _cancel_conn_timer() -> None:
+    global _conn_timer
+    with _conn_timer_lock:
+        if _conn_timer is not None:
+            _conn_timer.cancel()
+            _conn_timer = None
+
+
+def _do_connectivity_query(e) -> None:
+    """Run after the debounce delay. Queries the device once and emits the result."""
+    global _conn_timer
+    with _conn_timer_lock:
+        _conn_timer = None
+
+    mode_name    = "UNKNOWN"
+    bt_active    = False
+    bt_connected = False
+    bt_pairing   = False
+    wireless     = False
+
+    with _headset_lock:
+        h = _headset
+    if h is not None:
+        log("info", "Querying get_connectivity()")
+        try:
+            conn         = h.get_connectivity()
+            mode_name    = getattr(conn.connectivity_mode, "name",
+                                   str(conn.connectivity_mode))
+            bt_connected = conn.bt_connected
+            log("info", f"get_connectivity() → mode: {mode_name}, bt_connected: {bt_connected}")
+            wireless     = mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
+            bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
+            bt_pairing   = (mode_name == "BT_PAIRING")
+        except Exception as exc:
+            log("warn", f"get_connectivity() failed: {exc}")
+            bt_active = getattr(e, "bt_active", False)
+            wireless  = getattr(e, "wireless", True)
+
+    emit({
+        "type": "event", "event": "ConnectivityEvent",
+        "data": {
+            "btActive":          bt_active,
+            "btConnected":       bt_connected,
+            "btPairing":         bt_pairing,
+            "wirelessConnected": wireless,
+        },
+    })
+    bt_label = ("pairing" if bt_pairing
+                else "connected" if bt_connected
+                else "on" if bt_active
+                else "off")
+    log("info", (
+        f"ConnectivityEvent — mode: {mode_name}, "
+        f"2.4 GHz: {'connected' if wireless else 'disconnected'}, "
+        f"BT: {bt_label}"
+    ))
+
 
 def _set_headset(h) -> None:
     global _headset
@@ -329,54 +394,19 @@ def main() -> None:
             ))
 
             # ── Connectivity ─────────────────────────────────────────────────
+            # Debounced: cancel any pending query and restart the 1 s timer so
+            # that a burst of events only ever triggers a single get_connectivity()
+            # call, preventing HID contention and feedback loops.
             def on_connectivity_event(e):
+                global _conn_timer
                 log("info", "ConnectivityEvent received — will query get_connectivity() in 1 s")
-
-                def _delayed_query():
-                    time.sleep(1)
-                    mode_name    = "UNKNOWN"
-                    bt_active    = False
-                    bt_connected = False
-                    bt_pairing   = False
-                    wireless     = False
-                    with _headset_lock:
-                        h = _headset
-                    if h is not None:
-                        log("info", "Querying get_connectivity()")
-                        try:
-                            conn         = h.get_connectivity()
-                            mode_name    = getattr(conn.connectivity_mode, "name",
-                                                   str(conn.connectivity_mode))
-                            bt_connected = conn.bt_connected
-                            log("info", f"get_connectivity() → mode: {mode_name}, bt_connected: {bt_connected}")
-                            wireless     = mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
-                            bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
-                            bt_pairing   = (mode_name == "BT_PAIRING")
-                        except Exception as exc:
-                            log("warn", f"get_connectivity() failed: {exc}")
-                            bt_active = getattr(e, "bt_active", False)
-                            wireless  = getattr(e, "wireless", True)
-
-                    emit({
-                        "type": "event", "event": "ConnectivityEvent",
-                        "data": {
-                            "btActive":          bt_active,
-                            "btConnected":       bt_connected,
-                            "btPairing":         bt_pairing,
-                            "wirelessConnected": wireless,
-                        },
-                    })
-                    bt_label = ("pairing" if bt_pairing
-                                else "connected" if bt_connected
-                                else "on" if bt_active
-                                else "off")
-                    log("info", (
-                        f"ConnectivityEvent — mode: {mode_name}, "
-                        f"2.4 GHz: {'connected' if wireless else 'disconnected'}, "
-                        f"BT: {bt_label}"
-                    ))
-
-                threading.Thread(target=_delayed_query, daemon=True).start()
+                with _conn_timer_lock:
+                    if _conn_timer is not None:
+                        _conn_timer.cancel()
+                    t = threading.Timer(1.0, _do_connectivity_query, args=(e,))
+                    t.daemon = True
+                    _conn_timer = t
+                    t.start()
 
             headset.on("ConnectivityEvent", on_connectivity_event)
 
@@ -465,6 +495,7 @@ def main() -> None:
             log("error", f"Unexpected error: {exc}")
             emit({"type": "disconnected"})
         finally:
+            _cancel_conn_timer()
             _clear_headset()
             if headset is not None:
                 try:
