@@ -175,8 +175,8 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
         <span
           className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md"
           style={{
-            background: isSettingsActive ? 'var(--color-accent)' : 'var(--color-border)',
-            color: isSettingsActive ? 'var(--color-surface)' : 'var(--color-text-primary)',
+            background: isSettingsActive ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+            color: isSettingsActive ? 'var(--color-surface)' : 'var(--color-text-secondary)',
           }}
         >
           <MissionControlIcon />
@@ -199,14 +199,18 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
             background: menuOpen ? 'var(--color-surface-raised)' : 'transparent',
             border: 'none',
             cursor: 'pointer',
-            color: 'var(--color-text-secondary)',
-            transition: 'background 0.1s',
+            color: menuOpen ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            transition: 'color 0.1s, background 0.1s',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--color-surface-raised)'
+            e.currentTarget.style.color = 'var(--color-text-primary)'
           }}
           onMouseLeave={(e) => {
-            if (!menuOpen) e.currentTarget.style.background = 'transparent'
+            if (!menuOpen) {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+            }
           }}
         >
           <ChevronDownIcon />
@@ -222,39 +226,88 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
               bottom: menuPos.bottom,
               left: menuPos.left,
               width: menuPos.width,
-              background: 'var(--color-surface)',
+              background: 'var(--color-surface-raised)',
               border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              padding: 4,
+              borderRadius: 10,
+              overflow: 'hidden',
               zIndex: 9999,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
             }}
           >
-            <button
-              onClick={() => {
-                onNavigateSettings()
-                setMenuOpen(false)
-              }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs font-medium"
+            {/* Identity header */}
+            <div
               style={{
-                background: isSettingsActive ? 'var(--color-nav-active)' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--color-text-primary)',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e) => {
-                if (!isSettingsActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
-              }}
-              onMouseLeave={(e) => {
-                if (!isSettingsActive) e.currentTarget.style.background = 'transparent'
+                padding: '10px 12px 9px',
+                borderBottom: '1px solid var(--color-border)',
               }}
             >
-              <span className="shrink-0 w-4 h-4 flex items-center justify-center">
-                <CogIcon />
-              </span>
-              Settings
-            </button>
+              <div
+                className="flex items-center gap-2"
+              >
+                <span
+                  className="shrink-0 w-5 h-5 flex items-center justify-center rounded"
+                  style={{
+                    background: 'var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
+                  <MissionControlIcon />
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: 'var(--color-text-secondary)',
+                    lineHeight: 1,
+                  }}
+                >
+                  Mission Control
+                </span>
+              </div>
+            </div>
+
+            {/* Menu items */}
+            <div style={{ padding: 4 }}>
+              <button
+                onClick={() => {
+                  onNavigateSettings()
+                  setMenuOpen(false)
+                }}
+                className="flex items-center gap-2.5 w-full rounded-md"
+                style={{
+                  padding: '7px 10px',
+                  background: isSettingsActive ? 'var(--color-nav-active)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-primary)',
+                  textAlign: 'left',
+                  fontSize: 13,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSettingsActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSettingsActive) e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                <span
+                  className="shrink-0 flex items-center justify-center"
+                  style={{ color: 'var(--color-text-secondary)', width: 16, height: 16 }}
+                >
+                  <CogIcon />
+                </span>
+                <span className="flex-1">Settings</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--color-text-secondary)',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  Ctrl+,
+                </span>
+              </button>
+            </div>
           </div>,
           document.body
         )}
