@@ -39,6 +39,7 @@ export const IPC_CHANNELS = {
   ARCTIS_CONNECTED: 'arctis:connected',     // main → renderer push
   ARCTIS_DISCONNECTED: 'arctis:disconnected', // main → renderer push
   ARCTIS_EVENT: 'arctis:event',             // main → renderer push
+  ARCTIS_CMD: 'arctis:cmd',                 // renderer → main invoke (write command)
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -107,9 +108,40 @@ export interface LogEntry {
 
 /** Live state snapshot of the connected Arctis Nova Pro Wireless headset */
 export interface ArctisState {
+  // ── Status ──────────────────────────────────────────────────────────────────
   batteryHeadset: number         // 0–100 %
   batteryDock: number            // 0–100 %
-  ancMode: 'OFF' | 'TRANSPARENCY' | 'ANC'
   micMuted: boolean
   volume: number                 // 0–100 %
+
+  // ── Connectivity ────────────────────────────────────────────────────────────
+  wirelessConnected: boolean     // 2.4 GHz link to base station active
+  btActive: boolean              // Bluetooth link active
+
+  // ── ANC ─────────────────────────────────────────────────────────────────────
+  ancMode: 'OFF' | 'TRANSPARENCY' | 'ANC'
+  transparencyLevel: number      // 1–10
+
+  // ── Audio Options ────────────────────────────────────────────────────────────
+  micGain: 'LOW' | 'HIGH'
+  sidetone: 'OFF' | 'LOW' | 'MEDIUM' | 'HIGH'
+  micVolume: number              // 1–10
+
+  // ── Wireless ────────────────────────────────────────────────────────────────
+  wirelessMode: 'SPEED' | 'RANGE'
+  btDefault: boolean
+  autoMute: 'OFF' | 'ON' | 'DB12'
+
+  // ── Audio Output ────────────────────────────────────────────────────────────
+  audioOutput: 'SPEAKERS' | 'STREAM'
+  streamMain: number             // 0–100 %
+  streamAux: number              // 0–100 %
+  streamMic: number              // 0–100 %
+
+  // ── Base Station ─────────────────────────────────────────────────────────────
+  oledBrightness: number         // 0–100 %
+  dimScreen: boolean
+  homescreenMode: 'DEFAULT' | 'LOGO' | 'CLOCK'
+  micLedBrightness: number       // 0–100 %
+  autoOff: boolean
 }

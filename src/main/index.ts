@@ -175,6 +175,10 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.ARCTIS_GET_STATE, () => serviceManager.getArctisState())
+
+  ipcMain.handle(IPC_CHANNELS.ARCTIS_CMD, (_, cmd: string, value: unknown) => {
+    serviceManager.sendArctisCmd(cmd, value)
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────

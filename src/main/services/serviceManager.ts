@@ -105,6 +105,12 @@ export class ServiceManager {
     return this.lastArctisState
   }
 
+  sendArctisCmd(cmd: string, value: unknown): void {
+    const child = this.processes.get('arctis-hid')
+    if (!child?.stdin?.writable) return
+    child.stdin.write(JSON.stringify({ cmd, value }) + '\n')
+  }
+
   setEnabled(id: string, enabled: boolean): void {
     this.enabled[id] = enabled
     this.saveConfig()
@@ -154,7 +160,7 @@ export class ServiceManager {
     const scriptPath = join(this.servicesDir(), def.script)
 
     const child = spawn(this.pythonPath, [scriptPath], {
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     })
 
     this.processes.set(id, child)
@@ -211,9 +217,15 @@ export class ServiceManager {
         this.lastArctisState = null
         this.push(IPC_CHANNELS.ARCTIS_DISCONNECTED)
         break
-      case 'event':
-        this.push(IPC_CHANNELS.ARCTIS_EVENT, msg.event as string, msg.data)
+      case 'event': {
+        const eventName = msg.event as string
+        const eventData = msg.data as Record<string, unknown>
+        if (this.lastArctisState && eventName === 'ConnectivityEvent') {
+          this.lastArctisState = { ...this.lastArctisState, ...eventData }
+        }
+        this.push(IPC_CHANNELS.ARCTIS_EVENT, eventName, eventData)
         break
+      }
       case 'fatal':
         this.emitLog(id, name, 'error', msg.message as string)
         break
