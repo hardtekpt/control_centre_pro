@@ -82,7 +82,7 @@ def _read_full_state(headset) -> dict:
         return default
 
     bt_active    = getattr(status, "bt_active", False)
-    bt_connected = getattr(connectivity, "bt_connected", bt_active) if connectivity else bt_active
+    bt_connected = getattr(connectivity, "bt_connected", False) if connectivity else False
 
     state = {
         # ── Always-available status fields ───────────────────────────────────
@@ -307,29 +307,35 @@ def main() -> None:
             def on_connectivity_event(e):
                 bt_active = getattr(e, "bt_active", False)
                 wireless  = getattr(e, "wireless", True)
-                # Query the device for authoritative bt_connected status
-                bt_connected = bt_active  # fallback if query fails
+
+                # Query device for authoritative connectivity state
+                bt_connected = False
+                mode_name    = "UNKNOWN"
                 with _headset_lock:
                     h = _headset
                 if h is not None:
                     try:
-                        conn = h.get_connectivity()
-                        bt_connected = getattr(conn, "bt_connected", bt_active)
+                        conn         = h.get_connectivity()
+                        bt_connected = conn.bt_connected
+                        mode_name    = getattr(conn.connectivity_mode, "name",
+                                               str(conn.connectivity_mode))
                     except Exception as exc:
                         log("warn", f"get_connectivity() failed: {exc}")
+
                 emit({
                     "type": "event", "event": "ConnectivityEvent",
                     "data": {
-                        "btActive":        bt_active,
-                        "btConnected":     bt_connected,
+                        "btActive":          bt_active,
+                        "btConnected":       bt_connected,
                         "wirelessConnected": wireless,
                     },
                 })
-                parts = [f"2.4 GHz: {'connected' if wireless else 'disconnected'}",
-                         f"BT: {'on' if bt_active else 'off'}"]
-                if bt_active:
-                    parts.append(f"BT device: {'connected' if bt_connected else 'not connected'}")
-                log("info", "ConnectivityEvent — " + ", ".join(parts))
+                log("info", (
+                    f"ConnectivityEvent — mode: {mode_name}, "
+                    f"bt_connected: {bt_connected}, "
+                    f"2.4 GHz: {'connected' if wireless else 'disconnected'}, "
+                    f"BT radio: {'on' if bt_active else 'off'}"
+                ))
 
             headset.on("ConnectivityEvent", on_connectivity_event)
 
