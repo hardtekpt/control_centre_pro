@@ -433,6 +433,29 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         </ControlRow>
       </div>
 
+      {/* ── ChatMix balance (hardware dial — display only) ── */}
+      <div className="mb-1">
+        <ControlRow label="ChatMix">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+              Game {state.chatmixGame}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={(state.chatmixChat - state.chatmixGame + 100) / 2}
+              readOnly
+              className="flex-1"
+              style={{ accentColor: 'var(--color-accent)', cursor: 'default' }}
+            />
+            <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+              {state.chatmixChat} Chat
+            </span>
+          </div>
+        </ControlRow>
+      </div>
+
       {/* ── ANC ── */}
       <Section
         title="ANC"
@@ -521,18 +544,6 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
             onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
           />
         </ControlRow>
-      </Section>
-
-      {/* ── ChatMix (hardware dial — display only) ── */}
-      <Section
-        title="ChatMix"
-        summary={`Game ${state.chatmixGame} · Chat ${state.chatmixChat}`}
-      >
-        <StatBar label="Game" value={String(state.chatmixGame)} bar={state.chatmixGame} />
-        <StatBar label="Chat" value={String(state.chatmixChat)} bar={state.chatmixChat} />
-        <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          Controlled by the hardware ChatMix dial
-        </span>
       </Section>
 
       {/* ── Audio Output ── */}
