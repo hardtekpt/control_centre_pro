@@ -129,7 +129,8 @@ export interface ArctisState {
 
   // ── Connectivity ────────────────────────────────────────────────────────────
   wirelessConnected: boolean     // 2.4 GHz link active
-  btActive: boolean              // Bluetooth link active
+  btActive: boolean              // Bluetooth radio is on
+  btConnected: boolean           // a BT device is paired and connected
 
   // ── ANC ─────────────────────────────────────────────────────────────────────
   ancMode: 'OFF' | 'TRANSPARENCY' | 'ANC'   // AncMode enum

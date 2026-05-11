@@ -83,6 +83,7 @@ def _read_full_state(headset) -> dict:
         # ── Connectivity ────────────────────────────────────────────────────
         "wirelessConnected": True,
         "btActive": getattr(status, "bt_active", False),
+        "btConnected": getattr(status, "bt_connected", getattr(status, "bt_active", False)),
         # ── ANC ─────────────────────────────────────────────────────────────
         "ancMode":          enum_name(status, "anc_mode", default="OFF"),
         "transparencyLevel": 5,
@@ -294,7 +295,11 @@ def main() -> None:
             # ── Connectivity ─────────────────────────────────────────────────
             headset.on("ConnectivityEvent", lambda e: emit({
                 "type": "event", "event": "ConnectivityEvent",
-                "data": {"btActive": e.bt_connected, "wirelessConnected": True},
+                "data": {
+                    "btActive": getattr(e, "bt_active", getattr(e, "bt_connected", False)),
+                    "btConnected": getattr(e, "bt_connected", getattr(e, "bt_active", False)),
+                    "wirelessConnected": getattr(e, "wireless", True),
+                },
             }))
 
             # ── ANC ──────────────────────────────────────────────────────────

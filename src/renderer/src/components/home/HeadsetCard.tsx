@@ -237,15 +237,29 @@ function BluetoothIcon(): JSX.Element {
 
 const GREEN = '#22c55e'
 const RED   = '#ef4444'
+const BLUE  = '#3b82f6'
 
-function ConnectivityDot({ icon, active, title }: { icon: React.ReactNode; active: boolean; title: string }): JSX.Element {
-  const color = active ? GREEN : RED
+type DotState = 'off' | 'on' | 'connected'
+
+const DOT_COLOR: Record<DotState, string> = {
+  off:       RED,
+  on:        GREEN,
+  connected: BLUE,
+}
+const DOT_BG: Record<DotState, string> = {
+  off:       'rgba(239,68,68,0.12)',
+  on:        'rgba(34,197,94,0.14)',
+  connected: 'rgba(59,130,246,0.14)',
+}
+
+function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dotState: DotState; title: string }): JSX.Element {
+  const color = DOT_COLOR[dotState]
   return (
     <div
       title={title}
       className="w-6 h-6 rounded-full flex items-center justify-center"
       style={{
-        background: active ? 'rgba(34,197,94,0.14)' : 'rgba(239,68,68,0.12)',
+        background: DOT_BG[dotState],
         border: `1px solid ${color}`,
         color,
       }}
@@ -414,8 +428,8 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
           <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
           <div className="flex items-center gap-1.5">
-            <ConnectivityDot icon={<WirelessIcon />}  active={state.wirelessConnected} title="2.4 GHz Wireless" />
-            <ConnectivityDot icon={<BluetoothIcon />} active={state.btActive}          title="Bluetooth" />
+            <ConnectivityDot icon={<WirelessIcon />}  dotState={state.wirelessConnected ? 'on' : 'off'}                                           title="2.4 GHz Wireless" />
+            <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
           </div>
         </div>
       </div>
