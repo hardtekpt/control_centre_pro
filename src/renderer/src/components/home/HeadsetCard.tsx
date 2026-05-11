@@ -447,7 +447,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       </div>
 
       {/* ── Volume (always visible, controllable) ── */}
-      <div className="mb-1">
+      <div className="mb-3">
         <ControlRow label="Volume">
           <Slider
             value={volume}
