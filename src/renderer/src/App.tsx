@@ -167,6 +167,12 @@ export default function App(): JSX.Element {
           case 'AutoOffEvent':
             updateArctisState({ autoOffTimeout: (data as { autoOffTimeout: ArctisState['autoOffTimeout'] }).autoOffTimeout })
             break
+          case 'EqPresetEvent':
+            updateArctisState({ eqPresetIndex: (data as { eqPresetIndex: number }).eqPresetIndex })
+            break
+          case 'EqBandEvent':
+            updateArctisState({ eqBands: (data as { eqBands: number[] }).eqBands })
+            break
         }
       }),
     ]

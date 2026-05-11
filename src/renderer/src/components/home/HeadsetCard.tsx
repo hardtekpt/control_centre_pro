@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
-import type { ArctisState, TimeoutStep, EqPreset } from '@shared/types'
+import type { ArctisState, TimeoutStep } from '@shared/types'
 
 // ─── Primitive controls ───────────────────────────────────────────────────────
 
@@ -423,26 +423,15 @@ const HOMESCREEN_OPTIONS: Option<ArctisState['homescreenMode']>[] = [
   { value: 'SIMPLE', label: 'Simple' },
 ]
 
-const EQ_MODE_OPTIONS: Option<ArctisState['eqMode']>[] = [
-  { value: 'PRESET', label: 'Preset' },
-  { value: 'CUSTOM', label: 'Custom' },
-]
+const EQ_CUSTOM_INDEX = 0x04
 
-const EQ_PRESET_OPTIONS: Option<EqPreset>[] = [
-  { value: 'FLAT', label: 'Flat' },
-  { value: 'BASS_BOOST', label: 'Bass Boost' },
-  { value: 'SMILEY', label: 'Smiley' },
-  { value: 'HIGH_BOOST', label: 'High Boost' },
-  { value: 'VOCAL', label: 'Vocal' },
+// Named factory presets — indices 0x00–0x03 (confirmed by hardware protocol)
+const EQ_NAMED_PRESETS: { index: number; label: string }[] = [
+  { index: 0x00, label: 'Flat' },
+  { index: 0x01, label: 'Bass Boost' },
+  { index: 0x02, label: 'Treble Boost' },
+  { index: 0x03, label: 'Vocal' },
 ]
-
-const EQ_PRESET_LABELS: Record<EqPreset, string> = {
-  FLAT: 'Flat',
-  BASS_BOOST: 'Bass Boost',
-  SMILEY: 'Smiley',
-  HIGH_BOOST: 'High Boost',
-  VOCAL: 'Vocal',
-}
 
 const EQ_BAND_FREQS = ['31', '62', '125', '250', '500', '1K', '2K', '4K', '8K', '16K']
 
@@ -750,81 +739,110 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       </Section>
 
       {/* ── EQ ── */}
-      <Section
-        title="EQ"
-        summary={state.eqMode === 'PRESET' ? EQ_PRESET_LABELS[state.eqPreset] : 'Custom'}
-      >
-        <ControlRow label="Mode">
-          <OptionGroup
-            value={state.eqMode}
-            options={EQ_MODE_OPTIONS}
-            onChange={(v) => cmd('setEqMode', v, { eqMode: v })}
-          />
-        </ControlRow>
+      {(() => {
+        const isCustom = state.eqPresetIndex === EQ_CUSTOM_INDEX
+        const namedPreset = EQ_NAMED_PRESETS.find((p) => p.index === state.eqPresetIndex)
+        const summary = isCustom ? 'Custom' : (namedPreset?.label ?? `Preset ${state.eqPresetIndex}`)
+        const bands = state.eqBands?.length === 10 ? state.eqBands : Array(10).fill(20)
+        return (
+          <Section title="EQ" summary={summary}>
+            {/* Mode toggle */}
+            <ControlRow label="Mode">
+              <OptionGroup
+                value={isCustom ? 'CUSTOM' : 'PRESET'}
+                options={[
+                  { value: 'PRESET', label: 'Preset' },
+                  { value: 'CUSTOM', label: 'Custom' },
+                ] as Option<'PRESET' | 'CUSTOM'>[]}
+                onChange={(v) => {
+                  if (v === 'CUSTOM') {
+                    cmd('setEqBands', bands, { eqPresetIndex: EQ_CUSTOM_INDEX })
+                  } else {
+                    const defaultIndex = 0x00
+                    cmd('setEqPreset', defaultIndex, { eqPresetIndex: defaultIndex })
+                  }
+                }}
+              />
+            </ControlRow>
 
-        {state.eqMode === 'PRESET' && (
-          <ControlRow label="Preset">
-            <SelectControl
-              value={state.eqPreset}
-              options={EQ_PRESET_OPTIONS}
-              onChange={(v) => cmd('setEqPreset', v, { eqPreset: v })}
-            />
-          </ControlRow>
-        )}
+            {/* Preset selector (named mode) */}
+            {!isCustom && (
+              <ControlRow label="Preset">
+                <select
+                  value={state.eqPresetIndex}
+                  onChange={(e) => {
+                    const idx = Number(e.target.value)
+                    cmd('setEqPreset', idx, { eqPresetIndex: idx })
+                  }}
+                  className="flex-1 text-xs rounded px-2 py-1 w-full"
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    color: 'var(--color-text-primary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {EQ_NAMED_PRESETS.map((p) => (
+                    <option key={p.index} value={p.index}>{p.label}</option>
+                  ))}
+                  {/* Show current index if it's not one of the four named ones */}
+                  {!EQ_NAMED_PRESETS.some((p) => p.index === state.eqPresetIndex) && (
+                    <option value={state.eqPresetIndex}>Preset {state.eqPresetIndex}</option>
+                  )}
+                </select>
+              </ControlRow>
+            )}
 
-        {state.eqMode === 'CUSTOM' && (
-          <div className="flex flex-col gap-1.5">
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(10, 1fr)',
-                gap: '0 4px',
-              }}
-            >
-              {EQ_BAND_FREQS.map((freq, i) => {
-                const level = state.eqCustomBands[i] ?? 0
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    <span
-                      className="mono"
-                      style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}
-                    >
-                      {freq}
-                    </span>
-                    <input
-                      type="range"
-                      min={-10}
-                      max={10}
-                      step={1}
-                      value={level}
-                      onChange={(e) => {
-                        const newBands = [...(state.eqCustomBands ?? Array(10).fill(0))]
-                        newBands[i] = Number(e.target.value)
-                        cmd('setEqBands', newBands, { eqCustomBands: newBands })
-                      }}
-                      style={{
-                        accentColor: 'var(--color-accent)',
-                        cursor: 'pointer',
-                        width: '100%',
-                        writingMode: 'vertical-lr',
-                        direction: 'rtl',
-                        height: 72,
-                        appearance: 'slider-vertical',
-                      }}
-                    />
-                    <span
-                      className="mono"
-                      style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}
-                    >
-                      {level > 0 ? `+${level}` : level}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-      </Section>
+            {/* Custom EQ band levels */}
+            {isCustom && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(10, 1fr)',
+                  gap: '0 4px',
+                }}
+              >
+                {EQ_BAND_FREQS.map((freq, i) => {
+                  const raw = bands[i] ?? 20   // 0–40, 20 = flat
+                  const db  = raw - 20          // display as –20…+20 dB
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <span className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}>
+                        {freq}
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={40}
+                        step={1}
+                        value={raw}
+                        onChange={(e) => {
+                          const newBands = [...bands]
+                          newBands[i] = Number(e.target.value)
+                          cmd('setEqBands', newBands, { eqBands: newBands })
+                        }}
+                        style={{
+                          accentColor: 'var(--color-accent)',
+                          cursor: 'pointer',
+                          width: '100%',
+                          writingMode: 'vertical-lr',
+                          direction: 'rtl',
+                          height: 72,
+                          // @ts-expect-error — non-standard but supported in Chromium (Electron)
+                          appearance: 'slider-vertical',
+                        }}
+                      />
+                      <span className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}>
+                        {db > 0 ? `+${db}` : db}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Section>
+        )
+      })()}
     </div>
   )
 }
