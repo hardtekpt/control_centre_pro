@@ -43,6 +43,7 @@ declare global {
     onArctisEvent: (
       callback: (eventName: string, data: Record<string, unknown>) => void,
     ) => () => void
+    arctisCmd: (cmd: string, value: unknown) => Promise<void>
     }
   }
 }

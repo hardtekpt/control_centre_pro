@@ -105,6 +105,9 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.ARCTIS_EVENT, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.ARCTIS_EVENT, handler)
   },
+
+  arctisCmd: (cmd: string, value: unknown): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ARCTIS_CMD, cmd, value),
 }
 
 contextBridge.exposeInMainWorld('api', api)

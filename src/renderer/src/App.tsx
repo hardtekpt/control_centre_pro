@@ -100,6 +100,11 @@ export default function App(): JSX.Element {
           case 'MicMuteEvent':
             updateArctisState({ micMuted: (data as { micMuted: boolean }).micMuted })
             break
+          case 'ConnectivityEvent': {
+            const d = data as { btActive: boolean; wirelessConnected: boolean }
+            updateArctisState({ btActive: d.btActive, wirelessConnected: d.wirelessConnected })
+            break
+          }
         }
       }),
     ]
