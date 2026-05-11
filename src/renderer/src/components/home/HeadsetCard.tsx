@@ -711,42 +711,30 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           </GridRow>
           {state.audioOutput === 'STREAM' && (
             <>
-              <GridRow label="Main">
-                <Slider
-                  value={state.streamMain}
-                  min={0}
-                  max={100}
-                  unit="%"
-                  onChange={(v) => {
-                    updateArctisState({ streamMain: v })
-                    window.api.arctisCmd('setStreamVolumes', { main: v, aux: state.streamAux, mic: state.streamMic }).catch(console.error)
-                  }}
-                />
-              </GridRow>
-              <GridRow label="Aux">
-                <Slider
-                  value={state.streamAux}
-                  min={0}
-                  max={100}
-                  unit="%"
-                  onChange={(v) => {
-                    updateArctisState({ streamAux: v })
-                    window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: v, mic: state.streamMic }).catch(console.error)
-                  }}
-                />
-              </GridRow>
-              <GridRow label="Mic">
-                <Slider
-                  value={state.streamMic}
-                  min={0}
-                  max={100}
-                  unit="%"
-                  onChange={(v) => {
-                    updateArctisState({ streamMic: v })
-                    window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: state.streamAux, mic: v }).catch(console.error)
-                  }}
-                />
-              </GridRow>
+              {(
+                [
+                  { label: 'Main', value: state.streamMain, onChange: (v: number) => { updateArctisState({ streamMain: v }); window.api.arctisCmd('setStreamVolumes', { main: v, aux: state.streamAux, mic: state.streamMic }).catch(console.error) } },
+                  { label: 'Aux',  value: state.streamAux,  onChange: (v: number) => { updateArctisState({ streamAux: v });  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: v, mic: state.streamMic }).catch(console.error) } },
+                  { label: 'Mic',  value: state.streamMic,  onChange: (v: number) => { updateArctisState({ streamMic: v });  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: state.streamAux, mic: v }).catch(console.error) } },
+                ] as const
+              ).map(({ label, value, onChange }) => (
+                <div key={label} className="flex items-center gap-2 py-1" style={{ border: '1px solid transparent' }}>
+                  <span className="text-xs w-6 shrink-0" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={value}
+                    onChange={(e) => onChange(Number(e.target.value))}
+                    className="flex-1"
+                    style={{ accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+                  />
+                  <span className="text-xs mono w-10 text-right shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                    {value}%
+                  </span>
+                </div>
+              ))}
             </>
           )}
         </GridPanel>
