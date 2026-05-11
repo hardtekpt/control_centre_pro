@@ -87,7 +87,7 @@ def _read_full_state(headset) -> dict:
 
     _conn_mode   = getattr(getattr(connectivity, "connectivity_mode", None), "name", "")
     bt_active    = _conn_mode in ("WIRELESS_AND_BT", "BT_PAIRING") if connectivity else getattr(status, "bt_active", False)
-    bt_connected = (_conn_mode == "WIRELESS_AND_BT") if connectivity else False
+    bt_connected = getattr(connectivity, "bt_connected", False) if connectivity else False
     bt_pairing   = (_conn_mode == "BT_PAIRING") if connectivity else False
 
     state = {
@@ -330,51 +330,53 @@ def main() -> None:
 
             # ── Connectivity ─────────────────────────────────────────────────
             def on_connectivity_event(e):
-                mode_name    = "UNKNOWN"
-                bt_active    = False
-                bt_connected = False
-                bt_pairing   = False
-                wireless     = False
-                with _headset_lock:
-                    h = _headset
-                if h is not None:
-                    log("info", "ConnectivityEvent received — querying get_connectivity()")
-                    try:
-                        conn      = h.get_connectivity()
-                        mode_name = getattr(conn.connectivity_mode, "name",
-                                            str(conn.connectivity_mode))
-                        raw_btc   = getattr(conn, "bt_connected", "?")
-                        log("info", f"get_connectivity() → mode: {mode_name}, bt_connected: {raw_btc}")
-                        # Derive all BT flags from mode — the single source of truth.
-                        # conn.bt_connected is logged for visibility but not used to
-                        # determine state; WIRELESS_AND_BT already confirms connection.
-                        wireless     = mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
-                        bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
-                        bt_connected = (mode_name == "WIRELESS_AND_BT")
-                        bt_pairing   = (mode_name == "BT_PAIRING")
-                    except Exception as exc:
-                        log("warn", f"get_connectivity() failed: {exc}")
-                        bt_active = getattr(e, "bt_active", False)
-                        wireless  = getattr(e, "wireless", True)
+                log("info", "ConnectivityEvent received — will query get_connectivity() in 1 s")
 
-                emit({
-                    "type": "event", "event": "ConnectivityEvent",
-                    "data": {
-                        "btActive":          bt_active,
-                        "btConnected":       bt_connected,
-                        "btPairing":         bt_pairing,
-                        "wirelessConnected": wireless,
-                    },
-                })
-                bt_label = ("pairing" if bt_pairing
-                            else "connected" if bt_connected
-                            else "on" if bt_active
-                            else "off")
-                log("info", (
-                    f"ConnectivityEvent — mode: {mode_name}, "
-                    f"2.4 GHz: {'connected' if wireless else 'disconnected'}, "
-                    f"BT: {bt_label}"
-                ))
+                def _delayed_query():
+                    time.sleep(1)
+                    mode_name    = "UNKNOWN"
+                    bt_active    = False
+                    bt_connected = False
+                    bt_pairing   = False
+                    wireless     = False
+                    with _headset_lock:
+                        h = _headset
+                    if h is not None:
+                        log("info", "Querying get_connectivity()")
+                        try:
+                            conn         = h.get_connectivity()
+                            mode_name    = getattr(conn.connectivity_mode, "name",
+                                                   str(conn.connectivity_mode))
+                            bt_connected = conn.bt_connected
+                            log("info", f"get_connectivity() → mode: {mode_name}, bt_connected: {bt_connected}")
+                            wireless     = mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
+                            bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
+                            bt_pairing   = (mode_name == "BT_PAIRING")
+                        except Exception as exc:
+                            log("warn", f"get_connectivity() failed: {exc}")
+                            bt_active = getattr(e, "bt_active", False)
+                            wireless  = getattr(e, "wireless", True)
+
+                    emit({
+                        "type": "event", "event": "ConnectivityEvent",
+                        "data": {
+                            "btActive":          bt_active,
+                            "btConnected":       bt_connected,
+                            "btPairing":         bt_pairing,
+                            "wirelessConnected": wireless,
+                        },
+                    })
+                    bt_label = ("pairing" if bt_pairing
+                                else "connected" if bt_connected
+                                else "on" if bt_active
+                                else "off")
+                    log("info", (
+                        f"ConnectivityEvent — mode: {mode_name}, "
+                        f"2.4 GHz: {'connected' if wireless else 'disconnected'}, "
+                        f"BT: {bt_label}"
+                    ))
+
+                threading.Thread(target=_delayed_query, daemon=True).start()
 
             headset.on("ConnectivityEvent", on_connectivity_event)
 
