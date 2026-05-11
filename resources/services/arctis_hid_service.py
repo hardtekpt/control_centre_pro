@@ -74,11 +74,22 @@ def _read_full_state(headset) -> dict:
                 return getattr(val, "name", str(val))
         return default
 
-    # BT connectivity state is unknown until the device fires its first
-    # ConnectivityEvent, which will update these fields with real data.
+    # Query connectivity at startup — same derivation as on_connectivity_event.
+    # discover() already confirmed a 2.4 GHz link, so wireless defaults to True.
+    wireless     = True
     bt_active    = False
     bt_connected = False
     bt_pairing   = False
+    try:
+        connectivity   = headset.get_connectivity()
+        conn_mode_name = getattr(getattr(connectivity, "connectivity_mode", None), "name", "")
+        wireless       = conn_mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
+        bt_active      = conn_mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
+        bt_connected   = getattr(connectivity, "bt_connected", False)
+        bt_pairing     = (conn_mode_name == "BT_PAIRING")
+        log("info", f"get_connectivity() → mode: {conn_mode_name}, bt_connected: {bt_connected}")
+    except Exception as exc:
+        log("warn", f"get_connectivity() unavailable: {exc}")
 
     state = {
         # ── Always-available status fields ───────────────────────────────────
@@ -87,7 +98,7 @@ def _read_full_state(headset) -> dict:
         "micMuted":       getattr(status, "mic_muted", getattr(status, "mic_mute", False)),
         "volume":         getattr(mic_eq, "volume_pct", 0),
         # ── Connectivity ────────────────────────────────────────────────────
-        "wirelessConnected": True,
+        "wirelessConnected": wireless,
         "btActive":    bt_active,
         "btConnected": bt_connected,
         "btPairing":   bt_pairing,
