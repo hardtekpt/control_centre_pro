@@ -377,6 +377,70 @@ function HeadphonesIcon(): JSX.Element {
   )
 }
 
+// ─── ANC mode control (Transparency button embeds level + scroll to adjust) ───
+
+function AncModeControl({
+  value,
+  transparencyLevel,
+  onModeChange,
+  onLevelChange,
+}: {
+  value: ArctisState['ancMode']
+  transparencyLevel: number
+  onModeChange: (v: ArctisState['ancMode']) => void
+  onLevelChange: (v: number) => void
+}): JSX.Element {
+  function handleWheel(e: React.WheelEvent) {
+    e.preventDefault()
+    const delta = e.deltaY < 0 ? 1 : -1
+    const next = Math.max(1, Math.min(10, transparencyLevel + delta))
+    if (next !== transparencyLevel) onLevelChange(next)
+  }
+
+  return (
+    <div
+      className="flex overflow-hidden rounded"
+      style={{ border: '1px solid var(--color-border)' }}
+    >
+      {ANC_OPTIONS.map((opt, i) => {
+        const isActive = value === opt.value
+        const isTransparency = opt.value === 'TRANSPARENCY'
+        return (
+          <button
+            key={opt.value}
+            onClick={() => onModeChange(opt.value)}
+            onWheel={isTransparency && isActive ? handleWheel : undefined}
+            className="flex-1 text-xs py-1 px-2 transition-colors flex items-center justify-center gap-1"
+            style={{
+              background: isActive ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+              color: isActive ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              borderRight: i < ANC_OPTIONS.length - 1 ? '1px solid var(--color-border)' : 'none',
+              cursor: isTransparency && isActive ? 'ns-resize' : 'pointer',
+            }}
+          >
+            <span>{opt.label}</span>
+            {isTransparency && isActive && (
+              <span
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  opacity: 0.75,
+                  background: 'rgba(0,0,0,0.18)',
+                  borderRadius: 3,
+                  padding: '0 3px',
+                  lineHeight: '14px',
+                }}
+              >
+                {transparencyLevel}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Option sets ──────────────────────────────────────────────────────────────
 
 const ANC_OPTIONS: Option<ArctisState['ancMode']>[] = [
@@ -581,22 +645,13 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         {/* ANC */}
         <GridPanel title="ANC">
           <GridRow label="Mode">
-            <OptionGroup
+            <AncModeControl
               value={state.ancMode}
-              options={ANC_OPTIONS}
-              onChange={(v) => cmd('setAncMode', v, { ancMode: v })}
+              transparencyLevel={state.transparencyLevel}
+              onModeChange={(v) => cmd('setAncMode', v, { ancMode: v })}
+              onLevelChange={(v) => cmd('setTransparencyLevel', v, { transparencyLevel: v })}
             />
           </GridRow>
-          {state.ancMode !== 'OFF' && (
-            <GridRow label="Level">
-              <Slider
-                value={state.transparencyLevel}
-                min={1}
-                max={10}
-                onChange={(v) => cmd('setTransparencyLevel', v, { transparencyLevel: v })}
-              />
-            </GridRow>
-          )}
         </GridPanel>
 
         {/* Audio Options */}
