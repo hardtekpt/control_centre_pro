@@ -126,24 +126,42 @@ function ControlRow({
   )
 }
 
-// ─── Grid panel (always-visible column) ──────────────────────────────────────
+// ─── Grid panel ───────────────────────────────────────────────────────────────
 
 function GridPanel({
   title,
   children,
+  collapsible = false,
 }: {
   title: string
   children: React.ReactNode
+  collapsible?: boolean
 }): JSX.Element {
+  const [open, setOpen] = useState(true)
   return (
     <div className="flex flex-col gap-2.5">
-      <span
-        className="text-xs font-semibold"
-        style={{ color: 'var(--color-text-primary)', paddingBottom: 2 }}
-      >
-        {title}
-      </span>
-      {children}
+      {collapsible ? (
+        <button
+          className="flex items-center justify-between w-full"
+          onClick={() => setOpen((o) => !o)}
+          style={{ background: 'none', border: 'none', padding: '0 0 2px', cursor: 'pointer' }}
+        >
+          <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            {title}
+          </span>
+          <span style={{ color: 'var(--color-text-secondary)' }}>
+            <ChevronIcon open={open} />
+          </span>
+        </button>
+      ) : (
+        <span
+          className="text-xs font-semibold"
+          style={{ color: 'var(--color-text-primary)', paddingBottom: 2 }}
+        >
+          {title}
+        </span>
+      )}
+      {open && children}
     </div>
   )
 }
@@ -639,11 +657,11 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: '16px 20px',
-          marginBottom: 4,
+          marginBottom: 12,
         }}
       >
         {/* Audio Options */}
-        <GridPanel title="Audio Options">
+        <GridPanel title="Audio Options" collapsible>
           <GridRow label="ANC">
             <AncModeControl
               value={state.ancMode}
@@ -677,7 +695,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         </GridPanel>
 
         {/* Wireless & Audio Output */}
-        <GridPanel title="Wireless & Audio Output">
+        <GridPanel title="Wireless & Audio Output" collapsible>
           <GridRow label="2.4 GHz Mode">
             <OptionGroup
               value={state.wirelessMode}
