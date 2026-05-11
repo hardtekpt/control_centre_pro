@@ -445,9 +445,9 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
               min={0}
               max={100}
               value={(state.chatmixChat - state.chatmixGame + 100) / 2}
-              readOnly
+              onChange={() => {}}
               className="flex-1"
-              style={{ accentColor: 'var(--color-accent)', cursor: 'default' }}
+              style={{ accentColor: 'var(--color-accent)', cursor: 'default', pointerEvents: 'none' }}
             />
             <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
               {state.chatmixChat} Chat
