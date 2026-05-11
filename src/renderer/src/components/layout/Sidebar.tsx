@@ -1,4 +1,5 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAppStore } from '../../stores/appStore'
 import type { AppView } from '@shared/types'
 
@@ -95,11 +96,11 @@ export function Sidebar(): JSX.Element {
           ))}
         </nav>
 
-        {/* Settings chip */}
+        {/* Mission Control chip */}
         <div className="p-2">
-          <SettingsChip
-            isActive={currentView === 'settings'}
-            onClick={() => setView('settings')}
+          <MissionControlChip
+            isSettingsActive={currentView === 'settings'}
+            onNavigateSettings={() => setView('settings')}
           />
         </div>
       </div>
@@ -122,55 +123,142 @@ export function Sidebar(): JSX.Element {
   )
 }
 
-// ─── Settings chip ────────────────────────────────────────────────────────────
+// ─── Mission Control chip ─────────────────────────────────────────────────────
 
-interface SettingsChipProps {
-  isActive: boolean
-  onClick: () => void
+interface MissionControlChipProps {
+  isSettingsActive: boolean
+  onNavigateSettings: () => void
 }
 
-function SettingsChip({ isActive, onClick }: SettingsChipProps): JSX.Element {
+function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionControlChipProps): JSX.Element {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const chipRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState({ bottom: 0, left: 0, width: 0 })
+
+  const openMenu = useCallback(() => {
+    if (!chipRef.current) return
+    const rect = chipRef.current.getBoundingClientRect()
+    setMenuPos({
+      bottom: window.innerHeight - rect.top + 6,
+      left: rect.left,
+      width: rect.width,
+    })
+    setMenuOpen(true)
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointerDown = (e: PointerEvent): void => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        chipRef.current && !chipRef.current.contains(e.target as Node)
+      ) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [menuOpen])
+
   return (
-    <button
-      onClick={onClick}
-      aria-label="Settings"
-      className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 transition-colors duration-100"
-      style={{
-        background: isActive ? 'var(--color-nav-active)' : 'var(--color-surface)',
-        border: 'none',
-        cursor: 'pointer',
-      }}
-      onMouseEnter={(e) => {
-        if (!isActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) e.currentTarget.style.background = 'var(--color-surface)'
-      }}
-    >
-      {/* Icon badge */}
-      <span
-        className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md"
+    <>
+      <div
+        ref={chipRef}
+        className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5"
         style={{
-          background: isActive ? 'var(--color-accent)' : 'var(--color-border)',
-          color: isActive ? 'var(--color-surface)' : 'var(--color-text-primary)',
+          background: isSettingsActive ? 'var(--color-nav-active)' : 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
         }}
       >
-        <CogIcon />
-      </span>
+        {/* App icon badge */}
+        <span
+          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md"
+          style={{
+            background: isSettingsActive ? 'var(--color-accent)' : 'var(--color-border)',
+            color: isSettingsActive ? 'var(--color-surface)' : 'var(--color-text-primary)',
+          }}
+        >
+          <MissionControlIcon />
+        </span>
 
-      {/* Label */}
-      <span
-        className="flex-1 text-xs font-semibold text-left truncate leading-none"
-        style={{ color: 'var(--color-text-primary)' }}
-      >
-        Settings
-      </span>
+        {/* Label */}
+        <span
+          className="flex-1 text-xs font-semibold text-left truncate leading-none"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          Mission Control
+        </span>
 
-      {/* Chevron */}
-      <span style={{ color: 'var(--color-text-primary)' }}>
-        <ChevronDownIcon />
-      </span>
-    </button>
+        {/* Chevron button — opens floating menu */}
+        <button
+          onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
+          className="flex items-center justify-center w-5 h-5 rounded"
+          aria-label="Open Mission Control menu"
+          style={{
+            background: menuOpen ? 'var(--color-surface-raised)' : 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'var(--color-text-secondary)',
+            transition: 'background 0.1s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--color-surface-raised)'
+          }}
+          onMouseLeave={(e) => {
+            if (!menuOpen) e.currentTarget.style.background = 'transparent'
+          }}
+        >
+          <ChevronDownIcon />
+        </button>
+      </div>
+
+      {menuOpen &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              bottom: menuPos.bottom,
+              left: menuPos.left,
+              width: menuPos.width,
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              padding: 4,
+              zIndex: 9999,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            <button
+              onClick={() => {
+                onNavigateSettings()
+                setMenuOpen(false)
+              }}
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs font-medium"
+              style={{
+                background: isSettingsActive ? 'var(--color-nav-active)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--color-text-primary)',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => {
+                if (!isSettingsActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
+              }}
+              onMouseLeave={(e) => {
+                if (!isSettingsActive) e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <span className="shrink-0 w-4 h-4 flex items-center justify-center">
+                <CogIcon />
+              </span>
+              Settings
+            </button>
+          </div>,
+          document.body
+        )}
+    </>
   )
 }
 
@@ -216,6 +304,18 @@ function NavButton({ item, isActive, onClick }: NavButtonProps): JSX.Element {
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
+
+function MissionControlIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7" cy="7" r="3.5" />
+      <line x1="7" y1="1" x2="7" y2="3.5" />
+      <line x1="7" y1="10.5" x2="7" y2="13" />
+      <line x1="1" y1="7" x2="3.5" y2="7" />
+      <line x1="10.5" y1="7" x2="13" y2="7" />
+    </svg>
+  )
+}
 
 function HomeIcon(): JSX.Element {
   return (

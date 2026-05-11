@@ -63,7 +63,7 @@ export function About(): JSX.Element {
           About
         </h2>
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Control Centre Pro version and build information
+          Mission Control version and build information
         </p>
       </div>
 

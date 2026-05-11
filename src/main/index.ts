@@ -71,7 +71,7 @@ function buildAppMenu(): Electron.Menu {
       label: 'Help',
       submenu: [
         {
-          label: 'About Control Centre Pro',
+          label: 'About Mission Control',
           click: () => navigate('settings:about'),
         },
       ],

@@ -1,5 +1,5 @@
-appId: com.controlcentrepro.app
-productName: Control Centre Pro
+appId: com.missioncontrol.app
+productName: Mission Control
 copyright: Copyright © 2026
 
 directories:
@@ -14,7 +14,7 @@ files:
   - '!**/*.map'
 
 win:
-  executableName: ControlCentrePro
+  executableName: MissionControl
   target:
     - target: nsis
       arch:
