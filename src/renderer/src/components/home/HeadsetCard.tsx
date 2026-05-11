@@ -216,18 +216,6 @@ function StatBar({ label, value, bar }: { label: string; value: string; bar: num
 
 // ─── Connectivity icons ───────────────────────────────────────────────────────
 
-function UsbIcon(): JSX.Element {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2v12" />
-      <path d="M9 5H6v4h3" />
-      <path d="M15 5h3v4h-3" />
-      <path d="M7 18a3 3 0 0 0 5 0v-4H7v4z" />
-      <path d="M17 18a3 3 0 0 0-5 0v-4h5v4z" />
-    </svg>
-  )
-}
-
 function WirelessIcon(): JSX.Element {
   return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -247,21 +235,67 @@ function BluetoothIcon(): JSX.Element {
   )
 }
 
+const GREEN = '#22c55e'
+const RED   = '#ef4444'
+
 function ConnectivityDot({ icon, active, title }: { icon: React.ReactNode; active: boolean; title: string }): JSX.Element {
+  const color = active ? GREEN : RED
   return (
     <div
       title={title}
       className="w-6 h-6 rounded-full flex items-center justify-center"
       style={{
-        background: active
-          ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
-          : 'var(--color-surface-raised)',
-        border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`,
-        color: active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-        opacity: active ? 1 : 0.4,
+        background: active ? 'rgba(34,197,94,0.14)' : 'rgba(239,68,68,0.12)',
+        border: `1px solid ${color}`,
+        color,
       }}
     >
       {icon}
+    </div>
+  )
+}
+
+// ─── Battery indicator ────────────────────────────────────────────────────────
+
+function BoltIcon(): JSX.Element {
+  return (
+    <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  )
+}
+
+function BatteryIndicator({ level, charging, title }: { level: number; charging: boolean; title: string }): JSX.Element {
+  const SEGMENTS = 4
+  const filled   = Math.round((level / 100) * SEGMENTS)
+  const color    = level <= 20 ? RED : level <= 50 ? '#f59e0b' : GREEN
+  return (
+    <div title={title} className="flex items-center gap-1">
+      {charging && (
+        <span style={{ color: '#f59e0b' }}>
+          <BoltIcon />
+        </span>
+      )}
+      <div className="flex items-center gap-px">
+        {Array.from({ length: SEGMENTS }).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              width: 5,
+              height: 11,
+              borderRadius: 1.5,
+              background: i < filled ? color : 'var(--color-surface-raised)',
+              border: `1px solid ${i < filled ? color : 'var(--color-border)'}`,
+            }}
+          />
+        ))}
+      </div>
+      <span
+        className="mono"
+        style={{ color: 'var(--color-text-secondary)', fontSize: 10, lineHeight: 1 }}
+      >
+        {level}%
+      </span>
     </div>
   )
 }
@@ -374,10 +408,14 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
             Arctis Nova Pro Wireless
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <ConnectivityDot icon={<UsbIcon />}       active={true}                   title="USB / Dongle" />
-          <ConnectivityDot icon={<WirelessIcon />}  active={state.wirelessConnected} title="2.4 GHz" />
-          <ConnectivityDot icon={<BluetoothIcon />} active={state.btActive}          title="Bluetooth" />
+        <div className="flex items-center gap-2">
+          <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
+          <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
+          <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
+          <div className="flex items-center gap-1.5">
+            <ConnectivityDot icon={<WirelessIcon />}  active={state.wirelessConnected} title="2.4 GHz Wireless" />
+            <ConnectivityDot icon={<BluetoothIcon />} active={state.btActive}          title="Bluetooth" />
+          </div>
         </div>
       </div>
 
