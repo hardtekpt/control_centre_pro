@@ -454,7 +454,7 @@ def main() -> None:
             # EqBandEvent fires once per band (1-indexed, 1–10). Accumulate
             # individual updates into a mutable bands list so the renderer
             # always receives the full 10-value array.
-            _eq_bands_buf = list(getattr(mic_eq, "eq_bands", [20] * 10))
+            _eq_bands_buf = list(state.get("eqBands", [20] * 10))
 
             def on_eq_band_event(e, buf=_eq_bands_buf):
                 buf[e.band - 1] = e.level
