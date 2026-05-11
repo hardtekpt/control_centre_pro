@@ -52,7 +52,7 @@ def _read_full_state(headset) -> dict:
         # Status
         "batteryHeadset": status.headset_battery_pct,
         "batteryDock": status.dock_battery_pct,
-        "micMuted": status.mic_mute,
+        "micMuted": status.mic_muted,
         "volume": mic_eq.volume_pct,
         # Connectivity
         "wirelessConnected": True,
