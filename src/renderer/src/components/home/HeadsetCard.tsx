@@ -711,7 +711,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── Base Station ── */}
       <Section
         title="Base Station"
-        summary={`OLED ${state.oledBrightness} · Dim ${TIMEOUT_LABELS[state.dimTimeout]}`}
+        summary={`OLED ${state.oledBrightness} · Dim ${TIMEOUT_LABELS[state.dimTimeout]} · ${state.homescreenMode === 'DETAILED' ? 'Detailed' : 'Simple'} · Mic LED ${state.micLedBrightness} · Off ${TIMEOUT_LABELS[state.autoOffTimeout]}`}
       >
         <ControlRow label="OLED Brightness">
           <Slider
