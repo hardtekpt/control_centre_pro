@@ -129,8 +129,8 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
         ref={chipRef}
         className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5"
         style={{
-          background: isSettingsActive ? 'var(--color-nav-active)' : 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
+          background: isSettingsActive ? 'var(--color-nav-active)' : 'transparent',
+          border: 'none',
         }}
       >
         {/* App icon badge */}
