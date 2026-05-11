@@ -67,10 +67,14 @@ def _read_full_state(headset) -> dict:
     except Exception as exc:
         log("warn", f"get_display() unavailable: {exc}")
 
-    # get_connectivity() gives the authoritative bt_connected flag
+    # get_connectivity() gives the authoritative BT state
+    log("info", "Querying get_connectivity() for initial state")
     connectivity = None
     try:
         connectivity = headset.get_connectivity()
+        _raw_mode = getattr(getattr(connectivity, "connectivity_mode", None), "name", "?")
+        _raw_btc  = getattr(connectivity, "bt_connected", "?")
+        log("info", f"get_connectivity() → mode: {_raw_mode}, bt_connected: {_raw_btc}")
     except Exception as exc:
         log("warn", f"get_connectivity() unavailable: {exc}")
 
@@ -82,8 +86,9 @@ def _read_full_state(headset) -> dict:
         return default
 
     _conn_mode   = getattr(getattr(connectivity, "connectivity_mode", None), "name", "")
-    bt_active    = (_conn_mode == "WIRELESS_AND_BT") if connectivity else getattr(status, "bt_active", False)
-    bt_connected = getattr(connectivity, "bt_connected", bt_active) if connectivity else False
+    bt_active    = _conn_mode in ("WIRELESS_AND_BT", "BT_PAIRING") if connectivity else getattr(status, "bt_active", False)
+    bt_connected = (_conn_mode == "WIRELESS_AND_BT") if connectivity else False
+    bt_pairing   = (_conn_mode == "BT_PAIRING") if connectivity else False
 
     state = {
         # ── Always-available status fields ───────────────────────────────────
@@ -95,6 +100,7 @@ def _read_full_state(headset) -> dict:
         "wirelessConnected": True,
         "btActive":    bt_active,
         "btConnected": bt_connected,
+        "btPairing":   bt_pairing,
         # ── ANC ─────────────────────────────────────────────────────────────
         "ancMode":          enum_name(status, "anc_mode", default="OFF"),
         "transparencyLevel": 5,
@@ -264,6 +270,24 @@ def main() -> None:
         )})
         sys.exit(1)
 
+    # Patch ConnectivityMode to add BT_PAIRING = 2 (headset pairing mode).
+    # The library's IntEnum only defines WIRELESS_ONLY=1 and WIRELESS_AND_BT=4;
+    # value 2 is sent by the device during BT pairing and would otherwise crash
+    # the library's packet parser with "2 is not a valid ConnectivityMode".
+    try:
+        from arctis_hid.core.types import ConnectivityMode as _CM
+        if 2 not in _CM._value2member_map_:
+            _m = int.__new__(_CM, 2)
+            _m._name_  = "BT_PAIRING"
+            _m._value_ = 2
+            _CM.BT_PAIRING = _m
+            _CM._value2member_map_[2] = _m
+            _CM._member_map_["BT_PAIRING"] = _m
+            _CM._member_names_.append("BT_PAIRING")
+            log("info", "ConnectivityMode patched: added BT_PAIRING = 2")
+    except Exception as exc:
+        log("warn", f"Could not patch ConnectivityMode: {exc}")
+
     # Start stdin command reader (daemon — dies with main thread)
     threading.Thread(target=_stdin_reader, daemon=True).start()
 
@@ -306,26 +330,30 @@ def main() -> None:
 
             # ── Connectivity ─────────────────────────────────────────────────
             def on_connectivity_event(e):
-                # Query device — connectivity_mode is the single source of truth
                 mode_name    = "UNKNOWN"
                 bt_active    = False
                 bt_connected = False
+                bt_pairing   = False
                 wireless     = False
                 with _headset_lock:
                     h = _headset
                 if h is not None:
+                    log("info", "ConnectivityEvent received — querying get_connectivity()")
                     try:
                         conn      = h.get_connectivity()
                         mode_name = getattr(conn.connectivity_mode, "name",
                                             str(conn.connectivity_mode))
-                        # WIRELESS_AND_BT → BT radio on; WIRELESS_ONLY → BT off
-                        bt_active    = (mode_name == "WIRELESS_AND_BT")
-                        # bt_connected: explicit field; fall back to True when mode confirms BT
-                        bt_connected = getattr(conn, "bt_connected", bt_active)
+                        raw_btc   = getattr(conn, "bt_connected", "?")
+                        log("info", f"get_connectivity() → mode: {mode_name}, bt_connected: {raw_btc}")
+                        # Derive all BT flags from mode — the single source of truth.
+                        # conn.bt_connected is logged for visibility but not used to
+                        # determine state; WIRELESS_AND_BT already confirms connection.
                         wireless     = mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
+                        bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
+                        bt_connected = (mode_name == "WIRELESS_AND_BT")
+                        bt_pairing   = (mode_name == "BT_PAIRING")
                     except Exception as exc:
                         log("warn", f"get_connectivity() failed: {exc}")
-                        # Fall back to event attributes only when the query fails
                         bt_active = getattr(e, "bt_active", False)
                         wireless  = getattr(e, "wireless", True)
 
@@ -334,14 +362,18 @@ def main() -> None:
                     "data": {
                         "btActive":          bt_active,
                         "btConnected":       bt_connected,
+                        "btPairing":         bt_pairing,
                         "wirelessConnected": wireless,
                     },
                 })
+                bt_label = ("pairing" if bt_pairing
+                            else "connected" if bt_connected
+                            else "on" if bt_active
+                            else "off")
                 log("info", (
                     f"ConnectivityEvent — mode: {mode_name}, "
-                    f"bt_connected: {bt_connected}, "
                     f"2.4 GHz: {'connected' if wireless else 'disconnected'}, "
-                    f"BT radio: {'on' if bt_active else 'off'}"
+                    f"BT: {bt_label}"
                 ))
 
             headset.on("ConnectivityEvent", on_connectivity_event)

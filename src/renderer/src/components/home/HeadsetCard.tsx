@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ArctisState, TimeoutStep } from '@shared/types'
 
@@ -239,20 +239,30 @@ const GREEN = '#22c55e'
 const RED   = '#ef4444'
 const BLUE  = '#3b82f6'
 
-type DotState = 'off' | 'on' | 'connected'
+type DotState = 'off' | 'on' | 'connected' | 'pairing'
 
 const DOT_COLOR: Record<DotState, string> = {
-  off:       RED,
-  on:        GREEN,
+  off:     RED,
+  on:      GREEN,
   connected: BLUE,
+  pairing: BLUE,
 }
 const DOT_BG: Record<DotState, string> = {
-  off:       'rgba(239,68,68,0.12)',
-  on:        'rgba(34,197,94,0.14)',
+  off:     'rgba(239,68,68,0.12)',
+  on:      'rgba(34,197,94,0.14)',
   connected: 'rgba(59,130,246,0.14)',
+  pairing: 'rgba(59,130,246,0.14)',
 }
 
 function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dotState: DotState; title: string }): JSX.Element {
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    if (dotState !== 'pairing') { setVisible(true); return }
+    const id = setInterval(() => setVisible((v) => !v), 600)
+    return () => clearInterval(id)
+  }, [dotState])
+
   const color = DOT_COLOR[dotState]
   return (
     <div
@@ -262,6 +272,8 @@ function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dot
         background: DOT_BG[dotState],
         border: `1px solid ${color}`,
         color,
+        opacity: visible ? 1 : 0.15,
+        transition: 'opacity 200ms ease',
       }}
     >
       {icon}
@@ -429,7 +441,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
           <div className="flex items-center gap-1.5">
             <ConnectivityDot icon={<WirelessIcon />}  dotState={state.wirelessConnected ? 'on' : 'off'}                                           title="2.4 GHz Wireless" />
-            <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
+            <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
           </div>
         </div>
       </div>
