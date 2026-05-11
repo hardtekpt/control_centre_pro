@@ -88,7 +88,7 @@ function Slider({
   onChange: (v: number) => void
 }): JSX.Element {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 py-1" style={{ border: '1px solid transparent' }}>
       <input
         type="range"
         min={min}
