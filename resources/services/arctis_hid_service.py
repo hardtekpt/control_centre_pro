@@ -322,7 +322,7 @@ def main() -> None:
             def on_connectivity_event(e):
                 mode_name    = getattr(getattr(e, "mode", None), "name",
                                        str(getattr(e, "mode", "UNKNOWN")))
-                bt_active    = getattr(e, "bt", False)
+                bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
                 bt_connected = getattr(e, "bt_connected", False)
                 bt_pairing   = (mode_name == "BT_PAIRING")
                 wireless     = getattr(e, "wireless", False)

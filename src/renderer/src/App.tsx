@@ -105,8 +105,8 @@ export default function App(): JSX.Element {
             break
           // ── Connectivity ──────────────────────────────────────────────────
           case 'ConnectivityEvent': {
-            const d = data as { btActive: boolean; wirelessConnected: boolean }
-            updateArctisState({ btActive: d.btActive, wirelessConnected: d.wirelessConnected })
+            const d = data as { btActive: boolean; btConnected: boolean; btPairing: boolean; wirelessConnected: boolean }
+            updateArctisState({ btActive: d.btActive, btConnected: d.btConnected, btPairing: d.btPairing, wirelessConnected: d.wirelessConnected })
             break
           }
           // ── ANC ───────────────────────────────────────────────────────────
