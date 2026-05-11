@@ -67,12 +67,22 @@ def _read_full_state(headset) -> dict:
     except Exception as exc:
         log("warn", f"get_display() unavailable: {exc}")
 
+    # get_connectivity() gives the authoritative bt_connected flag
+    connectivity = None
+    try:
+        connectivity = headset.get_connectivity()
+    except Exception as exc:
+        log("warn", f"get_connectivity() unavailable: {exc}")
+
     def enum_name(obj, *attrs, default="OFF"):
         for a in attrs:
             val = getattr(obj, a, None)
             if val is not None:
                 return getattr(val, "name", str(val))
         return default
+
+    bt_active    = getattr(status, "bt_active", False)
+    bt_connected = getattr(connectivity, "bt_connected", bt_active) if connectivity else bt_active
 
     state = {
         # ── Always-available status fields ───────────────────────────────────
@@ -82,8 +92,8 @@ def _read_full_state(headset) -> dict:
         "volume":         getattr(mic_eq, "volume_pct", 0),
         # ── Connectivity ────────────────────────────────────────────────────
         "wirelessConnected": True,
-        "btActive": getattr(status, "bt_active", False),
-        "btConnected": getattr(status, "bt_connected", getattr(status, "bt_active", False)),
+        "btActive":    bt_active,
+        "btConnected": bt_connected,
         # ── ANC ─────────────────────────────────────────────────────────────
         "ancMode":          enum_name(status, "anc_mode", default="OFF"),
         "transparencyLevel": 5,
@@ -283,62 +293,83 @@ def main() -> None:
                 "type": "event", "event": "VolumeEvent",
                 "data": {"volume": e.percent},
             }))
-            headset.on("BatteryEvent", lambda e: emit({
-                "type": "event", "event": "BatteryEvent",
-                "data": {"batteryHeadset": e.headset_pct, "batteryDock": e.dock_pct},
-            }))
-            headset.on("MicMuteEvent", lambda e: emit({
-                "type": "event", "event": "MicMuteEvent",
-                "data": {"micMuted": e.muted},
-            }))
+            headset.on("BatteryEvent", lambda e: (
+                emit({"type": "event", "event": "BatteryEvent",
+                      "data": {"batteryHeadset": e.headset_pct, "batteryDock": e.dock_pct}}),
+                log("info", f"Battery — headset: {e.headset_pct}%, dock: {e.dock_pct}%"),
+            ))
+            headset.on("MicMuteEvent", lambda e: (
+                emit({"type": "event", "event": "MicMuteEvent", "data": {"micMuted": e.muted}}),
+                log("info", f"Mic {'muted' if e.muted else 'unmuted'}"),
+            ))
 
             # ── Connectivity ─────────────────────────────────────────────────
-            headset.on("ConnectivityEvent", lambda e: emit({
-                "type": "event", "event": "ConnectivityEvent",
-                "data": {
-                    "btActive": getattr(e, "bt_active", getattr(e, "bt_connected", False)),
-                    "btConnected": getattr(e, "bt_connected", getattr(e, "bt_active", False)),
-                    "wirelessConnected": getattr(e, "wireless", True),
-                },
-            }))
+            def on_connectivity_event(e):
+                bt_active = getattr(e, "bt_active", False)
+                wireless  = getattr(e, "wireless", True)
+                # Query the device for authoritative bt_connected status
+                bt_connected = bt_active  # fallback if query fails
+                with _headset_lock:
+                    h = _headset
+                if h is not None:
+                    try:
+                        conn = h.get_connectivity()
+                        bt_connected = getattr(conn, "bt_connected", bt_active)
+                    except Exception as exc:
+                        log("warn", f"get_connectivity() failed: {exc}")
+                emit({
+                    "type": "event", "event": "ConnectivityEvent",
+                    "data": {
+                        "btActive":        bt_active,
+                        "btConnected":     bt_connected,
+                        "wirelessConnected": wireless,
+                    },
+                })
+                parts = [f"2.4 GHz: {'connected' if wireless else 'disconnected'}",
+                         f"BT: {'on' if bt_active else 'off'}"]
+                if bt_active:
+                    parts.append(f"BT device: {'connected' if bt_connected else 'not connected'}")
+                log("info", "ConnectivityEvent — " + ", ".join(parts))
+
+            headset.on("ConnectivityEvent", on_connectivity_event)
 
             # ── ANC ──────────────────────────────────────────────────────────
-            headset.on("AncModeEvent", lambda e: emit({
-                "type": "event", "event": "AncModeEvent",
-                "data": {"ancMode": e.mode.name},
-            }))
+            headset.on("AncModeEvent", lambda e: (
+                emit({"type": "event", "event": "AncModeEvent", "data": {"ancMode": e.mode.name}}),
+                log("info", f"ANC mode: {e.mode.name}"),
+            ))
             headset.on("TransparencyEvent", lambda e: emit({
                 "type": "event", "event": "TransparencyEvent",
                 "data": {"transparencyLevel": e.level},
             }))
 
             # ── Audio Options ─────────────────────────────────────────────────
-            headset.on("GainEvent", lambda e: emit({
-                "type": "event", "event": "GainEvent",
-                "data": {"micGain": e.level.name},
-            }))
+            headset.on("GainEvent", lambda e: (
+                emit({"type": "event", "event": "GainEvent", "data": {"micGain": e.level.name}}),
+                log("info", f"Mic gain: {e.level.name}"),
+            ))
             headset.on("MicVolumeEvent", lambda e: emit({
                 "type": "event", "event": "MicVolumeEvent",
                 "data": {"micVolume": e.level},
             }))
-            headset.on("SidetoneEvent", lambda e: emit({
-                "type": "event", "event": "SidetoneEvent",
-                "data": {"sidetone": e.level.name},
-            }))
+            headset.on("SidetoneEvent", lambda e: (
+                emit({"type": "event", "event": "SidetoneEvent", "data": {"sidetone": e.level.name}}),
+                log("info", f"Sidetone: {e.level.name}"),
+            ))
 
             # ── Wireless ─────────────────────────────────────────────────────
-            headset.on("WirelessModeEvent", lambda e: emit({
-                "type": "event", "event": "WirelessModeEvent",
-                "data": {"wirelessMode": e.mode.name},
-            }))
-            headset.on("BtDefaultEvent", lambda e: emit({
-                "type": "event", "event": "BtDefaultEvent",
-                "data": {"btDefault": e.enabled},
-            }))
-            headset.on("BtAutoMuteEvent", lambda e: emit({
-                "type": "event", "event": "BtAutoMuteEvent",
-                "data": {"btAutoMute": e.mode.name},
-            }))
+            headset.on("WirelessModeEvent", lambda e: (
+                emit({"type": "event", "event": "WirelessModeEvent", "data": {"wirelessMode": e.mode.name}}),
+                log("info", f"Wireless mode: {e.mode.name}"),
+            ))
+            headset.on("BtDefaultEvent", lambda e: (
+                emit({"type": "event", "event": "BtDefaultEvent", "data": {"btDefault": e.enabled}}),
+                log("info", f"BT default: {'on' if e.enabled else 'off'}"),
+            ))
+            headset.on("BtAutoMuteEvent", lambda e: (
+                emit({"type": "event", "event": "BtAutoMuteEvent", "data": {"btAutoMute": e.mode.name}}),
+                log("info", f"BT auto-mute: {e.mode.name}"),
+            ))
 
             # ── ChatMix ──────────────────────────────────────────────────────
             headset.on("ChatMixEvent", lambda e: emit({
@@ -347,10 +378,10 @@ def main() -> None:
             }))
 
             # ── Audio Output ──────────────────────────────────────────────────
-            headset.on("AudioOutputEvent", lambda e: emit({
-                "type": "event", "event": "AudioOutputEvent",
-                "data": {"audioOutput": e.output.name},
-            }))
+            headset.on("AudioOutputEvent", lambda e: (
+                emit({"type": "event", "event": "AudioOutputEvent", "data": {"audioOutput": e.output.name}}),
+                log("info", f"Audio output: {e.output.name}"),
+            ))
             headset.on("StreamVolumesEvent", lambda e: emit({
                 "type": "event", "event": "StreamVolumesEvent",
                 "data": {"streamMain": e.main, "streamAux": e.aux, "streamMic": e.mic},
