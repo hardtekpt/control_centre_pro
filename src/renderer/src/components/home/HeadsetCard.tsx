@@ -642,9 +642,9 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           marginBottom: 4,
         }}
       >
-        {/* ANC */}
-        <GridPanel title="ANC">
-          <GridRow label="Mode">
+        {/* Audio Options */}
+        <GridPanel title="Audio Options">
+          <GridRow label="ANC">
             <AncModeControl
               value={state.ancMode}
               transparencyLevel={state.transparencyLevel}
@@ -652,10 +652,6 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
               onLevelChange={(v) => cmd('setTransparencyLevel', v, { transparencyLevel: v })}
             />
           </GridRow>
-        </GridPanel>
-
-        {/* Audio Options */}
-        <GridPanel title="Audio Options">
           <GridRow label="Gain">
             <OptionGroup
               value={state.micGain}
