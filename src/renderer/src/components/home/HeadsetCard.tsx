@@ -270,7 +270,7 @@ function BatteryIndicator({ level, charging, title }: { level: number; charging:
   const filled   = Math.round((level / 100) * SEGMENTS)
   const color    = level <= 20 ? RED : level <= 50 ? '#f59e0b' : GREEN
   return (
-    <div title={title} className="flex items-center gap-1">
+    <div title={title} className="flex items-center gap-1" style={{ height: 24 }}>
       {charging && (
         <span style={{ color: '#f59e0b' }}>
           <BoltIcon />
@@ -281,18 +281,19 @@ function BatteryIndicator({ level, charging, title }: { level: number; charging:
           <div
             key={i}
             style={{
-              width: 5,
-              height: 11,
-              borderRadius: 1.5,
-              background: i < filled ? color : 'var(--color-surface-raised)',
-              border: `1px solid ${i < filled ? color : 'var(--color-border)'}`,
+              width: 6,
+              height: 14,
+              borderRadius: 2,
+              background: i < filled ? color : 'transparent',
+              border: `1px solid ${i < filled ? color : 'var(--color-text-primary)'}`,
+              opacity: i < filled ? 1 : 0.35,
             }}
           />
         ))}
       </div>
       <span
         className="mono"
-        style={{ color: 'var(--color-text-secondary)', fontSize: 10, lineHeight: 1 }}
+        style={{ color: 'var(--color-text-primary)', fontSize: 11, lineHeight: 1 }}
       >
         {level}%
       </span>
@@ -417,12 +418,6 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
             <ConnectivityDot icon={<BluetoothIcon />} active={state.btActive}          title="Bluetooth" />
           </div>
         </div>
-      </div>
-
-      {/* ── Battery (read-only) ── */}
-      <div className="flex flex-col gap-2 mb-2">
-        <StatBar label="Headset battery" value={`${batteryHeadset}%`} bar={batteryHeadset} />
-        <StatBar label="Dock battery"    value={`${batteryDock}%`}    bar={batteryDock} />
       </div>
 
       {/* ── Volume (always visible, controllable) ── */}
