@@ -676,85 +676,81 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           </GridRow>
         </GridPanel>
 
+        {/* Wireless & Audio Output */}
+        <GridPanel title="Wireless & Audio Output">
+          <GridRow label="2.4 GHz Mode">
+            <OptionGroup
+              value={state.wirelessMode}
+              options={WIRELESS_MODE_OPTIONS}
+              onChange={(v) => cmd('setWirelessMode', v, { wirelessMode: v })}
+            />
+          </GridRow>
+          <GridRow label="BT Default">
+            <OptionGroup
+              value={state.btDefault ? 'ON' : 'OFF'}
+              options={BOOL_OPTIONS}
+              onChange={(v) => {
+                const val = v === 'ON'
+                cmd('setBtDefault', val, { btDefault: val })
+              }}
+            />
+          </GridRow>
+          <GridRow label="BT Auto Mute">
+            <OptionGroup
+              value={state.btAutoMute}
+              options={BT_AUTO_MUTE_OPTIONS}
+              onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
+            />
+          </GridRow>
+          <GridRow label="Output">
+            <OptionGroup
+              value={state.audioOutput}
+              options={AUDIO_OUTPUT_OPTIONS}
+              onChange={(v) => cmd('setAudioOutput', v, { audioOutput: v })}
+            />
+          </GridRow>
+          {state.audioOutput === 'STREAM' && (
+            <>
+              <GridRow label="Main">
+                <Slider
+                  value={state.streamMain}
+                  min={0}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => {
+                    updateArctisState({ streamMain: v })
+                    window.api.arctisCmd('setStreamVolumes', { main: v, aux: state.streamAux, mic: state.streamMic }).catch(console.error)
+                  }}
+                />
+              </GridRow>
+              <GridRow label="Aux">
+                <Slider
+                  value={state.streamAux}
+                  min={0}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => {
+                    updateArctisState({ streamAux: v })
+                    window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: v, mic: state.streamMic }).catch(console.error)
+                  }}
+                />
+              </GridRow>
+              <GridRow label="Mic">
+                <Slider
+                  value={state.streamMic}
+                  min={0}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => {
+                    updateArctisState({ streamMic: v })
+                    window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: state.streamAux, mic: v }).catch(console.error)
+                  }}
+                />
+              </GridRow>
+            </>
+          )}
+        </GridPanel>
       </div>
-
-      {/* ── Wireless & Audio Output ── */}
-      <Section
-        title="Wireless"
-        summary={`${state.wirelessMode === 'PERFORMANCE' ? 'Performance' : 'Range'} · ${state.audioOutput === 'SPEAKERS' ? 'Speakers' : 'Stream'}`}
-      >
-        <ControlRow label="2.4 GHz Mode">
-          <OptionGroup
-            value={state.wirelessMode}
-            options={WIRELESS_MODE_OPTIONS}
-            onChange={(v) => cmd('setWirelessMode', v, { wirelessMode: v })}
-          />
-        </ControlRow>
-        <ControlRow label="BT Default">
-          <OptionGroup
-            value={state.btDefault ? 'ON' : 'OFF'}
-            options={BOOL_OPTIONS}
-            onChange={(v) => {
-              const val = v === 'ON'
-              cmd('setBtDefault', val, { btDefault: val })
-            }}
-          />
-        </ControlRow>
-        <ControlRow label="BT Auto Mute">
-          <OptionGroup
-            value={state.btAutoMute}
-            options={BT_AUTO_MUTE_OPTIONS}
-            onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Audio Output">
-          <OptionGroup
-            value={state.audioOutput}
-            options={AUDIO_OUTPUT_OPTIONS}
-            onChange={(v) => cmd('setAudioOutput', v, { audioOutput: v })}
-          />
-        </ControlRow>
-        {state.audioOutput === 'STREAM' && (
-          <>
-            <ControlRow label="Main">
-              <Slider
-                value={state.streamMain}
-                min={0}
-                max={100}
-                unit="%"
-                onChange={(v) => {
-                  updateArctisState({ streamMain: v })
-                  window.api.arctisCmd('setStreamVolumes', { main: v, aux: state.streamAux, mic: state.streamMic }).catch(console.error)
-                }}
-              />
-            </ControlRow>
-            <ControlRow label="Aux">
-              <Slider
-                value={state.streamAux}
-                min={0}
-                max={100}
-                unit="%"
-                onChange={(v) => {
-                  updateArctisState({ streamAux: v })
-                  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: v, mic: state.streamMic }).catch(console.error)
-                }}
-              />
-            </ControlRow>
-            <ControlRow label="Mic">
-              <Slider
-                value={state.streamMic}
-                min={0}
-                max={100}
-                unit="%"
-                onChange={(v) => {
-                  updateArctisState({ streamMic: v })
-                  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: state.streamAux, mic: v }).catch(console.error)
-                }}
-              />
-            </ControlRow>
-          </>
-        )}
-      </Section>
 
       {/* ── Base Station ── */}
       <Section
