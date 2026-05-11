@@ -447,6 +447,7 @@ const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
 
 export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
   const { updateArctisState } = useServiceStore()
+  const [chatmixEnabled, setChatmixEnabled] = useState(true)
 
   function cmd<K extends keyof ArctisState>(
     cmdName: string,
@@ -499,30 +500,45 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       </div>
 
       {/* ── ChatMix balance (hardware dial — display only) ── */}
-      <div>
-        <ControlRow label="ChatMix">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-              Game {state.chatmixGame}
-            </span>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setChatmixEnabled((v) => !v)}
+          className="text-xs shrink-0 w-32 text-left"
+          style={{
+            color: chatmixEnabled ? 'var(--color-text-secondary)' : 'var(--color-text-secondary)',
+            textDecoration: chatmixEnabled ? 'none' : 'line-through',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+          }}
+        >
+          ChatMix
+        </button>
+        <div
+          className="flex-1 flex items-center gap-1.5"
+          style={{ opacity: chatmixEnabled ? 1 : 0.3, transition: 'opacity 150ms ease', pointerEvents: 'none' }}
+        >
+          <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+            Game {state.chatmixGame}
+          </span>
+          <div
+            className="flex-1 rounded-full overflow-hidden"
+            style={{ height: 4, background: 'var(--color-border)' }}
+          >
             <div
-              className="flex-1 rounded-full overflow-hidden"
-              style={{ height: 4, background: 'var(--color-border)' }}
-            >
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${(state.chatmixChat - state.chatmixGame + 100) / 2}%`,
-                  background: 'var(--color-accent)',
-                  transition: 'width 150ms ease',
-                }}
-              />
-            </div>
-            <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-              {state.chatmixChat} Chat
-            </span>
+              className="h-full rounded-full"
+              style={{
+                width: `${(state.chatmixChat - state.chatmixGame + 100) / 2}%`,
+                background: 'var(--color-accent)',
+                transition: 'width 150ms ease',
+              }}
+            />
           </div>
-        </ControlRow>
+          <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+            {state.chatmixChat} Chat
+          </span>
+        </div>
       </div>
 
       {/* ── Divider ── */}
