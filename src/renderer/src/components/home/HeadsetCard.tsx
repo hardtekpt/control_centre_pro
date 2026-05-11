@@ -676,41 +676,38 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           </GridRow>
         </GridPanel>
 
-        {/* Wireless */}
-        <GridPanel title="Wireless">
-          <GridRow label="2.4 GHz Mode">
-            <OptionGroup
-              value={state.wirelessMode}
-              options={WIRELESS_MODE_OPTIONS}
-              onChange={(v) => cmd('setWirelessMode', v, { wirelessMode: v })}
-            />
-          </GridRow>
-          <GridRow label="BT Default">
-            <OptionGroup
-              value={state.btDefault ? 'ON' : 'OFF'}
-              options={BOOL_OPTIONS}
-              onChange={(v) => {
-                const val = v === 'ON'
-                cmd('setBtDefault', val, { btDefault: val })
-              }}
-            />
-          </GridRow>
-          <GridRow label="BT Auto Mute">
-            <OptionGroup
-              value={state.btAutoMute}
-              options={BT_AUTO_MUTE_OPTIONS}
-              onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
-            />
-          </GridRow>
-        </GridPanel>
       </div>
 
-      {/* ── Audio Output ── */}
+      {/* ── Wireless & Audio Output ── */}
       <Section
-        title="Audio Output"
-        summary={state.audioOutput === 'SPEAKERS' ? 'Speakers' : 'Stream'}
+        title="Wireless"
+        summary={`${state.wirelessMode === 'PERFORMANCE' ? 'Performance' : 'Range'} · ${state.audioOutput === 'SPEAKERS' ? 'Speakers' : 'Stream'}`}
       >
-        <ControlRow label="Output">
+        <ControlRow label="2.4 GHz Mode">
+          <OptionGroup
+            value={state.wirelessMode}
+            options={WIRELESS_MODE_OPTIONS}
+            onChange={(v) => cmd('setWirelessMode', v, { wirelessMode: v })}
+          />
+        </ControlRow>
+        <ControlRow label="BT Default">
+          <OptionGroup
+            value={state.btDefault ? 'ON' : 'OFF'}
+            options={BOOL_OPTIONS}
+            onChange={(v) => {
+              const val = v === 'ON'
+              cmd('setBtDefault', val, { btDefault: val })
+            }}
+          />
+        </ControlRow>
+        <ControlRow label="BT Auto Mute">
+          <OptionGroup
+            value={state.btAutoMute}
+            options={BT_AUTO_MUTE_OPTIONS}
+            onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
+          />
+        </ControlRow>
+        <ControlRow label="Audio Output">
           <OptionGroup
             value={state.audioOutput}
             options={AUDIO_OUTPUT_OPTIONS}
