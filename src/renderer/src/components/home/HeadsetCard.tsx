@@ -126,6 +126,45 @@ function ControlRow({
   )
 }
 
+// ─── Grid panel (always-visible column) ──────────────────────────────────────
+
+function GridPanel({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <span
+        className="text-xs font-semibold"
+        style={{ color: 'var(--color-text-primary)', paddingBottom: 2 }}
+      >
+        {title}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+function GridRow({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+        {label}
+      </span>
+      {children}
+    </div>
+  )
+}
+
 // ─── Section ──────────────────────────────────────────────────────────────────
 
 function ChevronIcon({ open }: { open: boolean }): JSX.Element {
@@ -460,7 +499,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       </div>
 
       {/* ── ChatMix balance (hardware dial — display only) ── */}
-      <div className="mb-1">
+      <div>
         <ControlRow label="ChatMix">
           <div className="flex items-center gap-1.5">
             <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
@@ -486,95 +525,93 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         </ControlRow>
       </div>
 
-      {/* ── ANC ── */}
-      <Section
-        title="ANC"
-        summary={
-          state.ancMode === 'OFF'
-            ? 'Off'
-            : state.ancMode === 'ANC'
-            ? 'ANC'
-            : `Transparency · ${state.transparencyLevel}`
-        }
+      {/* ── Divider ── */}
+      <div style={{ height: 1, background: 'var(--color-border)', margin: '12px 0' }} />
+
+      {/* ── ANC · Audio Options · Wireless (3-column adaptive grid) ── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '16px 20px',
+          marginBottom: 4,
+        }}
       >
-        <ControlRow label="Mode">
-          <OptionGroup
-            value={state.ancMode}
-            options={ANC_OPTIONS}
-            onChange={(v) => cmd('setAncMode', v, { ancMode: v })}
-          />
-        </ControlRow>
-        {state.ancMode !== 'OFF' && (
-          <ControlRow label="Level">
+        {/* ANC */}
+        <GridPanel title="ANC">
+          <GridRow label="Mode">
+            <OptionGroup
+              value={state.ancMode}
+              options={ANC_OPTIONS}
+              onChange={(v) => cmd('setAncMode', v, { ancMode: v })}
+            />
+          </GridRow>
+          {state.ancMode !== 'OFF' && (
+            <GridRow label="Level">
+              <Slider
+                value={state.transparencyLevel}
+                min={1}
+                max={10}
+                onChange={(v) => cmd('setTransparencyLevel', v, { transparencyLevel: v })}
+              />
+            </GridRow>
+          )}
+        </GridPanel>
+
+        {/* Audio Options */}
+        <GridPanel title="Audio Options">
+          <GridRow label="Gain">
+            <OptionGroup
+              value={state.micGain}
+              options={GAIN_OPTIONS}
+              onChange={(v) => cmd('setMicGain', v, { micGain: v })}
+            />
+          </GridRow>
+          <GridRow label="Sidetone">
+            <OptionGroup
+              value={state.sidetone}
+              options={SIDETONE_OPTIONS}
+              onChange={(v) => cmd('setSidetone', v, { sidetone: v })}
+            />
+          </GridRow>
+          <GridRow label="Mic Volume">
             <Slider
-              value={state.transparencyLevel}
+              value={state.micVolume}
               min={1}
               max={10}
-              onChange={(v) => cmd('setTransparencyLevel', v, { transparencyLevel: v })}
+              onChange={(v) => cmd('setMicVolume', v, { micVolume: v })}
             />
-          </ControlRow>
-        )}
-      </Section>
+          </GridRow>
+        </GridPanel>
 
-      {/* ── Audio Options ── */}
-      <Section
-        title="Audio Options"
-        summary={`Gain: ${state.micGain === 'LOW' ? 'Low' : 'High'} · Sidetone: ${state.sidetone.charAt(0) + state.sidetone.slice(1).toLowerCase()}`}
-      >
-        <ControlRow label="Gain">
-          <OptionGroup
-            value={state.micGain}
-            options={GAIN_OPTIONS}
-            onChange={(v) => cmd('setMicGain', v, { micGain: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Sidetone">
-          <OptionGroup
-            value={state.sidetone}
-            options={SIDETONE_OPTIONS}
-            onChange={(v) => cmd('setSidetone', v, { sidetone: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Mic Volume">
-          <Slider
-            value={state.micVolume}
-            min={1}
-            max={10}
-            onChange={(v) => cmd('setMicVolume', v, { micVolume: v })}
-          />
-        </ControlRow>
-      </Section>
-
-      {/* ── Wireless ── */}
-      <Section
-        title="Wireless"
-        summary={`${state.wirelessMode === 'PERFORMANCE' ? 'Performance' : 'Range'} · BT ${state.btDefault ? 'On' : 'Off'}`}
-      >
-        <ControlRow label="2.4 GHz Mode">
-          <OptionGroup
-            value={state.wirelessMode}
-            options={WIRELESS_MODE_OPTIONS}
-            onChange={(v) => cmd('setWirelessMode', v, { wirelessMode: v })}
-          />
-        </ControlRow>
-        <ControlRow label="BT Default">
-          <OptionGroup
-            value={state.btDefault ? 'ON' : 'OFF'}
-            options={BOOL_OPTIONS}
-            onChange={(v) => {
-              const val = v === 'ON'
-              cmd('setBtDefault', val, { btDefault: val })
-            }}
-          />
-        </ControlRow>
-        <ControlRow label="BT Auto Mute">
-          <OptionGroup
-            value={state.btAutoMute}
-            options={BT_AUTO_MUTE_OPTIONS}
-            onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
-          />
-        </ControlRow>
-      </Section>
+        {/* Wireless */}
+        <GridPanel title="Wireless">
+          <GridRow label="2.4 GHz Mode">
+            <OptionGroup
+              value={state.wirelessMode}
+              options={WIRELESS_MODE_OPTIONS}
+              onChange={(v) => cmd('setWirelessMode', v, { wirelessMode: v })}
+            />
+          </GridRow>
+          <GridRow label="BT Default">
+            <OptionGroup
+              value={state.btDefault ? 'ON' : 'OFF'}
+              options={BOOL_OPTIONS}
+              onChange={(v) => {
+                const val = v === 'ON'
+                cmd('setBtDefault', val, { btDefault: val })
+              }}
+            />
+          </GridRow>
+          <GridRow label="BT Auto Mute">
+            <OptionGroup
+              value={state.btAutoMute}
+              options={BT_AUTO_MUTE_OPTIONS}
+              onChange={(v) => cmd('setBtAutoMute', v, { btAutoMute: v })}
+            />
+          </GridRow>
+        </GridPanel>
+      </div>
 
       {/* ── Audio Output ── */}
       <Section
