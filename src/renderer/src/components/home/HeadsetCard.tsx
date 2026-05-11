@@ -130,10 +130,12 @@ function ControlRow({
 
 function GridPanel({
   title,
+  summary,
   children,
   collapsible = false,
 }: {
   title: string
+  summary?: string
   children: React.ReactNode
   collapsible?: boolean
 }): JSX.Element {
@@ -149,9 +151,16 @@ function GridPanel({
           <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             {title}
           </span>
-          <span style={{ color: 'var(--color-text-secondary)' }}>
-            <ChevronIcon open={open} />
-          </span>
+          <div className="flex items-center gap-2">
+            {summary && !open && (
+              <span className="text-xs mono" style={{ color: 'var(--color-text-secondary)' }}>
+                {summary}
+              </span>
+            )}
+            <span style={{ color: 'var(--color-text-secondary)' }}>
+              <ChevronIcon open={open} />
+            </span>
+          </div>
         </button>
       ) : (
         <span
@@ -661,7 +670,15 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         }}
       >
         {/* Audio Options */}
-        <GridPanel title="Audio Options" collapsible>
+        <GridPanel
+          title="Audio Options"
+          collapsible
+          summary={[
+            state.ancMode === 'TRANSPARENCY' ? `Transparency ${state.transparencyLevel}` : state.ancMode === 'ANC' ? 'ANC' : 'Off',
+            { OFF: 'Off', LOW: 'Low', MEDIUM: 'Med', HIGH: 'High' }[state.sidetone],
+            state.micVolume,
+          ].join(' · ')}
+        >
           <GridRow label="ANC">
             <AncModeControl
               value={state.ancMode}
@@ -695,7 +712,14 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         </GridPanel>
 
         {/* Wireless & Audio Output */}
-        <GridPanel title="Wireless & Audio Output" collapsible>
+        <GridPanel
+          title="Wireless & Audio Output"
+          collapsible
+          summary={[
+            state.wirelessMode === 'PERFORMANCE' ? 'Performance' : 'Range',
+            state.audioOutput === 'SPEAKERS' ? 'Speakers' : 'Stream',
+          ].join(' · ')}
+        >
           <GridRow label="2.4 GHz Mode">
             <OptionGroup
               value={state.wirelessMode}
