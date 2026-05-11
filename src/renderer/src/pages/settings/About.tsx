@@ -55,57 +55,47 @@ export function About(): JSX.Element {
 
   return (
     <div>
-      <div className="mb-7">
-        <h2
-          className="text-lg font-semibold mb-1 tracking-tight"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          About
-        </h2>
-        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Mission Control version and build information
-        </p>
-      </div>
-
-      <div
-        className="max-w-lg rounded-lg overflow-hidden mb-6"
-        style={{ border: '1px solid var(--color-border)' }}
+      <h1
+        className="text-xl font-semibold mb-7 tracking-tight"
+        style={{ color: 'var(--color-text-primary)' }}
       >
-        {[
-          { label: 'Version', value: '0.1.0' },
-          { label: 'Platform', value: 'Windows' },
-          { label: 'Framework', value: 'Electron + React' },
-          { label: 'Build', value: 'Development' },
-        ].map((row, i, arr) => (
-          <div
-            key={row.label}
-            className="flex items-center justify-between px-4 py-3"
-            style={{
-              background: 'var(--color-surface)',
-              borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 'none',
-            }}
-          >
-            <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              {row.label}
-            </span>
-            <span
-              className="text-sm mono"
-              style={{ color: 'var(--color-text-primary)' }}
+        About
+      </h1>
+
+      <section className="mb-8">
+        <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>
+          Version
+        </h2>
+        <div>
+          {[
+            { label: 'Version', value: '0.1.0' },
+            { label: 'Platform', value: 'Windows' },
+            { label: 'Framework', value: 'Electron + React' },
+            { label: 'Build', value: 'Development' },
+          ].map((row, i, arr) => (
+            <div
+              key={row.label}
+              className="flex items-center justify-between py-3"
+              style={{
+                borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 'none',
+              }}
             >
-              {row.value}
-            </span>
-          </div>
-        ))}
-      </div>
+              <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                {row.label}
+              </span>
+              <span className="text-sm mono" style={{ color: 'var(--color-text-secondary)' }}>
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Service log terminal */}
       <section>
-        <h3
-          className="text-xs font-semibold uppercase tracking-wider mb-2"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
+        <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>
           Service Log
-        </h3>
+        </h2>
         <div
           className="rounded-lg overflow-y-auto"
           style={{

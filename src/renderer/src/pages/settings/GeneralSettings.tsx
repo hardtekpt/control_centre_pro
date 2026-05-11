@@ -34,11 +34,8 @@ export function GeneralSettings(): JSX.Element {
   }
 
   return (
-    <div className="max-w-lg">
-      <PageHeader
-        title="General"
-        description="App-wide preferences and display settings"
-      />
+    <div>
+      <PageHeader title="General" />
 
       <SettingsSection title="Appearance">
         <SettingRow
@@ -184,19 +181,14 @@ function Toggle({
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
-function PageHeader({ title, description }: { title: string; description: string }): JSX.Element {
+function PageHeader({ title }: { title: string }): JSX.Element {
   return (
-    <div className="mb-7">
-      <h2
-        className="text-lg font-semibold mb-1 tracking-tight"
-        style={{ color: 'var(--color-text-primary)' }}
-      >
-        {title}
-      </h2>
-      <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        {description}
-      </p>
-    </div>
+    <h1
+      className="text-xl font-semibold mb-7 tracking-tight"
+      style={{ color: 'var(--color-text-primary)' }}
+    >
+      {title}
+    </h1>
   )
 }
 
@@ -208,19 +200,14 @@ function SettingsSection({
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <section className="mb-6">
-      <h3
-        className="text-xs font-semibold uppercase tracking-wider mb-2"
-        style={{ color: 'var(--color-text-secondary)' }}
+    <section className="mb-8">
+      <h2
+        className="text-base font-semibold mb-4"
+        style={{ color: 'var(--color-text-primary)' }}
       >
         {title}
-      </h3>
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ border: '1px solid var(--color-border)' }}
-      >
-        {children}
-      </div>
+      </h2>
+      <div>{children}</div>
     </section>
   )
 }
@@ -238,9 +225,8 @@ function SettingRow({
 }): JSX.Element {
   return (
     <div
-      className="flex items-center justify-between px-4 py-3"
+      className="flex items-center justify-between py-3"
       style={{
-        background: 'var(--color-surface)',
         borderBottom: last ? 'none' : '1px solid var(--color-border)',
       }}
     >
@@ -249,10 +235,7 @@ function SettingRow({
           {label}
         </div>
         {helper && (
-          <div
-            className="text-xs mt-0.5"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
+          <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
             {helper}
           </div>
         )}

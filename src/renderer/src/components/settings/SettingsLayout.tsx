@@ -7,27 +7,15 @@ import { DDCSettings } from '../../pages/settings/DDCSettings'
 import { About } from '../../pages/settings/About'
 import { useAppStore } from '../../stores/appStore'
 
-const FLOAT_GAP = 6
-
-/**
- * Settings view layout — same floating sidebar pattern as MainLayout.
- * The TopBar is shared so window controls remain accessible in settings too.
- */
 export function SettingsLayout(): JSX.Element {
-  const { currentSettingsTab } = useAppStore()
+  const { currentSettingsTab, setView } = useAppStore()
 
   return (
     <div className="flex flex-col h-full">
-      <TopBar />
+      <TopBar settingsMode onBack={() => setView('home')} />
       <div className="flex flex-1 overflow-hidden">
         <SettingsSidebar />
-        <main
-          className="flex-1 overflow-y-auto selectable"
-          style={{
-            background: 'var(--color-bg)',
-            padding: `${FLOAT_GAP}px ${FLOAT_GAP}px ${FLOAT_GAP}px 0`,
-          }}
-        >
+        <main className="flex-1 overflow-y-auto selectable" style={{ background: 'var(--color-bg)' }}>
           <div className="px-8 py-6">
             {currentSettingsTab === 'general' && <GeneralSettings />}
             {currentSettingsTab === 'app' && <AppSettings />}

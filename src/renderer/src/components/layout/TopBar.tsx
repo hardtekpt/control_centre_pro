@@ -14,7 +14,12 @@ import { useAppStore } from '../../stores/appStore'
  *
  * Right: Windows window controls (— □ ×)
  */
-export function TopBar(): JSX.Element {
+interface TopBarProps {
+  settingsMode?: boolean
+  onBack?: () => void
+}
+
+export function TopBar({ settingsMode = false, onBack }: TopBarProps = {}): JSX.Element {
   const {
     isMaximized,
     sidebarCollapsed,
@@ -50,45 +55,69 @@ export function TopBar(): JSX.Element {
         WebkitAppRegion: 'drag' as React.CSSProperties['WebkitAppRegion'],
       }}
     >
-      {/* ── Left: icon toolbar ─────────────────────────────────────────────── */}
+      {/* ── Left: icon toolbar or settings back button ─────────────────────── */}
       <div
         className="flex items-center h-full px-1 gap-0.5"
         style={{ WebkitAppRegion: 'no-drag' as React.CSSProperties['WebkitAppRegion'] }}
       >
-        {/* 1. Hamburger → native app menu */}
-        <ToolbarBtn onClick={handleShowMenu} label="Application menu">
-          <HamburgerIcon />
-        </ToolbarBtn>
+        {settingsMode ? (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 h-8 px-2 rounded transition-colors duration-100"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--color-text-secondary)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--color-text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+            }}
+          >
+            <BackArrowIcon />
+            <span style={{ fontSize: 13, fontWeight: 500 }}>Settings</span>
+          </button>
+        ) : (
+          <>
+            {/* 1. Hamburger → native app menu */}
+            <ToolbarBtn onClick={handleShowMenu} label="Application menu">
+              <HamburgerIcon />
+            </ToolbarBtn>
 
-        {/* 2. Sidebar toggle — icon reflects collapsed/expanded state */}
-        <ToolbarBtn
-          ref={sidebarBtnRef}
-          onClick={toggleSidebar}
-          label={sidebarCollapsed ? 'Expand sidebar · Ctrl+B' : 'Collapse sidebar · Ctrl+B'}
-          onMouseEnter={handleSidebarBtnEnter}
-          onMouseLeave={schedulePeekHide}
-        >
-          {sidebarCollapsed ? <SidebarClosedIcon /> : <SidebarOpenIcon />}
-        </ToolbarBtn>
+            {/* 2. Sidebar toggle — icon reflects collapsed/expanded state */}
+            <ToolbarBtn
+              ref={sidebarBtnRef}
+              onClick={toggleSidebar}
+              label={sidebarCollapsed ? 'Expand sidebar · Ctrl+B' : 'Collapse sidebar · Ctrl+B'}
+              onMouseEnter={handleSidebarBtnEnter}
+              onMouseLeave={schedulePeekHide}
+            >
+              {sidebarCollapsed ? <SidebarClosedIcon /> : <SidebarOpenIcon />}
+            </ToolbarBtn>
 
-        {/* 3. Search */}
-        <ToolbarBtn onClick={() => {}} label="Search">
-          <SearchIcon />
-        </ToolbarBtn>
+            {/* 3. Search */}
+            <ToolbarBtn onClick={() => {}} label="Search">
+              <SearchIcon />
+            </ToolbarBtn>
 
-        {/* Divider */}
-        <div
-          className="mx-0.5 h-4 w-px shrink-0"
-          style={{ background: 'var(--color-border)' }}
-        />
+            {/* Divider */}
+            <div
+              className="mx-0.5 h-4 w-px shrink-0"
+              style={{ background: 'var(--color-border)' }}
+            />
 
-        {/* 4. Nav arrows */}
-        <ToolbarBtn onClick={() => {}} label="Go back" disabled>
-          <BackArrowIcon />
-        </ToolbarBtn>
-        <ToolbarBtn onClick={() => {}} label="Go forward" disabled>
-          <ForwardArrowIcon />
-        </ToolbarBtn>
+            {/* 4. Nav arrows */}
+            <ToolbarBtn onClick={() => {}} label="Go back" disabled>
+              <BackArrowIcon />
+            </ToolbarBtn>
+            <ToolbarBtn onClick={() => {}} label="Go forward" disabled>
+              <ForwardArrowIcon />
+            </ToolbarBtn>
+          </>
+        )}
       </div>
 
       {/* ── Drag spacer ────────────────────────────────────────────────────── */}
