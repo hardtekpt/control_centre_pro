@@ -132,7 +132,7 @@ interface MissionControlChipProps {
 
 function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionControlChipProps): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
-  const chipRef = useRef<HTMLDivElement>(null)
+  const chipRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuPos, setMenuPos] = useState({ bottom: 0, left: 0, width: 0 })
 
@@ -163,12 +163,22 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
 
   return (
     <>
-      <div
+      <button
         ref={chipRef}
+        onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
         className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5"
+        aria-label="Open Mission Control menu"
         style={{
           background: isSettingsActive ? 'var(--color-nav-active)' : 'transparent',
           border: 'none',
+          cursor: 'pointer',
+          transition: 'background 0.1s',
+        }}
+        onMouseEnter={(e) => {
+          if (!isSettingsActive) e.currentTarget.style.background = 'var(--color-hover-overlay)'
+        }}
+        onMouseLeave={(e) => {
+          if (!isSettingsActive) e.currentTarget.style.background = 'transparent'
         }}
       >
         {/* App icon badge */}
@@ -190,32 +200,14 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
           Mission Control
         </span>
 
-        {/* Chevron button — opens floating menu */}
-        <button
-          onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
-          className="flex items-center justify-center w-5 h-5 rounded"
-          aria-label="Open Mission Control menu"
-          style={{
-            background: menuOpen ? 'var(--color-surface-raised)' : 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: menuOpen ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-            transition: 'color 0.1s, background 0.1s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--color-surface-raised)'
-            e.currentTarget.style.color = 'var(--color-text-primary)'
-          }}
-          onMouseLeave={(e) => {
-            if (!menuOpen) {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = 'var(--color-text-secondary)'
-            }
-          }}
+        {/* Chevron */}
+        <span
+          className="flex items-center justify-center"
+          style={{ color: 'var(--color-text-secondary)' }}
         >
           <ChevronDownIcon />
-        </button>
-      </div>
+        </span>
+      </button>
 
       {menuOpen &&
         createPortal(
