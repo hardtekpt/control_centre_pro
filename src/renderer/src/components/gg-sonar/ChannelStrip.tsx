@@ -116,21 +116,67 @@ function StreamerFaders({ mix }: { mix: SonarStreamerMix }): JSX.Element {
   )
 }
 
+// ─── Mute icons ───────────────────────────────────────────────────────────────
+
+function SpeakerIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    </svg>
+  )
+}
+
+function SpeakerMutedIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <line x1="23" y1="9" x2="17" y2="15" />
+      <line x1="17" y1="9" x2="23" y2="15" />
+    </svg>
+  )
+}
+
+function MicIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="2" width="6" height="11" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="8" y1="22" x2="16" y2="22" />
+    </svg>
+  )
+}
+
+function MicMutedIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="8" y1="22" x2="16" y2="22" />
+    </svg>
+  )
+}
+
 // ─── Routed apps list ─────────────────────────────────────────────────────────
 
 function RoutedApps({ sessions }: { sessions: SonarAudioSession[] }): JSX.Element {
-  if (sessions.length === 0) {
+  const active = sessions.filter((s) => s.state === 'active')
+  if (active.length === 0) {
     return (
       <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>—</span>
     )
   }
   return (
     <>
-      {sessions.map((s) => (
+      {active.map((s) => (
         <div key={s.id} className="flex items-center gap-1.5 mb-1 min-w-0">
           <div
             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ background: s.state === 'active' ? '#5a9a5a' : 'var(--color-border)' }}
+            style={{ background: '#5a9a5a' }}
           />
           <span
             className="text-xs truncate"
@@ -178,6 +224,8 @@ export function ChannelStrip({
   onPresetSelect,
   onPresetEdit,
 }: ChannelStripProps): JSX.Element {
+  const isMicChannel = channel === 'chatCapture'
+  const favoritePresets = presets.filter((p) => p.isFavorite)
   const activeConfig = presets.find((p) => p.id === activePresetId)
 
   return (
@@ -227,15 +275,19 @@ export function ChannelStrip({
       <div className="px-3 pb-2 flex-shrink-0">
         <button
           onClick={() => onMute(channel)}
-          className="w-full text-xs py-1.5 rounded transition-colors"
+          className="w-full py-1.5 rounded transition-colors flex items-center justify-center"
+          title={muted ? 'Unmute' : 'Mute'}
           style={{
-            background: muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-            color: muted ? 'var(--color-bg)' : 'var(--color-text-primary)',
+            background: muted ? 'var(--color-accent)' : 'transparent',
+            color: muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
             border: `1px solid ${muted ? 'var(--color-accent)' : 'var(--color-border)'}`,
             cursor: 'pointer',
           }}
         >
-          {muted ? '✕ Muted' : '○ Mute'}
+          {isMicChannel
+            ? (muted ? <MicMutedIcon /> : <MicIcon />)
+            : (muted ? <SpeakerMutedIcon /> : <SpeakerIcon />)
+          }
         </button>
       </div>
 
@@ -244,7 +296,7 @@ export function ChannelStrip({
 
       {/* Preset selector */}
       <div className="px-3 py-2 flex-shrink-0">
-        {presets.length > 0 ? (
+        {favoritePresets.length > 0 ? (
           <div className="flex items-center gap-1">
             <div className="relative flex-1 min-w-0">
               <select
@@ -262,8 +314,8 @@ export function ChannelStrip({
                   paddingRight: 20,
                 }}
               >
-                <option value="">— preset —</option>
-                {presets.map((p) => (
+                <option value="">— favorite —</option>
+                {favoritePresets.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
@@ -294,11 +346,7 @@ export function ChannelStrip({
               </button>
             )}
           </div>
-        ) : (
-          <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            —
-          </span>
-        )}
+        ) : null}
       </div>
 
       {/* Divider */}

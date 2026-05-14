@@ -90,7 +90,11 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
   }
 
   return (
-    <div className="flex h-full overflow-x-auto" style={{ background: 'var(--color-border)' }}>
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{ border: '1px solid var(--color-border)' }}
+    >
+    <div className="flex overflow-x-auto" style={{ background: 'var(--color-border)', minHeight: 320 }}>
       {CHANNEL_DEFS.map(({ channel, label }) => {
         const { volume, muted } = getVolume(channel)
         return (
@@ -112,6 +116,7 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
           />
         )
       })}
+    </div>
     </div>
   )
 }
