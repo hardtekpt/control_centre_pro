@@ -405,15 +405,6 @@ function ChannelStripComponent({
         </span>
       </div>
 
-      {/* Preset selector (chip + floating menu) — hidden for channels with no favorites */}
-      <div className="px-3 pt-2 flex-shrink-0">
-        <PresetSelector
-          presets={presets}
-          activePresetId={activePresetId}
-          onSelect={handlePresetSelect}
-        />
-      </div>
-
       {/* Fader zone */}
       <div className="flex flex-col items-center px-3 pt-2 pb-1 flex-1 min-h-0">
         {mode === 'streamer' && streamerMix ? (
@@ -452,6 +443,15 @@ function ChannelStripComponent({
             : (muted ? <SpeakerMutedIcon /> : <SpeakerIcon />)
           }
         </button>
+      </div>
+
+      {/* Preset selector (chip + floating menu) — hidden for channels with no favorites */}
+      <div className="px-3 pt-2 flex-shrink-0">
+        <PresetSelector
+          presets={presets}
+          activePresetId={activePresetId}
+          onSelect={handlePresetSelect}
+        />
       </div>
 
       {/* Routed apps — skipped for master which never has session routing */}
