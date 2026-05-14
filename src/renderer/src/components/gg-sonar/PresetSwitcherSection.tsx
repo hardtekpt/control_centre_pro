@@ -34,7 +34,6 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
   const [openApps, setOpenApps] = useState<OpenApp[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [loadingApps, setLoadingApps] = useState(false)
-  const [enabled, setEnabled] = useState(true)
   const [newRule, setNewRule] = useState({
     appProcessName: '',
     displayName: '',
@@ -42,10 +41,9 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
     presetId: '',
   })
 
-  // Load rules and enabled state on mount
+  // Load rules on mount
   useEffect(() => {
     window.api.getPresetSwitcherRules().then(setRules).catch(console.error)
-    window.api.getPresetSwitcherEnabled().then(setEnabled).catch(console.error)
   }, [])
 
   // Subscribe to active window changes
@@ -113,23 +111,16 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
       className="rounded-lg px-4 py-3 flex flex-col gap-3"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      {/* Header with status dot, active window, and add button */}
+      {/* Header with active window and add button */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <div
-            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            title={enabled ? 'Preset switcher enabled' : 'Preset switcher disabled'}
-            style={{ background: enabled ? '#5a9a5a' : 'var(--color-text-secondary)' }}
-          />
-          <span
-            className="text-sm font-medium"
-            style={{
-              color: activeWindow ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-            }}
-          >
-            Active: <span className="font-semibold">{activeWindow || '(none detected)'}</span>
-          </span>
-        </div>
+        <span
+          className="text-sm font-medium"
+          style={{
+            color: activeWindow ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+          }}
+        >
+          Active: <span className="font-semibold">{activeWindow || '(none detected)'}</span>
+        </span>
         <button
           onClick={() => {
             if (!showAddForm) {

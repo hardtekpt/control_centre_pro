@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
@@ -137,9 +137,12 @@ export function GGSonar(): JSX.Element {
   const { sonarState, setSonarState } = useSonarStore()
   const { setView, setSettingsTab } = useAppStore()
 
+  const [presetSwitcherEnabled, setPresetSwitcherEnabled] = useState(true)
+
   // Fetch fresh state on page mount (covers navigation to this page)
   useEffect(() => {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
+    window.api.getPresetSwitcherEnabled().then(setPresetSwitcherEnabled).catch(console.error)
   }, [setSonarState])
 
   function handleRetry(): void {
@@ -229,7 +232,18 @@ export function GGSonar(): JSX.Element {
         )}
       </HomeSection>
 
-      <HomeSection title="Preset Switcher">
+      <HomeSection
+        title={
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              title={presetSwitcherEnabled ? 'Preset switcher enabled' : 'Preset switcher disabled'}
+              style={{ background: presetSwitcherEnabled ? '#5a9a5a' : 'var(--color-text-secondary)' }}
+            />
+            <span>Preset Switcher</span>
+          </div>
+        }
+      >
         <PresetSwitcherSection sonarState={sonarState} />
       </HomeSection>
     </div>
