@@ -113,7 +113,7 @@ def _read_full_state(headset) -> dict:
         "btPairing":   bt_pairing,
         # ── ANC ─────────────────────────────────────────────────────────────
         "ancMode":          enum_name(status, "anc_mode", default="OFF"),
-        "transparencyLevel": 5,
+        "transparencyLevel": getattr(status, "transparency_level", 5),
         # ── Audio Options ────────────────────────────────────────────────────
         "micGain":   enum_name(mic_eq, "gain", default="LOW"),
         "sidetone":  enum_name(mic_eq, "sidetone", default="OFF"),
