@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
+import { PresetSwitcherSection } from '../components/gg-sonar/PresetSwitcherSection'
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
@@ -226,6 +227,10 @@ export function GGSonar(): JSX.Element {
         ) : (
           <UnavailableState onRetry={handleRetry} />
         )}
+      </HomeSection>
+
+      <HomeSection title="Preset Switcher">
+        <PresetSwitcherSection sonarState={sonarState} />
       </HomeSection>
     </div>
   )

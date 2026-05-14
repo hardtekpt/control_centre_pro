@@ -1,16 +1,18 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, PresetSwitcherRule, OpenApp } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
+import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 
 let mainWindow: BrowserWindow | null = null
 let serviceManager: ServiceManager
 let sonarService: SonarService
+let activeWindowMonitor: ActiveWindowMonitor | null = null
 
 // ─── App Menu ─────────────────────────────────────────────────────────────────
 
@@ -229,9 +231,10 @@ function registerIpcHandlers(): void {
     sonarService.setMute(channel, muted)
   )
 
-  ipcMain.handle(IPC_CHANNELS.SONAR_SELECT_PRESET, (_, id: string) =>
-    sonarService.selectPreset(id)
-  )
+  ipcMain.handle(IPC_CHANNELS.SONAR_SELECT_PRESET, (_, id: string) => {
+    activeWindowMonitor?.notifyManualPresetChange(id)
+    return sonarService.selectPreset(id)
+  })
 
   ipcMain.handle(IPC_CHANNELS.SONAR_SET_MODE, (_, mode: SonarMode) =>
     sonarService.setMode(mode)
@@ -252,6 +255,49 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_STEELSERIES_GG, () =>
     openSteelSeriesGG()
   )
+
+  ipcMain.handle(IPC_CHANNELS.ACTIVE_WINDOW_GET_OPEN_APPS, async () => {
+    try {
+      const script = `Get-Process | Where-Object { $_.MainWindowTitle -ne '' } | Select-Object -Unique Name, MainWindowTitle | ConvertTo-Json`
+      const { execSync } = await import('child_process')
+      const result = execSync(`powershell -NoProfile -Command "${script}"`, {
+        encoding: 'utf-8',
+      })
+      const procs = JSON.parse(result) as Array<{ Name: string; MainWindowTitle: string }>
+      return (Array.isArray(procs) ? procs : [procs])
+        .map((p) => ({
+          processName: p.Name,
+          displayName: p.Name,
+        }))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName))
+    } catch (err) {
+      console.error('[getOpenApps] error:', err)
+      return [] as OpenApp[]
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_RULES, () => {
+    try {
+      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
+      if (!existsSync(rulesPath)) return []
+      const content = readFileSync(rulesPath, 'utf-8')
+      return JSON.parse(content) as PresetSwitcherRule[]
+    } catch (err) {
+      console.error('[getRules] error:', err)
+      return [] as PresetSwitcherRule[]
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_SET_RULES, (_, rules: PresetSwitcherRule[]) => {
+    try {
+      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
+      writeFileSync(rulesPath, JSON.stringify(rules, null, 2), 'utf-8')
+      activeWindowMonitor?.setRules(rules)
+    } catch (err) {
+      console.error('[setRules] error:', err)
+      throw err
+    }
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -287,6 +333,21 @@ app.whenReady().then(() => {
   createWindow()
   serviceManager.setWindow(mainWindow!)
   sonarService.setWindow(mainWindow!)
+
+  // Initialize preset switcher monitor
+  activeWindowMonitor = new ActiveWindowMonitor(mainWindow!, sonarService)
+  try {
+    const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
+    if (existsSync(rulesPath)) {
+      const content = readFileSync(rulesPath, 'utf-8')
+      const rules = JSON.parse(content) as PresetSwitcherRule[]
+      activeWindowMonitor.setRules(rules)
+    }
+  } catch (err) {
+    console.error('[app init] failed to load preset switcher rules:', err)
+  }
+  activeWindowMonitor.start()
+
   serviceManager.startAll()  // starts Python services + GG Sonar native service
 
   app.on('activate', () => {
@@ -295,6 +356,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  activeWindowMonitor?.stop()
   serviceManager?.stopAll()  // stops Python services + GG Sonar via native service registry
   if (process.platform !== 'darwin') app.quit()
 })

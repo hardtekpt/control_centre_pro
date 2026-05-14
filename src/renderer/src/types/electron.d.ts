@@ -1,6 +1,7 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig,
+  ActiveWindowInfo, OpenApp, PresetSwitcherRule,
 } from '../../../shared/types'
 
 /**
@@ -57,6 +58,12 @@ declare global {
     sonarGetPollingConfig: () => Promise<SonarPollingConfig>
     sonarSetPollingConfig: (config: SonarPollingConfig) => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
+
+    // Preset Switcher
+    onActiveWindowChange: (callback: (info: ActiveWindowInfo) => void) => () => void
+    getOpenApps: () => Promise<OpenApp[]>
+    getPresetSwitcherRules: () => Promise<PresetSwitcherRule[]>
+    setPresetSwitcherRules: (rules: PresetSwitcherRule[]) => Promise<void>
 
     // Shell utilities
     openExternal: (url: string) => Promise<void>

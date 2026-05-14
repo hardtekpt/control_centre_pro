@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig,
+  ActiveWindowInfo, OpenApp, PresetSwitcherRule,
 } from '../shared/types'
 
 /**
@@ -140,6 +141,24 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
   },
+
+  // ── Preset Switcher ────────────────────────────────────────────────────────
+
+  onActiveWindowChange: (callback: (info: ActiveWindowInfo) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, info: ActiveWindowInfo): void =>
+      callback(info)
+    ipcRenderer.on(IPC_CHANNELS.ACTIVE_WINDOW_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ACTIVE_WINDOW_CHANGE, handler)
+  },
+
+  getOpenApps: (): Promise<OpenApp[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ACTIVE_WINDOW_GET_OPEN_APPS),
+
+  getPresetSwitcherRules: (): Promise<PresetSwitcherRule[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESET_SWITCHER_GET_RULES),
+
+  setPresetSwitcherRules: (rules: PresetSwitcherRule[]): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESET_SWITCHER_SET_RULES, rules),
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),

@@ -51,6 +51,12 @@ export const IPC_CHANNELS = {
   SONAR_GET_POLLING_CONFIG: 'sonar:getPollingConfig', // renderer → main invoke
   SONAR_SET_POLLING_CONFIG: 'sonar:setPollingConfig', // renderer → main invoke
 
+  // Preset Switcher — auto-switch presets by active app
+  ACTIVE_WINDOW_CHANGE: 'activeWindow:change',          // main → renderer push
+  ACTIVE_WINDOW_GET_OPEN_APPS: 'activeWindow:getOpenApps', // renderer → main invoke
+  PRESET_SWITCHER_GET_RULES: 'presetSwitcher:getRules', // renderer → main invoke
+  PRESET_SWITCHER_SET_RULES: 'presetSwitcher:setRules', // renderer → main invoke
+
   // Shell utilities
   SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke
   SHELL_OPEN_STEELSERIES_GG: 'shell:openSteelSeriesGG', // renderer → main invoke
@@ -301,4 +307,24 @@ export interface SonarState {
 export interface SonarPollingConfig {
   fastIntervalMs: number  // Fast poll interval (ms) — default 1000
   slowIntervalMs: number  // Slow poll interval (ms) — default 5000
+}
+
+// ─── Preset Switcher ──────────────────────────────────────────────────────────
+
+export interface ActiveWindowInfo {
+  processName: string
+}
+
+export interface OpenApp {
+  processName: string
+  displayName: string
+}
+
+export interface PresetSwitcherRule {
+  id: string
+  appProcessName: string  // Windows process name (no .exe)
+  displayName: string     // Shown in UI
+  channel: string         // SonarConfig.virtualAudioDevice
+  presetId: string        // SonarConfig.id
+  enabled: boolean
 }
