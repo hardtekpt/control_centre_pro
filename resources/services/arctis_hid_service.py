@@ -274,10 +274,10 @@ def main() -> None:
     try:
         from arctis_hid import discover, DeviceNotFoundError, DeviceIOError
         from arctis_hid import (
-            VolumeEvent, BatteryEvent, HeadsetPoweredEvent, AncModeEvent, MicMuteEvent,
+            VolumeEvent, BatteryEvent, AncModeEvent, MicMuteEvent,
             ConnectivityEvent, ChatMixEvent, GainEvent, MicVolumeEvent,
             SidetoneEvent, OledBrightnessEvent, TransparencyEvent,
-            WirelessModeEvent, UsbInputEvent, BtDefaultEvent, BtAutoMuteEvent,
+            WirelessModeEvent, BtDefaultEvent, BtAutoMuteEvent,
             AudioOutputEvent, StreamVolumesEvent, DimTimeoutEvent,
             HomeScreenEvent, MicLedEvent, AutoOffEvent,
             EqPresetEvent, EqBandEvent,
@@ -343,11 +343,15 @@ def main() -> None:
                       "data": {"batteryHeadset": e.headset_pct, "batteryDock": e.dock_pct}}),
                 log("info", f"Battery — headset: {e.headset_pct}%, dock: {e.dock_pct}%"),
             ))
-            headset.on("HeadsetPoweredEvent", lambda e: (
-                emit({"type": "event", "event": "HeadsetPoweredEvent",
-                      "data": {"headsetPowered": e.powered}}),
-                log("info", f"Headset {'powered on' if e.powered else 'powered off / removed'}"),
-            ))
+            try:
+                from arctis_hid import HeadsetPoweredEvent as _HPE  # noqa: F401
+                headset.on("HeadsetPoweredEvent", lambda e: (
+                    emit({"type": "event", "event": "HeadsetPoweredEvent",
+                          "data": {"headsetPowered": e.powered}}),
+                    log("info", f"Headset {'powered on' if e.powered else 'powered off / removed'}"),
+                ))
+            except ImportError:
+                pass
             headset.on("MicMuteEvent", lambda e: (
                 emit({"type": "event", "event": "MicMuteEvent", "data": {"micMuted": e.muted}}),
                 log("info", f"Mic {'muted' if e.muted else 'unmuted'}"),
@@ -480,11 +484,15 @@ def main() -> None:
             headset.on("EqBandEvent", on_eq_band_event)
 
             # ── USB Input ─────────────────────────────────────────────────────
-            headset.on("UsbInputEvent", lambda e: (
-                emit({"type": "event", "event": "UsbInputEvent",
-                      "data": {"usbInput": e.input.name}}),
-                log("info", f"USB input: {e.input.name}"),
-            ))
+            try:
+                from arctis_hid import UsbInputEvent as _UIE  # noqa: F401
+                headset.on("UsbInputEvent", lambda e: (
+                    emit({"type": "event", "event": "UsbInputEvent",
+                          "data": {"usbInput": e.input.name}}),
+                    log("info", f"USB input: {e.input.name}"),
+                ))
+            except ImportError:
+                pass
 
             headset.listen()  # blocks until DeviceIOError or stop()
 
