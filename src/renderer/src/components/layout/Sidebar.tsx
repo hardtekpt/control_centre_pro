@@ -22,7 +22,6 @@ const MAIN_NAV: NavItemDef[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon /> },
   { id: 'gg-sonar', label: 'GG Sonar', icon: <SonarIcon /> },
   { id: 'shortcuts', label: 'Shortcuts', icon: <ShortcutsIcon /> },
-  { id: 'sonar-preset-switcher', label: 'Sonar Preset Switcher', icon: <PresetSwitcherIcon /> },
   { id: 'notifications', label: 'Notifications', icon: <NotificationsIcon /> },
 ]
 
@@ -384,15 +383,6 @@ function ShortcutsIcon(): JSX.Element {
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <rect x="1.5" y="3" width="11" height="8" rx="1.5" />
       <path d="M4 6.5h6M4 8.5h4" />
-    </svg>
-  )
-}
-
-function PresetSwitcherIcon(): JSX.Element {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 4h10M2 7h7M2 10h4" />
-      <path d="M11 8l2 2-2 2" />
     </svg>
   )
 }

@@ -90,7 +90,6 @@ export type AppView =
   | 'home'
   | 'gg-sonar'
   | 'shortcuts'
-  | 'sonar-preset-switcher'
   | 'notifications'
   | 'settings'
 
