@@ -17,6 +17,17 @@ interface ServiceDef {
   script: string
 }
 
+/** Registration for a non-Python "native" service managed externally */
+interface NativeServiceRegistration {
+  id: string
+  name: string
+  description: string
+  onEnable: () => void
+  onDisable: () => void
+  /** Returns true when the service has an active connection / is operational */
+  isRunning: () => boolean
+}
+
 const SERVICE_DEFS: ServiceDef[] = [
   {
     id: 'arctis-hid',
@@ -42,6 +53,7 @@ export class ServiceManager {
   private configPath: string
   private window: BrowserWindow | null = null
   private lastArctisState: ArctisState | null = null
+  private nativeServices: NativeServiceRegistration[] = []
 
   constructor() {
     this.configPath = join(app.getPath('userData'), 'services.json')
@@ -69,8 +81,13 @@ export class ServiceManager {
       const saved = JSON.parse(readFileSync(this.configPath, 'utf-8')) as SavedConfig
       this.pythonPath = saved.pythonPath ?? 'python'
       const svcMap = saved.services ?? {}
+      // Load ALL saved service states so native services also restore their enabled/disabled flag
+      for (const [id, val] of Object.entries(svcMap)) {
+        this.enabled[id] = val
+      }
+      // Apply defaults for Python services not yet in the saved config
       for (const def of SERVICE_DEFS) {
-        this.enabled[def.id] = svcMap[def.id] ?? true
+        if (!(def.id in this.enabled)) this.enabled[def.id] = true
       }
     } else {
       for (const def of SERVICE_DEFS) {
@@ -89,14 +106,42 @@ export class ServiceManager {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  /**
+   * Register a non-Python service so it appears in the service list, the About
+   * terminal, and the Settings enable/disable toggle alongside Python services.
+   * Must be called before startAll().
+   */
+  registerNativeService(reg: NativeServiceRegistration): void {
+    this.nativeServices.push(reg)
+    if (!(reg.id in this.enabled)) this.enabled[reg.id] = true
+  }
+
+  /** Emit a log entry on behalf of a native service — appears in the About terminal */
+  emitNativeLog(id: string, name: string, level: 'info' | 'warn' | 'error', message: string): void {
+    this.emitLog(id, name, level, message)
+  }
+
+  /** Re-broadcast the service list (call when a native service's running state changes) */
+  broadcastServiceState(): void {
+    this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
+  }
+
   getServiceList(): ServiceInfo[] {
-    return SERVICE_DEFS.map((def) => ({
+    const pythonList: ServiceInfo[] = SERVICE_DEFS.map((def) => ({
       id: def.id,
       name: def.name,
       description: def.description,
       enabled: this.enabled[def.id] ?? true,
       running: (this.processes.get(def.id) ?? null) !== null,
     }))
+    const nativeList: ServiceInfo[] = this.nativeServices.map((ns) => ({
+      id: ns.id,
+      name: ns.name,
+      description: ns.description,
+      enabled: this.enabled[ns.id] ?? true,
+      running: ns.isRunning(),
+    }))
+    return [...pythonList, ...nativeList]
   }
 
   getServiceConfig(): ServiceConfig {
@@ -116,6 +161,17 @@ export class ServiceManager {
   setEnabled(id: string, enabled: boolean): void {
     this.enabled[id] = enabled
     this.saveConfig()
+
+    // Native service — delegate entirely to its callbacks and return early
+    const nativeSvc = this.nativeServices.find((ns) => ns.id === id)
+    if (nativeSvc) {
+      if (enabled) nativeSvc.onEnable()
+      else nativeSvc.onDisable()
+      this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
+      return
+    }
+
+    // Python subprocess service
     if (enabled) {
       this.startService(id)
     } else {
@@ -145,11 +201,19 @@ export class ServiceManager {
         this.startService(def.id)
       }
     }
+    for (const ns of this.nativeServices) {
+      if (this.enabled[ns.id] ?? true) {
+        ns.onEnable()
+      }
+    }
   }
 
   stopAll(): void {
     for (const def of SERVICE_DEFS) {
       this.stopService(def.id)
+    }
+    for (const ns of this.nativeServices) {
+      ns.onDisable()
     }
   }
 

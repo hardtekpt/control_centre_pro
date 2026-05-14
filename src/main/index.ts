@@ -213,12 +213,29 @@ app.whenReady().then(() => {
 
   serviceManager = new ServiceManager()
   sonarService = new SonarService()
+
+  // Wire SonarService into the service infrastructure so it appears in the
+  // service list and About terminal alongside the Python services
+  sonarService.setLogEmitter((level, msg) => {
+    serviceManager.emitNativeLog('gg-sonar', 'GG Sonar', level, msg)
+  })
+  sonarService.setStateChangeNotifier(() => {
+    serviceManager.broadcastServiceState()
+  })
+  serviceManager.registerNativeService({
+    id: 'gg-sonar',
+    name: 'GG Sonar',
+    description: 'SteelSeries GG Sonar audio mixer integration (HTTP REST)',
+    onEnable: () => sonarService.start(),
+    onDisable: () => sonarService.stop(),
+    isRunning: () => sonarService.isAvailable(),
+  })
+
   registerIpcHandlers()
   createWindow()
   serviceManager.setWindow(mainWindow!)
-  serviceManager.startAll()
   sonarService.setWindow(mainWindow!)
-  sonarService.start()
+  serviceManager.startAll()  // starts Python services + GG Sonar native service
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -226,7 +243,6 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  serviceManager?.stopAll()
-  sonarService?.stop()
+  serviceManager?.stopAll()  // stops Python services + GG Sonar via native service registry
   if (process.platform !== 'darwin') app.quit()
 })

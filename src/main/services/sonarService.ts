@@ -26,6 +26,11 @@ export class SonarService {
   private fastTimer: ReturnType<typeof setInterval> | null = null
   private slowTimer: ReturnType<typeof setInterval> | null = null
   private discovering = false
+  private lastAvailable = false
+
+  // Callbacks wired by main/index.ts so SonarService can emit into the service infrastructure
+  private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
+  private stateChangeFn: (() => void) | null = null
 
   private state: SonarState = {
     available: false,
@@ -41,11 +46,27 @@ export class SonarService {
     this.window = window
   }
 
+  /** Wire a log callback so events appear in the About page terminal */
+  setLogEmitter(fn: (level: 'info' | 'warn' | 'error', msg: string) => void): void {
+    this.logFn = fn
+  }
+
+  /** Wire a callback that fires whenever availability flips so the service list refreshes */
+  setStateChangeNotifier(fn: () => void): void {
+    this.stateChangeFn = fn
+  }
+
   getState(): SonarState {
     return this.state
   }
 
+  isAvailable(): boolean {
+    return this.state.available
+  }
+
   start(): void {
+    // Prevent timer accumulation if called more than once (e.g. re-enable from settings)
+    this.stop()
     this.pollFast()
     this.pollSlow()
     this.fastTimer = setInterval(() => this.pollFast(), 1000)
@@ -210,9 +231,20 @@ export class SonarService {
     }
   }
 
+  private log(level: 'info' | 'warn' | 'error', msg: string): void {
+    this.logFn?.(level, msg)
+  }
+
   private push(): void {
     if (this.window && !this.window.isDestroyed()) {
       this.window.webContents.send(IPC_CHANNELS.SONAR_STATE_CHANGE, this.state)
+    }
+    // Detect availability transitions and notify the service infrastructure
+    const nowAvailable = this.state.available
+    if (nowAvailable !== this.lastAvailable) {
+      this.lastAvailable = nowAvailable
+      this.log('info', nowAvailable ? 'Connected to GG Sonar' : 'GG Sonar disconnected')
+      this.stateChangeFn?.()
     }
   }
 
