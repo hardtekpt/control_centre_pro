@@ -24,6 +24,25 @@ function SettingsIcon(): JSX.Element {
   )
 }
 
+function ExternalLinkIcon(): JSX.Element {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  )
+}
+
 function HomeSection({
   title,
   action,
@@ -189,6 +208,23 @@ export function GGSonar(): JSX.Element {
                 ↺ Retry
               </button>
             )}
+            {/* Open SteelSeries GG app */}
+            <button
+              onClick={() => window.api.openSteelSeriesGG().catch(console.error)}
+              title="Open SteelSeries GG"
+              className="rounded flex items-center justify-center"
+              style={{
+                width: 22,
+                height: 22,
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <ExternalLinkIcon />
+            </button>
             {/* GG Sonar settings shortcut */}
             <button
               onClick={() => { setSettingsTab('gg-sonar'); setView('settings') }}

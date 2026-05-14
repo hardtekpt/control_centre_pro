@@ -143,6 +143,9 @@ const api = {
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
+
+  openSteelSeriesGG: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_STEELSERIES_GG),
 }
 
 contextBridge.exposeInMainWorld('api', api)

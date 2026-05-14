@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
+import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
 import type { NavigateTarget, SonarChannel, SonarMode } from '../shared/types'
@@ -84,6 +86,24 @@ function buildAppMenu(): Electron.Menu {
 /** Push a navigation event to the renderer (used by menu click handlers) */
 function navigate(target: NavigateTarget): void {
   mainWindow?.webContents.send(IPC_CHANNELS.NAVIGATE, target)
+}
+
+/** Try to open the SteelSeries GG application */
+function openSteelSeriesGG(): void {
+  const commonPaths = [
+    join(process.env['ProgramFiles'] || '', 'SteelSeries', 'GG', 'SteelSeriesGG.exe'),
+    join(process.env['ProgramFiles(x86)'] || '', 'SteelSeries', 'GG', 'SteelSeriesGG.exe'),
+  ]
+
+  for (const path of commonPaths) {
+    if (existsSync(path)) {
+      spawn(path, { detached: true })
+      return
+    }
+  }
+
+  // Fallback: try URI scheme
+  shell.openExternal('steelseries-gg://')
 }
 
 // ─── Window ───────────────────────────────────────────────────────────────────
@@ -212,6 +232,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, (_, url: string) =>
     shell.openExternal(url)
   )
+
+  ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_STEELSERIES_GG, () => {
+    openSteelSeriesGG()
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────

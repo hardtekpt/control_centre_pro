@@ -53,6 +53,7 @@ export const IPC_CHANNELS = {
 
   // Shell utilities
   SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke
+  SHELL_OPEN_STEELSERIES_GG: 'shell:openSteelSeriesGG', // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */

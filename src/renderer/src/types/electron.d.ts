@@ -60,6 +60,7 @@ declare global {
 
     // Shell utilities
     openExternal: (url: string) => Promise<void>
+    openSteelSeriesGG: () => Promise<void>
     }
   }
 }
