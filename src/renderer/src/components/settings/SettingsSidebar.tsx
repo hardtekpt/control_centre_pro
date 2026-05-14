@@ -14,8 +14,8 @@ const SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'about', label: 'About' },
 ]
 
-export function SettingsSidebar(): JSX.Element {
-  const { currentSettingsTab, setSettingsTab } = useAppStore()
+export function SettingsSidebar({ onTabChange }: { onTabChange: (tab: SettingsTab) => void }): JSX.Element {
+  const { currentSettingsTab } = useAppStore()
 
   return (
     <div className="w-48 shrink-0 flex flex-col py-6 px-2" style={{ background: 'var(--color-bg)' }}>
@@ -25,7 +25,7 @@ export function SettingsSidebar(): JSX.Element {
           return (
             <button
               key={item.id}
-              onClick={() => setSettingsTab(item.id)}
+              onClick={() => onTabChange(item.id)}
               className="flex items-center w-full px-3 py-2 mb-0.5 rounded-lg text-sm font-medium transition-colors duration-100"
               style={{
                 background: isActive ? 'var(--color-nav-active)' : 'transparent',

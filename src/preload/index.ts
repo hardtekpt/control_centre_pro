@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig,
-  ActiveWindowInfo, OpenApp, PresetSwitcherRule,
+  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings,
 } from '../shared/types'
 
 /**
@@ -171,6 +171,14 @@ const api = {
 
   openSteelSeriesGG: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_STEELSERIES_GG),
+
+  // ── Persistent app settings ────────────────────────────────────────────────
+
+  getSettings: (): Promise<AppSettings> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET),
+
+  setSettings: (settings: AppSettings): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, settings),
 }
 
 contextBridge.exposeInMainWorld('api', api)

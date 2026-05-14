@@ -4,7 +4,8 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, PresetSwitcherRule, OpenApp } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, PresetSwitcherRule, OpenApp, AppSettings } from '../shared/types'
+import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
@@ -175,6 +176,24 @@ function createWindow(): void {
 // ─── IPC Handlers ─────────────────────────────────────────────────────────────
 
 function registerIpcHandlers(): void {
+  // ── Persistent app settings ────────────────────────────────────────────────
+  const settingsFilePath = join(app.getPath('userData'), 'settings.json')
+
+  function loadAppSettings(): AppSettings {
+    try {
+      if (existsSync(settingsFilePath)) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(readFileSync(settingsFilePath, 'utf-8')) }
+      }
+    } catch {}
+    return { ...DEFAULT_SETTINGS }
+  }
+
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => loadAppSettings())
+
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, settings: AppSettings) => {
+    writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
+  })
+
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, () => {

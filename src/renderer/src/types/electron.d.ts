@@ -1,7 +1,7 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig,
-  ActiveWindowInfo, OpenApp, PresetSwitcherRule,
+  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings,
 } from '../../../shared/types'
 
 /**
@@ -70,6 +70,10 @@ declare global {
     // Shell utilities
     openExternal: (url: string) => Promise<void>
     openSteelSeriesGG: () => Promise<void>
+
+    // Persistent app settings
+    getSettings: () => Promise<AppSettings>
+    setSettings: (settings: AppSettings) => Promise<void>
     }
   }
 }

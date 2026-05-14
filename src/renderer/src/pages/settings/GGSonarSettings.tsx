@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
+import { useSettingsForm } from '../../contexts/settingsFormContext'
 import type { SonarChannel, SonarMode, SonarPollingConfig } from '@shared/types'
+import { SONAR_CHANNELS } from '@shared/types'
 
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
@@ -10,6 +12,12 @@ const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'chatCapture', label: 'Mic' },
   { channel: 'aux', label: 'Aux' },
 ]
+
+function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false
+  for (const v of a) if (!b.has(v)) return false
+  return true
+}
 
 function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {
   return (
@@ -36,52 +44,85 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 
 export function GGSonarSettings(): JSX.Element {
   const { sonarState, visibleChannels, setChannelVisibility } = useSonarStore()
-  const [pollingConfig, setPollingConfig] = useState<SonarPollingConfig | null>(null)
-  const [fastInterval, setFastInterval] = useState('')
-  const [slowInterval, setSlowInterval] = useState('')
-  const [presetSwitcherEnabled, setPresetSwitcherEnabled] = useState(true)
+  const { setDirty, registerSave } = useSettingsForm()
+
+  // ── Polling config draft ─────────────────────────────────────────────────────
+  const [savedPollingConfig, setSavedPollingConfig] = useState<SonarPollingConfig | null>(null)
+  const [draftFastInterval, setDraftFastInterval] = useState('')
+  const [draftSlowInterval, setDraftSlowInterval] = useState('')
+
+  // ── Visible channels draft ───────────────────────────────────────────────────
+  const [draftVisibleChannels, setDraftVisibleChannels] = useState(() => new Set(visibleChannels))
+
+  // ── Preset switcher enabled draft ────────────────────────────────────────────
+  const [savedPresetSwitcherEnabled, setSavedPresetSwitcherEnabled] = useState(true)
+  const [draftPresetSwitcherEnabled, setDraftPresetSwitcherEnabled] = useState(true)
 
   useEffect(() => {
-    // Load current polling config
     window.api.sonarGetPollingConfig()
       .then((config) => {
-        setPollingConfig(config)
-        setFastInterval(config.fastIntervalMs.toString())
-        setSlowInterval(config.slowIntervalMs.toString())
+        setSavedPollingConfig(config)
+        setDraftFastInterval(config.fastIntervalMs.toString())
+        setDraftSlowInterval(config.slowIntervalMs.toString())
       })
       .catch(console.error)
 
-    // Load preset switcher enabled state
     window.api.getPresetSwitcherEnabled()
-      .then(setPresetSwitcherEnabled)
+      .then((enabled) => {
+        setSavedPresetSwitcherEnabled(enabled)
+        setDraftPresetSwitcherEnabled(enabled)
+      })
       .catch(console.error)
   }, [])
 
-  function handleToggle(channel: SonarChannel): void {
-    setChannelVisibility(channel, !visibleChannels.has(channel))
+  // ── Dirty detection ──────────────────────────────────────────────────────────
+  const pollingDirty = savedPollingConfig !== null && (
+    draftFastInterval !== savedPollingConfig.fastIntervalMs.toString() ||
+    draftSlowInterval !== savedPollingConfig.slowIntervalMs.toString()
+  )
+  const channelsDirty = !setsEqual(draftVisibleChannels, visibleChannels)
+  const presetSwitcherDirty = draftPresetSwitcherEnabled !== savedPresetSwitcherEnabled
+
+  useEffect(() => {
+    setDirty(pollingDirty || channelsDirty || presetSwitcherDirty)
+  }, [pollingDirty, channelsDirty, presetSwitcherDirty, setDirty])
+
+  // ── Register save handler ────────────────────────────────────────────────────
+  useEffect(() => {
+    registerSave(async () => {
+      // Polling config
+      const fastMs = Math.max(100, parseInt(draftFastInterval, 10) || 1000)
+      const slowMs = Math.max(100, parseInt(draftSlowInterval, 10) || 5000)
+      const newConfig: SonarPollingConfig = { fastIntervalMs: fastMs, slowIntervalMs: slowMs }
+      await window.api.sonarSetPollingConfig(newConfig)
+      setSavedPollingConfig(newConfig)
+      setDraftFastInterval(fastMs.toString())
+      setDraftSlowInterval(slowMs.toString())
+
+      // Visible channels (persisted via Zustand localStorage middleware)
+      for (const ch of SONAR_CHANNELS) {
+        setChannelVisibility(ch, draftVisibleChannels.has(ch))
+      }
+
+      // Preset switcher enabled
+      await window.api.setPresetSwitcherEnabled(draftPresetSwitcherEnabled)
+      setSavedPresetSwitcherEnabled(draftPresetSwitcherEnabled)
+    })
+    return () => registerSave(null)
+  }, [draftFastInterval, draftSlowInterval, draftVisibleChannels, draftPresetSwitcherEnabled, registerSave, setChannelVisibility])
+
+  function handleToggleChannel(channel: SonarChannel): void {
+    setDraftVisibleChannels((prev) => {
+      const next = new Set(prev)
+      if (next.has(channel)) next.delete(channel)
+      else next.add(channel)
+      return next
+    })
   }
 
+  // Mixer mode is live audio state — applied immediately, not deferred
   function handleModeChange(mode: SonarMode): void {
     window.api.sonarSetMode(mode).catch(console.error)
-  }
-
-  async function handleSavePollingConfig(): Promise<void> {
-    const fastMs = Math.max(100, parseInt(fastInterval, 10) || 1000)
-    const slowMs = Math.max(100, parseInt(slowInterval, 10) || 5000)
-
-    const newConfig: SonarPollingConfig = {
-      fastIntervalMs: fastMs,
-      slowIntervalMs: slowMs,
-    }
-
-    try {
-      await window.api.sonarSetPollingConfig(newConfig)
-      setPollingConfig(newConfig)
-      setFastInterval(fastMs.toString())
-      setSlowInterval(slowMs.toString())
-    } catch (err) {
-      console.error('Failed to save polling config:', err)
-    }
   }
 
   return (
@@ -125,20 +166,16 @@ export function GGSonarSettings(): JSX.Element {
             <button
               key={channel}
               type="button"
-              onClick={() => handleToggle(channel)}
+              onClick={() => handleToggleChannel(channel)}
               className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left"
               style={{
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--color-surface-raised)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--color-surface)'
-              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-raised)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)' }}
             >
-              <Checkbox checked={visibleChannels.has(channel)} onChange={() => handleToggle(channel)} />
+              <Checkbox checked={draftVisibleChannels.has(channel)} onChange={() => handleToggleChannel(channel)} />
               <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
                 {label}
               </span>
@@ -153,24 +190,16 @@ export function GGSonarSettings(): JSX.Element {
         </h2>
         <button
           type="button"
-          onClick={() => {
-            const newState = !presetSwitcherEnabled
-            setPresetSwitcherEnabled(newState)
-            window.api.setPresetSwitcherEnabled(newState).catch(console.error)
-          }}
+          onClick={() => setDraftPresetSwitcherEnabled((prev) => !prev)}
           className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left w-fit"
           style={{
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--color-surface-raised)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--color-surface)'
-          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-raised)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)' }}
         >
-          <Checkbox checked={presetSwitcherEnabled} onChange={() => {}} />
+          <Checkbox checked={draftPresetSwitcherEnabled} onChange={() => {}} />
           <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
             Enable Automatic Preset Switching
           </span>
@@ -190,8 +219,8 @@ export function GGSonarSettings(): JSX.Element {
               type="number"
               min="100"
               step="100"
-              value={fastInterval}
-              onChange={(e) => setFastInterval(e.target.value)}
+              value={draftFastInterval}
+              onChange={(e) => setDraftFastInterval(e.target.value)}
               className="w-full px-3 py-2 rounded text-sm"
               style={{
                 background: 'var(--color-surface-raised)',
@@ -212,8 +241,8 @@ export function GGSonarSettings(): JSX.Element {
               type="number"
               min="100"
               step="100"
-              value={slowInterval}
-              onChange={(e) => setSlowInterval(e.target.value)}
+              value={draftSlowInterval}
+              onChange={(e) => setDraftSlowInterval(e.target.value)}
               className="w-full px-3 py-2 rounded text-sm"
               style={{
                 background: 'var(--color-surface-raised)',
@@ -225,19 +254,6 @@ export function GGSonarSettings(): JSX.Element {
               Updates presets and routing
             </p>
           </div>
-
-          <button
-            onClick={handleSavePollingConfig}
-            className="w-full py-2 px-3 rounded text-sm font-medium transition-colors"
-            style={{
-              background: 'var(--color-accent)',
-              color: 'var(--color-bg)',
-              cursor: 'pointer',
-              border: 'none',
-            }}
-          >
-            Save Polling Config
-          </button>
         </div>
       </div>
     </div>

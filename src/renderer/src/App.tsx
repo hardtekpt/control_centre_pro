@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAppStore } from './stores/appStore'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
@@ -13,10 +13,38 @@ import type { ArctisState } from '@shared/types'
  * global keyboard shortcuts.
  */
 export default function App(): JSX.Element {
-  const { currentView, theme, setMaximized, setView, setSettingsTab, toggleSidebar } = useAppStore()
+  const {
+    currentView, theme, sidebarWidth, sidebarCollapsed,
+    setMaximized, setView, setSettingsTab, toggleSidebar,
+    setTheme, setSidebarWidth, setSidebarCollapsed,
+  } = useAppStore()
   const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState } =
     useServiceStore()
   const { setSonarState } = useSonarStore()
+
+  // Track whether initial settings have been loaded so we don't auto-save before loading
+  const settingsLoadedRef = useRef(false)
+
+  // Load persisted settings on startup and apply them
+  useEffect(() => {
+    window.api.getSettings().then((settings) => {
+      setTheme(settings.theme)
+      setSidebarWidth(settings.sidebarWidth)
+      setSidebarCollapsed(settings.sidebarCollapsed)
+      settingsLoadedRef.current = true
+    }).catch(console.error)
+  }, [setTheme, setSidebarWidth, setSidebarCollapsed])
+
+  // Auto-save sidebar width and collapsed state (debounced)
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return
+    const timer = setTimeout(() => {
+      window.api.getSettings().then((current) => {
+        window.api.setSettings({ ...current, sidebarWidth, sidebarCollapsed })
+      }).catch(console.error)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [sidebarWidth, sidebarCollapsed])
 
   // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {

@@ -52,6 +52,7 @@ interface AppState {
   setSettingsTab: (tab: SettingsTab) => void
   toggleSidebar: () => void
   setSidebarWidth: (width: number) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
   setMaximized: (isMaximized: boolean) => void
   setTheme: (theme: Theme) => void
 
@@ -101,6 +102,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
+  setSidebarCollapsed: (collapsed) => {
+    if (_peekHideTimer) clearTimeout(_peekHideTimer)
+    set({ sidebarCollapsed: collapsed, sidebarPeek: false, sidebarPeekAnchor: null })
+  },
   setMaximized: (isMaximized) => set({ isMaximized }),
   setTheme: (theme) => set({ theme }),
 

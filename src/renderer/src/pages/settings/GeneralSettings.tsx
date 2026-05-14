@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useServiceStore } from '../../stores/serviceStore'
+import { useSettingsForm } from '../../contexts/settingsFormContext'
 import type { ServiceInfo } from '@shared/types'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -10,27 +11,45 @@ type Theme = 'light' | 'dark' | 'system'
 export function GeneralSettings(): JSX.Element {
   const { theme, setTheme } = useAppStore()
   const { services } = useServiceStore()
+  const { setDirty, registerSave } = useSettingsForm()
 
-  // Python path input — local state so edits don't round-trip through IPC
-  const [pythonPath, setPythonPathLocal] = useState('')
+  const [draftTheme, setDraftTheme] = useState<Theme>(theme)
+  const [draftPythonPath, setDraftPythonPath] = useState('')
+  const [savedPythonPath, setSavedPythonPath] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    window.api.getServiceConfig().then((cfg) => setPythonPathLocal(cfg.pythonPath))
+    window.api.getServiceConfig().then((cfg) => {
+      setDraftPythonPath(cfg.pythonPath)
+      setSavedPythonPath(cfg.pythonPath)
+    })
   }, [])
+
+  // Sync dirty state to context
+  const isDirtyLocal = draftTheme !== theme || draftPythonPath !== savedPythonPath
+  useEffect(() => {
+    setDirty(isDirtyLocal)
+  }, [isDirtyLocal, setDirty])
+
+  // Register save handler — re-registers whenever draft values change so the
+  // closure captures the latest values
+  useEffect(() => {
+    registerSave(async () => {
+      const currentSettings = await window.api.getSettings()
+      await window.api.setSettings({ ...currentSettings, theme: draftTheme })
+      setTheme(draftTheme)
+
+      const trimmedPath = draftPythonPath.trim()
+      if (trimmedPath) {
+        await window.api.setPythonPath(trimmedPath)
+        setSavedPythonPath(trimmedPath)
+      }
+    })
+    return () => registerSave(null)
+  }, [draftTheme, draftPythonPath, registerSave, setTheme])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
-  }
-
-  function handleApplyPythonPath(): void {
-    const val = pythonPath.trim()
-    if (val) window.api.setPythonPath(val)
-  }
-
-  function handlePythonPathKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
-    if (e.key === 'Enter') handleApplyPythonPath()
-    if (e.key === 'Escape') inputRef.current?.blur()
   }
 
   return (
@@ -44,8 +63,8 @@ export function GeneralSettings(): JSX.Element {
           last
         >
           <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value as Theme)}
+            value={draftTheme}
+            onChange={(e) => setDraftTheme(e.target.value as Theme)}
             className="text-sm px-2 py-1 rounded mono"
             style={{
               background: 'var(--color-surface-raised)',
@@ -62,41 +81,27 @@ export function GeneralSettings(): JSX.Element {
       </SettingsSection>
 
       <SettingsSection title="Services">
-        {/* Python interpreter path — applies to all Python-based services */}
+        {/* Python interpreter path — saved via the page Save button */}
         <SettingRow
           label="Python executable"
           helper="Path or command used to launch Python services (e.g. python, python3, C:\…\python.exe)"
         >
-          <div className="flex items-center gap-1.5">
-            <input
-              ref={inputRef}
-              type="text"
-              className="text-sm mono px-2 py-1 rounded"
-              style={{
-                background: 'var(--color-surface-raised)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text-primary)',
-                outline: 'none',
-                width: 180,
-              }}
-              value={pythonPath}
-              onChange={(e) => setPythonPathLocal(e.target.value)}
-              onKeyDown={handlePythonPathKeyDown}
-              spellCheck={false}
-            />
-            <button
-              onClick={handleApplyPythonPath}
-              className="text-xs px-2 py-1 rounded"
-              style={{
-                background: 'var(--color-surface-raised)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text-primary)',
-                cursor: 'pointer',
-              }}
-            >
-              Apply
-            </button>
-          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            className="text-sm mono px-2 py-1 rounded"
+            style={{
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              outline: 'none',
+              width: 200,
+            }}
+            value={draftPythonPath}
+            onChange={(e) => setDraftPythonPath(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') inputRef.current?.blur() }}
+            spellCheck={false}
+          />
         </SettingRow>
 
         {services.length === 0 ? (
