@@ -1,18 +1,20 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo, useCallback, memo } from 'react'
 import ReactDOM from 'react-dom'
 import type { SonarChannel, SonarConfig, SonarAudioSession, SonarStreamerMix, SonarMode } from '@shared/types'
 
 // ─── Vertical fader ───────────────────────────────────────────────────────────
 
-function VerticalFader({
-  value,
-  onChange,
-  disabled,
-}: {
+interface VerticalFaderProps {
   value: number
   onChange: (v: number) => void
   disabled?: boolean
-}): JSX.Element {
+}
+
+function VerticalFaderComponent({
+  value,
+  onChange,
+  disabled,
+}: VerticalFaderProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const [dragValue, setDragValue] = useState<number | null>(null)
@@ -100,6 +102,8 @@ function VerticalFader({
     </div>
   )
 }
+
+const VerticalFader = memo(VerticalFaderComponent)
 
 // ─── Streamer dual fader ──────────────────────────────────────────────────────
 
@@ -370,7 +374,7 @@ export interface ChannelStripProps {
   onPresetEdit: (config: SonarConfig) => void
 }
 
-export function ChannelStrip({
+function ChannelStripComponent({
   channel,
   label,
   volume,
@@ -386,6 +390,11 @@ export function ChannelStrip({
   onPresetEdit,
 }: ChannelStripProps): JSX.Element {
   const isMicChannel = channel === 'chatCapture'
+
+  // Memoize callbacks so React.memo comparison works correctly
+  const handleVolume = useCallback((v: number) => onVolume(channel, v), [channel, onVolume])
+  const handleMute = useCallback(() => onMute(channel), [channel, onMute])
+  const handlePresetSelect = useCallback((id: string) => onPresetSelect(channel, id), [channel, onPresetSelect])
 
   return (
     <div
@@ -415,7 +424,7 @@ export function ChannelStrip({
         <PresetSelector
           presets={presets}
           activePresetId={activePresetId}
-          onSelect={(id) => onPresetSelect(channel, id)}
+          onSelect={handlePresetSelect}
           onEdit={onPresetEdit}
         />
       </div>
@@ -434,7 +443,7 @@ export function ChannelStrip({
             </span>
             <VerticalFader
               value={volume}
-              onChange={(v) => onVolume(channel, v)}
+              onChange={handleVolume}
             />
           </>
         )}
@@ -443,7 +452,7 @@ export function ChannelStrip({
       {/* Mute button */}
       <div className="px-3 pb-2 flex-shrink-0">
         <button
-          onClick={() => onMute(channel)}
+          onClick={handleMute}
           className="w-full py-1.5 rounded transition-colors flex items-center justify-center"
           title={muted ? 'Unmute' : 'Mute'}
           style={{
@@ -475,3 +484,5 @@ export function ChannelStrip({
     </div>
   )
 }
+
+export const ChannelStrip = memo(ChannelStripComponent)
