@@ -30,7 +30,6 @@ export class SonarService {
   private lastAvailable = false
   private pendingMode: SonarMode | null = null
   private pendingModeExpiry = 0
-  private selectedPresets: Record<string, string> = {} // device → preset id
 
   // Callbacks wired by main/index.ts so SonarService can emit into the service infrastructure
   private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
@@ -122,8 +121,6 @@ export class SonarService {
     const raw = await this.httpPut(`${this.baseUrl}/configs/${id}/select`)
     try {
       const selected = JSON.parse(raw) as SonarConfig
-      // Track the selected preset for this device
-      this.selectedPresets[selected.virtualAudioDevice] = selected.id
       this.log('info', `GG Sonar: ${selected.virtualAudioDevice} → preset "${selected.name}"`)
       // Replace matching config in list to reflect any updated fields
       this.state = {
@@ -197,25 +194,24 @@ export class SonarService {
   private async pollSlow(): Promise<void> {
     if (!this.baseUrl) return
     try {
-      const [configsRaw, routingRaw] = await Promise.all([
+      const [configsRaw, selectedRaw] = await Promise.all([
         this.httpGet(`${this.baseUrl}/configs`),
-        this.httpGet(`${this.baseUrl}/AudioDeviceRouting`),
+        this.httpGet(`${this.baseUrl}/configs/selected`),
       ])
-      const newConfigs = JSON.parse(configsRaw) as SonarConfig[]
-      const newRouting = JSON.parse(routingRaw)
+      const allConfigs = JSON.parse(configsRaw) as SonarConfig[]
+      const selectedConfigs = JSON.parse(selectedRaw) as SonarConfig[]
+      const selectedIds = new Set(selectedConfigs.map((c) => c.id))
 
-      // Log tracked selected presets (updated when user selects via UI)
-      for (const [device, presetId] of Object.entries(this.selectedPresets)) {
-        const config = newConfigs.find((c) => c.id === presetId)
-        if (config) {
-          this.log('info', `GG Sonar: ${device} → preset "${config.name}"`)
-        }
-      }
+      // Mark each config as selected or not
+      const markedConfigs = allConfigs.map((c) => ({
+        ...c,
+        isSelected: selectedIds.has(c.id),
+      }))
 
       this.state = {
         ...this.state,
-        configs: newConfigs,
-        routing: newRouting,
+        configs: markedConfigs,
+        routing: [], // /AudioDeviceRouting 404s; routing is OS-level, not exposed
       }
       this.push()
     } catch {
