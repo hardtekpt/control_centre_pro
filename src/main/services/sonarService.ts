@@ -211,7 +211,6 @@ export class SonarService {
       this.state = {
         ...this.state,
         configs: markedConfigs,
-        routing: [], // /AudioDeviceRouting 404s; routing is OS-level, not exposed
       }
       this.push()
     } catch {
