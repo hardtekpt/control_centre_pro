@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useSonarStore } from '../stores/sonarStore'
+import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
 import { PresetEditor } from '../components/gg-sonar/PresetEditor'
 import type { SonarConfig, SonarMode } from '@shared/types'
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
-function ExternalLinkIcon(): JSX.Element {
+function SettingsIcon(): JSX.Element {
   return (
     <svg
       width="12"
@@ -18,9 +19,8 @@ function ExternalLinkIcon(): JSX.Element {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   )
 }
@@ -117,6 +117,7 @@ function SonarIcon(): JSX.Element {
 
 export function GGSonar(): JSX.Element {
   const { sonarState, setSonarState } = useSonarStore()
+  const { setView, setSettingsTab } = useAppStore()
   const [editorConfig, setEditorConfig] = useState<SonarConfig | null>(null)
 
   // Fetch fresh state on page mount (covers navigation to this page)
@@ -188,10 +189,10 @@ export function GGSonar(): JSX.Element {
                 </button>
               )}
             </div>
-            {/* GG Sonar shortcut */}
+            {/* GG Sonar settings shortcut */}
             <button
-              onClick={() => window.api.openExternal('https://steelseries.com/gg/sonar').catch(console.error)}
-              title="Open GG Sonar"
+              onClick={() => { setSettingsTab('gg-sonar'); setView('settings') }}
+              title="GG Sonar settings"
               className="rounded flex items-center justify-center"
               style={{
                 width: 22,
@@ -203,7 +204,7 @@ export function GGSonar(): JSX.Element {
                 flexShrink: 0,
               }}
             >
-              <ExternalLinkIcon />
+              <SettingsIcon />
             </button>
           </div>
         }
