@@ -20,7 +20,8 @@
       "Bash(Get-ChildItem \"C:\\\\Users\\\\ffvd\\\\Documents\\\\arctis_centre\\\\src\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object Name)",
       "WebFetch(domain:github.com)",
-      "PowerShell(python -c \"import site; print\\(site.getsitepackages\\(\\)\\)\")"
+      "PowerShell(python -c \"import site; print\\(site.getsitepackages\\(\\)\\)\")",
+      "Bash(npm run *)"
     ]
   }
 }

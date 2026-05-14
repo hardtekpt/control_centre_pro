@@ -30,36 +30,22 @@ interface ChannelMixerProps {
 export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): JSX.Element {
   const { activePresetIds, patchClassicVolume, setActivePreset, visibleChannels } = useSonarStore()
 
-  // Group presets by virtualAudioDevice and track which device maps to which channel
-  const { presetsByChannel, channelToDevice } = useMemo(() => {
-    const presets: Record<string, SonarConfig[]> = {}
-    const deviceMap: Record<string, string> = {}
-
+  // Group presets by virtualAudioDevice (which is the channel name: game, chatRender, etc.)
+  const presetsByChannel = useMemo(() => {
+    const map: Record<string, SonarConfig[]> = {}
     for (const config of sonarState.configs) {
-      const device = config.virtualAudioDevice
-      if (!presets[device]) presets[device] = []
-      presets[device].push(config)
-
-      // Map channel names to virtualAudioDevice based on device name heuristic
-      // Assume device contains channel info (e.g., "Sonar Game Audio" → 'game')
-      const deviceLower = device.toLowerCase()
-      if (deviceLower.includes('game')) deviceMap['game'] = device
-      else if (deviceLower.includes('capture') || deviceLower.includes('input')) deviceMap['chatCapture'] = device
-      else if (deviceLower.includes('render') || deviceLower.includes('output') || deviceLower.includes('chat')) {
-        // Only set chatRender if not already set or if this is more specific
-        if (!deviceMap['chatRender'] || deviceLower.includes('render')) deviceMap['chatRender'] = device
-      } else if (deviceLower.includes('media')) deviceMap['media'] = device
-      else if (deviceLower.includes('aux')) deviceMap['aux'] = device
-      else if (deviceLower.includes('master')) deviceMap['master'] = device
+      const ch = config.virtualAudioDevice
+      if (!map[ch]) map[ch] = []
+      map[ch].push(config)
     }
     // Sort by isFavorite first, then name
-    for (const ch in presets) {
-      presets[ch].sort((a, b) => {
+    for (const ch in map) {
+      map[ch].sort((a, b) => {
         if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1
         return a.name.localeCompare(b.name)
       })
     }
-    return { presetsByChannel: presets, channelToDevice: deviceMap }
+    return map
   }, [sonarState.configs])
 
   // Group audio sessions by route role
@@ -99,8 +85,7 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
   }
 
   function handlePresetSelect(channel: SonarChannel, presetId: string): void {
-    const device = channelToDevice[channel]
-    setActivePreset(device ?? channel, presetId)
+    setActivePreset(channel, presetId)
     window.api.sonarSelectPreset(presetId).catch(console.error)
   }
 
@@ -108,7 +93,6 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
     <div className="flex overflow-x-auto gap-3 items-stretch">
       {CHANNEL_DEFS.filter(({ channel }) => visibleChannels.has(channel)).map(({ channel, label }) => {
         const { volume, muted } = getVolume(channel)
-        const device = channelToDevice[channel]
         return (
           <ChannelStrip
             key={channel}
@@ -118,8 +102,8 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
             muted={muted}
             streamerMix={getStreamerMix(channel)}
             mode={sonarState.mode}
-            presets={presetsByChannel[device] ?? presetsByChannel[channel] ?? []}
-            activePresetId={activePresetIds[device] ?? activePresetIds[channel]}
+            presets={presetsByChannel[channel] ?? []}
+            activePresetId={activePresetIds[channel]}
             routedSessions={sessionsByRole[channel] ?? []}
             onVolume={handleVolume}
             onMute={handleMute}

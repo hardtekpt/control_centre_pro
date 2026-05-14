@@ -30,6 +30,7 @@ export class SonarService {
   private lastAvailable = false
   private pendingMode: SonarMode | null = null
   private pendingModeExpiry = 0
+  private selectedPresets: Record<string, string> = {} // device → preset id
 
   // Callbacks wired by main/index.ts so SonarService can emit into the service infrastructure
   private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
@@ -121,6 +122,9 @@ export class SonarService {
     const raw = await this.httpPut(`${this.baseUrl}/configs/${id}/select`)
     try {
       const selected = JSON.parse(raw) as SonarConfig
+      // Track the selected preset for this device
+      this.selectedPresets[selected.virtualAudioDevice] = selected.id
+      this.log('info', `GG Sonar: ${selected.virtualAudioDevice} → preset "${selected.name}"`)
       // Replace matching config in list to reflect any updated fields
       this.state = {
         ...this.state,
@@ -200,22 +204,27 @@ export class SonarService {
       const newConfigs = JSON.parse(configsRaw) as SonarConfig[]
       const newRouting = JSON.parse(routingRaw)
 
-      // Log selected presets for each device
-      for (const config of newConfigs) {
-        if (config.isSelected) {
-          this.log('info', `GG Sonar: ${config.virtualAudioDevice} → preset "${config.name}"`)
+      // Log tracked selected presets (updated when user selects via UI)
+      for (const [device, presetId] of Object.entries(this.selectedPresets)) {
+        const config = newConfigs.find((c) => c.id === presetId)
+        if (config) {
+          this.log('info', `GG Sonar: ${device} → preset "${config.name}"`)
         }
       }
 
-      // Log routing info (audio session counts per device)
-      const routingByDevice: Record<string, number> = {}
+      // Log routing info (audio session counts per device/role)
+      const routingByDevice: Record<string, Record<string, number>> = {}
       for (const route of newRouting) {
-        if (route.role !== 'none') {
-          routingByDevice[route.deviceId] = (routingByDevice[route.deviceId] ?? 0) + route.audioSessions.length
+        if (route.role !== 'none' && route.audioSessions.length > 0) {
+          if (!routingByDevice[route.deviceId]) routingByDevice[route.deviceId] = {}
+          routingByDevice[route.deviceId][route.role] = route.audioSessions.length
         }
       }
-      for (const [device, count] of Object.entries(routingByDevice)) {
-        this.log('info', `GG Sonar: ${device} → ${count} routed session(s)`)
+      for (const [device, roleMap] of Object.entries(routingByDevice)) {
+        const summary = Object.entries(roleMap)
+          .map(([role, count]) => `${role}:${count}`)
+          .join(' ')
+        this.log('info', `GG Sonar routing: ${device} → ${summary}`)
       }
 
       this.state = {
