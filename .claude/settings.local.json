@@ -26,7 +26,9 @@
       "Bash(git commit -m ' *)",
       "PowerShell(Get-Process | Where-Object {$_.ProcessName -match \"steel|gg\" -or $_.Name -match \"steel|gg\"} | Select-Object Name, ProcessName, Path, Id)",
       "PowerShell(Get-Process | Where-Object {$_.ProcessName -eq \"SteelSeriesGG\" -or $_.ProcessName -eq \"SteelSeriesGGClient\"} | Select-Object Name, Id)",
-      "PowerShell(Get-Process)"
+      "PowerShell(Get-Process)",
+      "Bash(cd '/c/Users/ffvd/Documents/control_centre_pro' && grep -n \"w-1.5 h-1.5 rounded-full\" src/renderer/src/components/gg-sonar/*.tsx src/renderer/src/pages/*.tsx)",
+      "Read(//c/c/Users/ffvd/Documents/control_centre_pro/src/renderer/src/components/**)"
     ]
   }
 }

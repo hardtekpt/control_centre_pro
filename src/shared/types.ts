@@ -56,6 +56,8 @@ export const IPC_CHANNELS = {
   ACTIVE_WINDOW_GET_OPEN_APPS: 'activeWindow:getOpenApps', // renderer → main invoke
   PRESET_SWITCHER_GET_RULES: 'presetSwitcher:getRules', // renderer → main invoke
   PRESET_SWITCHER_SET_RULES: 'presetSwitcher:setRules', // renderer → main invoke
+  PRESET_SWITCHER_GET_ENABLED: 'presetSwitcher:getEnabled', // renderer → main invoke
+  PRESET_SWITCHER_SET_ENABLED: 'presetSwitcher:setEnabled', // renderer → main invoke
 
   // Shell utilities
   SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke
