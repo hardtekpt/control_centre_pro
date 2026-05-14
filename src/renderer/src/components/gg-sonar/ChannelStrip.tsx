@@ -267,7 +267,6 @@ function PresetSelector({
   return (
     <div
       className="flex items-center gap-1 px-3 pb-2 flex-shrink-0"
-      style={{ borderBottom: '1px solid var(--color-border)' }}
     >
       <button
         ref={btnRef}

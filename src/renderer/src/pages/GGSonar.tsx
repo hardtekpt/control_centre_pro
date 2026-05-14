@@ -30,12 +30,12 @@ function HomeSection({
   action,
   children,
 }: {
-  title: string
+  title: React.ReactNode
   action?: React.ReactNode
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-1">
         <h2
           className="text-xs font-semibold uppercase tracking-wider"
@@ -141,54 +141,56 @@ export function GGSonar(): JSX.Element {
       style={{ background: 'var(--color-bg)' }}
     >
       <HomeSection
-        title="Mixer"
+        title={
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              title={available ? 'Sonar connected' : 'Sonar not detected'}
+              style={{ background: available ? '#5a9a5a' : 'var(--color-text-secondary)' }}
+            />
+            <span>Mixer</span>
+          </div>
+        }
         action={
           <div className="flex items-center gap-2">
-            {/* Status dot + mode toggle */}
-            <div className="flex items-center gap-1.5">
+            {/* Mode toggle */}
+            {available && (
               <div
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                title={available ? 'Sonar connected' : 'Sonar not detected'}
-                style={{ background: available ? '#5a9a5a' : 'var(--color-text-secondary)' }}
-              />
-              {available && (
-                <div
-                  className="flex rounded overflow-hidden"
-                  style={{ border: '1px solid var(--color-border)' }}
-                >
-                  {(['classic', 'streamer'] as SonarMode[]).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => handleModeChange(m)}
-                      className="text-xs px-2 py-0.5 capitalize transition-colors"
-                      style={{
-                        background: sonarState?.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                        color: sonarState?.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                        cursor: 'pointer',
-                        border: 'none',
-                        outline: 'none',
-                      }}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!available && (
-                <button
-                  onClick={handleRetry}
-                  className="text-xs px-2 py-0.5 rounded"
-                  style={{
-                    background: 'var(--color-surface-raised)',
-                    color: 'var(--color-text-secondary)',
-                    border: '1px solid var(--color-border)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  ↺ Retry
-                </button>
-              )}
-            </div>
+                className="flex rounded overflow-hidden"
+                style={{ border: '1px solid var(--color-border)' }}
+              >
+                {(['classic', 'streamer'] as SonarMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => handleModeChange(m)}
+                    className="text-xs px-2 py-0.5 capitalize transition-colors"
+                    style={{
+                      background: sonarState?.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                      color: sonarState?.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      border: 'none',
+                      outline: 'none',
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!available && (
+              <button
+                onClick={handleRetry}
+                className="text-xs px-2 py-0.5 rounded"
+                style={{
+                  background: 'var(--color-surface-raised)',
+                  color: 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                  cursor: 'pointer',
+                }}
+              >
+                ↺ Retry
+              </button>
+            )}
             {/* GG Sonar settings shortcut */}
             <button
               onClick={() => { setSettingsTab('gg-sonar'); setView('settings') }}
