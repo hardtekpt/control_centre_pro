@@ -107,6 +107,12 @@ export interface LogEntry {
 // ─── Arctis Nova Pro HID ──────────────────────────────────────────────────────
 
 /**
+ * 2.4 GHz wireless link state — mirrors arctis_hid.WirelessLinkState enum.
+ * ABSENT = headset off/removed; SEARCHING = base scanning; ACTIVE = link up.
+ */
+export type WirelessLinkState = 'ABSENT' | 'SEARCHING' | 'ACTIVE'
+
+/**
  * Screen-dim / auto-off timeout — mirrors arctis_hid.TimeoutStep enum.
  * OFF = disabled; other values are the inactivity delay before triggering.
  */
@@ -129,7 +135,9 @@ export interface ArctisState {
   volume: number                 // 0–100 %
 
   // ── Connectivity ────────────────────────────────────────────────────────────
-  wirelessConnected: boolean     // 2.4 GHz link active
+  wirelessConnected: boolean     // 2.4 GHz link active (ACTIVE state)
+  wirelessLinkState: WirelessLinkState  // granular link state from WirelessLinkState enum
+  headsetPowered: boolean        // headset is powered on (false = off or removed)
   btActive: boolean              // Bluetooth radio is on
   btConnected: boolean           // a BT device is paired and connected
   btPairing: boolean             // headset is in BT pairing mode

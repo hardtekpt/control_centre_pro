@@ -744,7 +744,11 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
           <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
           <div className="flex items-center gap-1.5">
-            <ConnectivityDot icon={<WirelessIcon />}  dotState={state.wirelessConnected ? 'on' : 'off'}                                           title="2.4 GHz Wireless" />
+            <ConnectivityDot
+                icon={<WirelessIcon />}
+                dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
+                title={`2.4 GHz Wireless — ${state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
+              />
             <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
           </div>
         </div>

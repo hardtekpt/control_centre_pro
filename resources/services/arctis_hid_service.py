@@ -99,6 +99,8 @@ def _read_full_state(headset) -> dict:
         "volume":         getattr(mic_eq, "volume_pct", 0),
         # ── Connectivity ────────────────────────────────────────────────────
         "wirelessConnected": wireless,
+        "wirelessLinkState": enum_name(status, "wireless_link_state", default="ACTIVE"),
+        "headsetPowered":    getattr(status, "headset_powered", True),
         "btActive":    bt_active,
         "btConnected": bt_connected,
         "btPairing":   bt_pairing,
@@ -119,9 +121,9 @@ def _read_full_state(headset) -> dict:
         "chatmixChat": getattr(mic_eq, "chatmix_chat", 50),
         # ── Audio Output ──────────────────────────────────────────────────────
         "audioOutput": enum_name(mic_eq, "audio_output", default="SPEAKERS"),
-        "streamMain":  getattr(mic_eq, "stream_main", getattr(mic_eq, "main", 100)),
-        "streamAux":   getattr(mic_eq, "stream_aux",  getattr(mic_eq, "aux",  100)),
-        "streamMic":   getattr(mic_eq, "stream_mic",  getattr(mic_eq, "mic",  100)),
+        "streamMain":  getattr(mic_eq, "stream_main_vol", getattr(mic_eq, "stream_main", getattr(mic_eq, "main", 100))),
+        "streamAux":   getattr(mic_eq, "stream_aux_vol",  getattr(mic_eq, "stream_aux",  getattr(mic_eq, "aux",  100))),
+        "streamMic":   getattr(mic_eq, "stream_mic_vol",  getattr(mic_eq, "stream_mic",  getattr(mic_eq, "mic",  100))),
         # ── Base Station (from display object if available) ───────────────────
         "oledBrightness": getattr(display, "oled_brightness", 5) if display else 5,
         "dimTimeout":     enum_name(display, "dim_timeout", default="OFF") if display else "OFF",
@@ -132,8 +134,8 @@ def _read_full_state(headset) -> dict:
         "eqPresetIndex": getattr(mic_eq, "eq_preset_index", 0),
         "eqBands":       list(getattr(mic_eq, "eq_bands", [20] * 10)),
         # ── GG Sonar / USB Input ──────────────────────────────────────────────
-        "sonarConnected": bool(getattr(display, "sonar_status", False)) if display else False,
-        "usbInput":       enum_name(status, "usb_input", default="INPUT_1"),
+        "sonarConnected": bool(getattr(display, "sonar_running", False)) if display else False,
+        "usbInput":       "INPUT_2" if getattr(mic_eq, "usb_input", 0) == 1 else "INPUT_1",
     }
 
     # Log any fields that fell back to defaults so we can spot wrong attr names
@@ -272,10 +274,10 @@ def main() -> None:
     try:
         from arctis_hid import discover, DeviceNotFoundError, DeviceIOError
         from arctis_hid import (
-            VolumeEvent, BatteryEvent, AncModeEvent, MicMuteEvent,
+            VolumeEvent, BatteryEvent, HeadsetPoweredEvent, AncModeEvent, MicMuteEvent,
             ConnectivityEvent, ChatMixEvent, GainEvent, MicVolumeEvent,
             SidetoneEvent, OledBrightnessEvent, TransparencyEvent,
-            WirelessModeEvent, BtDefaultEvent, BtAutoMuteEvent,
+            WirelessModeEvent, UsbInputEvent, BtDefaultEvent, BtAutoMuteEvent,
             AudioOutputEvent, StreamVolumesEvent, DimTimeoutEvent,
             HomeScreenEvent, MicLedEvent, AutoOffEvent,
             EqPresetEvent, EqBandEvent,
@@ -341,6 +343,11 @@ def main() -> None:
                       "data": {"batteryHeadset": e.headset_pct, "batteryDock": e.dock_pct}}),
                 log("info", f"Battery — headset: {e.headset_pct}%, dock: {e.dock_pct}%"),
             ))
+            headset.on("HeadsetPoweredEvent", lambda e: (
+                emit({"type": "event", "event": "HeadsetPoweredEvent",
+                      "data": {"headsetPowered": e.powered}}),
+                log("info", f"Headset {'powered on' if e.powered else 'powered off / removed'}"),
+            ))
             headset.on("MicMuteEvent", lambda e: (
                 emit({"type": "event", "event": "MicMuteEvent", "data": {"micMuted": e.muted}}),
                 log("info", f"Mic {'muted' if e.muted else 'unmuted'}"),
@@ -354,6 +361,8 @@ def main() -> None:
                 bt_connected = getattr(e, "bt_connected", False)
                 bt_pairing   = (mode_name == "BT_PAIRING")
                 wireless     = getattr(e, "wireless", False)
+                wls_val      = getattr(e, "wireless_link_state", None)
+                wls_name     = getattr(wls_val, "name", "ACTIVE" if wireless else "SEARCHING")
                 emit({
                     "type": "event", "event": "ConnectivityEvent",
                     "data": {
@@ -361,6 +370,7 @@ def main() -> None:
                         "btConnected":       bt_connected,
                         "btPairing":         bt_pairing,
                         "wirelessConnected": wireless,
+                        "wirelessLinkState": wls_name,
                     },
                 })
                 bt_label = ("pairing" if bt_pairing
@@ -470,15 +480,11 @@ def main() -> None:
             headset.on("EqBandEvent", on_eq_band_event)
 
             # ── USB Input ─────────────────────────────────────────────────────
-            try:
-                from arctis_hid import UsbInputEvent as _UsbInputEvent  # noqa: F401
-                headset.on("UsbInputEvent", lambda e: (
-                    emit({"type": "event", "event": "UsbInputEvent",
-                          "data": {"usbInput": e.input.name}}),
-                    log("info", f"USB input: {e.input.name}"),
-                ))
-            except (ImportError, AttributeError):
-                pass  # event not present in this firmware/library version
+            headset.on("UsbInputEvent", lambda e: (
+                emit({"type": "event", "event": "UsbInputEvent",
+                      "data": {"usbInput": e.input.name}}),
+                log("info", f"USB input: {e.input.name}"),
+            ))
 
             headset.listen()  # blocks until DeviceIOError or stop()
 
