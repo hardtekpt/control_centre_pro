@@ -67,6 +67,13 @@ def _read_full_state(headset) -> dict:
     except Exception as exc:
         log("warn", f"get_display() unavailable: {exc}")
 
+    # get_volume_limiter() may not exist on all firmware versions
+    limiter = None
+    try:
+        limiter = headset.get_volume_limiter()
+    except Exception as exc:
+        log("warn", f"get_volume_limiter() unavailable: {exc}")
+
     def enum_name(obj, *attrs, default="OFF"):
         for a in attrs:
             val = getattr(obj, a, None)
@@ -133,9 +140,10 @@ def _read_full_state(headset) -> dict:
         # ── EQ (from mic_eq — same packet as volume/gain/sidetone) ───────────
         "eqPresetIndex": getattr(mic_eq, "eq_preset_index", 0),
         "eqBands":       list(getattr(mic_eq, "eq_bands", [20] * 10)),
-        # ── GG Sonar / USB Input ──────────────────────────────────────────────
-        "sonarConnected": bool(getattr(display, "sonar_running", False)) if display else False,
-        "usbInput":       "INPUT_2" if getattr(mic_eq, "usb_input", 0) == 1 else "INPUT_1",
+        # ── GG Sonar / USB Input / Volume Limiter ────────────────────────────
+        "sonarConnected":  bool(getattr(display, "sonar_running", False)) if display else False,
+        "usbInput":        "INPUT_2" if getattr(mic_eq, "usb_input", 0) == 1 else "INPUT_1",
+        "volumeLimiterOn": bool(getattr(limiter, "limiter_on", False)) if limiter else False,
     }
 
     # Log any fields that fell back to defaults so we can spot wrong attr names

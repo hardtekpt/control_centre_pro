@@ -179,6 +179,7 @@ export interface ArctisState {
   eqBands: number[]              // 10 band levels, 0–40 (20 = flat / 0 dB)
 
   // ── GG Sonar / USB Input ─────────────────────────────────────────────────────
-  sonarConnected: boolean        // GG Sonar software is active (from DisplayData.sonar_status)
+  sonarConnected: boolean        // GG Sonar software is active (from DisplayData.sonar_running)
   usbInput: 'INPUT_1' | 'INPUT_2'  // UsbInput enum — active USB input channel
+  volumeLimiterOn: boolean       // volume limiter enabled (from VolumeLimiterData.limiter_on)
 }

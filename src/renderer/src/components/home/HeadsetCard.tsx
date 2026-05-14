@@ -320,6 +320,18 @@ function UsbIcon(): JSX.Element {
   )
 }
 
+function VolumeLimiterIcon(): JSX.Element {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <rect x="1"  y="14" width="4" height="9"  rx="1" />
+      <rect x="7"  y="10" width="4" height="13" rx="1" />
+      <rect x="13" y="6"  width="4" height="17" rx="1" />
+      <rect x="19" y="2"  width="4" height="21" rx="1" />
+      <rect x="1"  y="1"  width="22" height="2" rx="1" />
+    </svg>
+  )
+}
+
 const GREEN = '#22c55e'
 const RED   = '#ef4444'
 const BLUE  = '#3b82f6'
@@ -380,6 +392,24 @@ function SonarIndicator({ connected }: { connected: boolean }): JSX.Element {
       }}
     >
       <SonarIcon />
+    </div>
+  )
+}
+
+// ─── Volume limiter indicator ─────────────────────────────────────────────────
+
+function VolumeLimiterIndicator({ on }: { on: boolean }): JSX.Element {
+  return (
+    <div
+      title={on ? 'Volume limiter on' : 'Volume limiter off'}
+      className="w-5 h-5 rounded flex items-center justify-center"
+      style={{
+        background: on ? 'rgba(34,197,94,0.14)' : 'rgba(140,140,140,0.10)',
+        border: `1px solid ${on ? GREEN : 'var(--color-border)'}`,
+        color: on ? GREEN : 'var(--color-text-secondary)',
+      }}
+    >
+      <VolumeLimiterIcon />
     </div>
   )
 }
@@ -733,6 +763,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
             Arctis Nova Pro Wireless
           </span>
           <SonarIndicator connected={state.sonarConnected} />
+          <VolumeLimiterIndicator on={state.volumeLimiterOn} />
           <UsbInputTag
             value={state.usbInput}
             onChange={(v) => cmd('setUsbInput', v, { usbInput: v })}
