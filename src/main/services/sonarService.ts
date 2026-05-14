@@ -212,21 +212,6 @@ export class SonarService {
         }
       }
 
-      // Log routing info (audio session counts per device/role)
-      const routingByDevice: Record<string, Record<string, number>> = {}
-      for (const route of newRouting) {
-        if (route.role !== 'none' && route.audioSessions.length > 0) {
-          if (!routingByDevice[route.deviceId]) routingByDevice[route.deviceId] = {}
-          routingByDevice[route.deviceId][route.role] = route.audioSessions.length
-        }
-      }
-      for (const [device, roleMap] of Object.entries(routingByDevice)) {
-        const summary = Object.entries(roleMap)
-          .map(([role, count]) => `${role}:${count}`)
-          .join(' ')
-        this.log('info', `GG Sonar routing: ${device} → ${summary}`)
-      }
-
       this.state = {
         ...this.state,
         configs: newConfigs,
