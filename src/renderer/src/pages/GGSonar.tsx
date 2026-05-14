@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
-import { PresetEditor } from '../components/gg-sonar/PresetEditor'
-import type { SonarConfig, SonarMode } from '@shared/types'
+import type { SonarMode } from '@shared/types'
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
@@ -118,7 +117,6 @@ function SonarIcon(): JSX.Element {
 export function GGSonar(): JSX.Element {
   const { sonarState, setSonarState } = useSonarStore()
   const { setView, setSettingsTab } = useAppStore()
-  const [editorConfig, setEditorConfig] = useState<SonarConfig | null>(null)
 
   // Fetch fresh state on page mount (covers navigation to this page)
   useEffect(() => {
@@ -212,15 +210,11 @@ export function GGSonar(): JSX.Element {
         }
       >
         {available && sonarState ? (
-          <ChannelMixer sonarState={sonarState} onPresetEdit={setEditorConfig} />
+          <ChannelMixer sonarState={sonarState} />
         ) : (
           <UnavailableState onRetry={handleRetry} />
         )}
       </HomeSection>
-
-      {editorConfig && (
-        <PresetEditor config={editorConfig} onClose={() => setEditorConfig(null)} />
-      )}
     </div>
   )
 }

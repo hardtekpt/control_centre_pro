@@ -24,10 +24,9 @@ const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
 
 interface ChannelMixerProps {
   sonarState: SonarState
-  onPresetEdit: (config: SonarConfig) => void
 }
 
-export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): JSX.Element {
+export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
   const { activePresetIds, patchClassicVolume, setActivePreset, visibleChannels } = useSonarStore()
 
   // Group presets by virtualAudioDevice (which is the channel name: game, chatRender, etc.)
@@ -108,7 +107,6 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
             onVolume={handleVolume}
             onMute={handleMute}
             onPresetSelect={handlePresetSelect}
-            onPresetEdit={onPresetEdit}
           />
         )
       })}

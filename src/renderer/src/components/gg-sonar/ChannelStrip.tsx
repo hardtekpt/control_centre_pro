@@ -244,12 +244,10 @@ function PresetSelector({
   presets,
   activePresetId,
   onSelect,
-  onEdit,
 }: {
   presets: SonarConfig[]
   activePresetId?: string
   onSelect: (id: string) => void
-  onEdit: (config: SonarConfig) => void
 }): JSX.Element | null {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -303,22 +301,6 @@ function PresetSelector({
       >
         <span className="truncate flex-1 text-left">{activePreset?.name ?? '—'}</span>
       </button>
-      {activePreset && (
-        <button
-          onClick={() => onEdit(activePreset)}
-          className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
-          title="View preset details"
-          style={{
-            background: 'transparent',
-            color: 'var(--color-text-secondary)',
-            border: 'none',
-            cursor: 'pointer',
-            lineHeight: 1,
-          }}
-        >
-          ✎
-        </button>
-      )}
       {open && pos && ReactDOM.createPortal(
         <div
           ref={menuRef}
@@ -377,7 +359,6 @@ export interface ChannelStripProps {
   onVolume: (channel: SonarChannel, value: number) => void
   onMute: (channel: SonarChannel) => void
   onPresetSelect: (channel: SonarChannel, presetId: string) => void
-  onPresetEdit: (config: SonarConfig) => void
 }
 
 function ChannelStripComponent({
@@ -393,7 +374,6 @@ function ChannelStripComponent({
   onVolume,
   onMute,
   onPresetSelect,
-  onPresetEdit,
 }: ChannelStripProps): JSX.Element {
   const isMicChannel = channel === 'chatCapture'
 
@@ -431,7 +411,6 @@ function ChannelStripComponent({
           presets={presets}
           activePresetId={activePresetId}
           onSelect={handlePresetSelect}
-          onEdit={onPresetEdit}
         />
       </div>
 
