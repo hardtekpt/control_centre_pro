@@ -197,10 +197,31 @@ export class SonarService {
         this.httpGet(`${this.baseUrl}/configs`),
         this.httpGet(`${this.baseUrl}/AudioDeviceRouting`),
       ])
+      const newConfigs = JSON.parse(configsRaw) as SonarConfig[]
+      const newRouting = JSON.parse(routingRaw)
+
+      // Log selected presets for each device
+      for (const config of newConfigs) {
+        if (config.isSelected) {
+          this.log('info', `GG Sonar: ${config.virtualAudioDevice} → preset "${config.name}"`)
+        }
+      }
+
+      // Log routing info (audio session counts per device)
+      const routingByDevice: Record<string, number> = {}
+      for (const route of newRouting) {
+        if (route.role !== 'none') {
+          routingByDevice[route.deviceId] = (routingByDevice[route.deviceId] ?? 0) + route.audioSessions.length
+        }
+      }
+      for (const [device, count] of Object.entries(routingByDevice)) {
+        this.log('info', `GG Sonar: ${device} → ${count} routed session(s)`)
+      }
+
       this.state = {
         ...this.state,
-        configs: JSON.parse(configsRaw),
-        routing: JSON.parse(routingRaw),
+        configs: newConfigs,
+        routing: newRouting,
       }
       this.push()
     } catch {
