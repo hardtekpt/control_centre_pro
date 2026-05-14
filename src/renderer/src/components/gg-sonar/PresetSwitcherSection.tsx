@@ -169,7 +169,7 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
                 }}
               >
                 {/* App name */}
-                <div className="flex-shrink-0 w-20">
+                <div className="flex-shrink-0 w-32">
                   <span
                     style={{ color: 'var(--color-text-primary)' }}
                     title={rule.displayName}
