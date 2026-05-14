@@ -28,7 +28,7 @@ interface ChannelMixerProps {
 }
 
 export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): JSX.Element {
-  const { activePresetIds, patchClassicVolume, setActivePreset } = useSonarStore()
+  const { activePresetIds, patchClassicVolume, setActivePreset, visibleChannels } = useSonarStore()
 
   // Group presets by virtualAudioDevice
   const presetsByChannel = useMemo(() => {
@@ -91,7 +91,7 @@ export function ChannelMixer({ sonarState, onPresetEdit }: ChannelMixerProps): J
 
   return (
     <div className="flex overflow-x-auto gap-3 items-stretch">
-      {CHANNEL_DEFS.map(({ channel, label }) => {
+      {CHANNEL_DEFS.filter(({ channel }) => visibleChannels.has(channel)).map(({ channel, label }) => {
         const { volume, muted } = getVolume(channel)
         return (
           <ChannelStrip
