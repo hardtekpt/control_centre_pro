@@ -1,4 +1,7 @@
-import type { NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../../../shared/types'
+import type {
+  NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
+  SonarState, SonarChannel, SonarMode,
+} from '../../../shared/types'
 
 /**
  * TypeScript declarations for the API exposed by the preload script via
@@ -44,6 +47,14 @@ declare global {
       callback: (eventName: string, data: Record<string, unknown>) => void,
     ) => () => void
     arctisCmd: (cmd: string, value: unknown) => Promise<void>
+
+    // GG Sonar
+    sonarGetState: () => Promise<SonarState>
+    sonarSetVolume: (channel: SonarChannel, value: number) => Promise<void>
+    sonarSetMute: (channel: SonarChannel, muted: boolean) => Promise<void>
+    sonarSelectPreset: (id: string) => Promise<void>
+    sonarSetMode: (mode: SonarMode) => Promise<void>
+    onSonarStateChange: (callback: (state: SonarState) => void) => () => void
     }
   }
 }

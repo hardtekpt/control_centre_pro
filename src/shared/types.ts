@@ -40,6 +40,14 @@ export const IPC_CHANNELS = {
   ARCTIS_DISCONNECTED: 'arctis:disconnected', // main → renderer push
   ARCTIS_EVENT: 'arctis:event',             // main → renderer push
   ARCTIS_CMD: 'arctis:cmd',                 // renderer → main invoke (write/query command)
+
+  // GG Sonar HTTP REST integration
+  SONAR_GET_STATE: 'sonar:getState',        // renderer → main invoke
+  SONAR_STATE_CHANGE: 'sonar:stateChange',  // main → renderer push
+  SONAR_SET_VOLUME: 'sonar:setVolume',      // renderer → main invoke
+  SONAR_SET_MUTE: 'sonar:setMute',          // renderer → main invoke
+  SONAR_SELECT_PRESET: 'sonar:selectPreset', // renderer → main invoke
+  SONAR_SET_MODE: 'sonar:setMode',          // renderer → main invoke (investigate)
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -182,4 +190,102 @@ export interface ArctisState {
   sonarConnected: boolean        // GG Sonar software is active (from DisplayData.sonar_running)
   usbInput: 'INPUT_1' | 'INPUT_2'  // UsbInput enum — active USB input channel
   volumeLimiterOn: boolean       // volume limiter enabled (from VolumeLimiterData.limiter_on)
+}
+
+// ─── GG Sonar HTTP REST ───────────────────────────────────────────────────────
+
+export type SonarMode = 'classic' | 'streamer'
+
+export const SONAR_CHANNELS = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux'] as const
+export type SonarChannel = (typeof SONAR_CHANNELS)[number]
+
+/** All channels except master — these appear in `devices` maps */
+export type SonarDeviceChannel = 'game' | 'chatRender' | 'chatCapture' | 'media' | 'aux'
+
+export interface SonarChannelVolume {
+  volume: number   // 0.0–1.0
+  muted: boolean
+}
+
+export interface SonarStreamerMix {
+  streaming: SonarChannelVolume
+  monitoring: SonarChannelVolume
+}
+
+export interface SonarClassicVolumes {
+  masters: { classic: SonarChannelVolume; stream: object }
+  devices: Record<SonarDeviceChannel, { classic: SonarChannelVolume; stream: object }>
+}
+
+export interface SonarStreamerVolumes {
+  masters: { stream: SonarStreamerMix; classic: SonarChannelVolume }
+  devices: Record<SonarDeviceChannel, { stream: SonarStreamerMix; classic: SonarChannelVolume }>
+}
+
+export interface SonarAudioSession {
+  id: string
+  processName: string
+  processId: number
+  displayName: string
+  isSystemSound: boolean
+  state: string
+  isRoutingErrorProne: boolean
+  routingErrorDetected: boolean
+}
+
+export interface SonarDeviceRoute {
+  deviceId: string
+  role: string
+  dataFlow: string
+  audioSessions: SonarAudioSession[]
+}
+
+export interface SonarConfigData {
+  // Output channels (game, media, aux)
+  bassBoostState?: { enabled: boolean; value: number }
+  trebleBoostState?: { enabled: boolean; value: number }
+  voiceClarityState?: { enabled: boolean; value: number }
+  smartVolume?: { enabled: boolean; volumeLevel: number; loudness: string }
+  generalGain?: number
+  parametricEQ?: { enabled: boolean }
+  virtualSurroundState?: boolean
+  reverbGainDB?: number
+  formFactor?: string
+  globalEnableState?: boolean
+  // Voice channels (chatRender, chatCapture)
+  noiseReductionState?: { enabled: boolean }
+  volumeStabilizerState?: { enabled: boolean }
+  noiseGateState?: { enabled: boolean }
+  automaticNoiseGateState?: { enabled: boolean }
+  impactNoiseReductionState?: { enabled: boolean }
+  noiseCancelingState?: { enabled: boolean }
+  acousticEchoCancelingState?: { enabled: boolean }
+}
+
+export interface SonarConfig {
+  id: string
+  name: string
+  virtualAudioDevice: string
+  data: SonarConfigData
+  isPreset: boolean
+  isFavorite: boolean
+  favoritePosition: number
+  image: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SonarChatMix {
+  balance: number
+  state: string
+}
+
+export interface SonarState {
+  available: boolean
+  mode: SonarMode
+  classic: SonarClassicVolumes | null
+  streamer: SonarStreamerVolumes | null
+  configs: SonarConfig[]
+  routing: SonarDeviceRoute[]
+  chatMix: SonarChatMix | null
 }

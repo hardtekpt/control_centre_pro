@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../shared/types'
+import type {
+  NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
+  SonarState, SonarChannel, SonarMode,
+} from '../shared/types'
 
 /**
  * The typed API exposed to the renderer via contextBridge.
@@ -108,6 +111,29 @@ const api = {
 
   arctisCmd: (cmd: string, value: unknown): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.ARCTIS_CMD, cmd, value),
+
+  // ── GG Sonar ───────────────────────────────────────────────────────────────
+
+  sonarGetState: (): Promise<SonarState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_GET_STATE),
+
+  sonarSetVolume: (channel: SonarChannel, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_SET_VOLUME, channel, value),
+
+  sonarSetMute: (channel: SonarChannel, muted: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_SET_MUTE, channel, muted),
+
+  sonarSelectPreset: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_SELECT_PRESET, id),
+
+  sonarSetMode: (mode: SonarMode): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_SET_MODE, mode),
+
+  onSonarStateChange: (callback: (state: SonarState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: SonarState): void => callback(state)
+    ipcRenderer.on(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)

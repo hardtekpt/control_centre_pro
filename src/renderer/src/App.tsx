@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useAppStore } from './stores/appStore'
 import { useServiceStore } from './stores/serviceStore'
+import { useSonarStore } from './stores/sonarStore'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 import { FloatingSidebar } from './components/layout/FloatingSidebar'
@@ -15,6 +16,7 @@ export default function App(): JSX.Element {
   const { currentView, theme, setMaximized, setView, setSettingsTab, toggleSidebar } = useAppStore()
   const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState } =
     useServiceStore()
+  const { setSonarState } = useSonarStore()
 
   // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {
@@ -178,6 +180,13 @@ export default function App(): JSX.Element {
     ]
     return () => cleanups.forEach((fn) => fn())
   }, [setArctisConnected, setArctisDisconnected, updateArctisState])
+
+  // Load initial Sonar state and subscribe to polling push events
+  useEffect(() => {
+    window.api.sonarGetState().then(setSonarState)
+    const cleanup = window.api.onSonarStateChange(setSonarState)
+    return cleanup
+  }, [setSonarState])
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>

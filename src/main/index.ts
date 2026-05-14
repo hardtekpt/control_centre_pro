@@ -2,11 +2,13 @@ import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
+import { SonarService } from './services/sonarService'
 
 let mainWindow: BrowserWindow | null = null
 let serviceManager: ServiceManager
+let sonarService: SonarService
 
 // ─── App Menu ─────────────────────────────────────────────────────────────────
 
@@ -180,6 +182,24 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ARCTIS_CMD, (_, cmd: string, value: unknown) => {
     serviceManager.sendArctisCmd(cmd, value)
   })
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_GET_STATE, () => sonarService.getState())
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_SET_VOLUME, (_, channel: SonarChannel, value: number) =>
+    sonarService.setVolume(channel, value)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_SET_MUTE, (_, channel: SonarChannel, muted: boolean) =>
+    sonarService.setMute(channel, muted)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_SELECT_PRESET, (_, id: string) =>
+    sonarService.selectPreset(id)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_SET_MODE, (_, mode: SonarMode) =>
+    sonarService.setMode(mode)
+  )
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -192,10 +212,13 @@ app.whenReady().then(() => {
   })
 
   serviceManager = new ServiceManager()
+  sonarService = new SonarService()
   registerIpcHandlers()
   createWindow()
   serviceManager.setWindow(mainWindow!)
   serviceManager.startAll()
+  sonarService.setWindow(mainWindow!)
+  sonarService.start()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -204,5 +227,6 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   serviceManager?.stopAll()
+  sonarService?.stop()
   if (process.platform !== 'darwin') app.quit()
 })

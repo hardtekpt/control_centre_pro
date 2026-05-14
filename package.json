@@ -14,6 +14,12 @@
     "@electron-toolkit/utils": "^3.0.0",
     "electron-updater": "^6.1.7"
   },
+  "build": {
+    "files": ["dist", "resources"],
+    "win": {
+      "icon": "resources/mission-control-terracotta-1024.png"
+    }
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
