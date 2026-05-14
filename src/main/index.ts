@@ -274,7 +274,8 @@ function registerIpcHandlers(): void {
       const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
       if (!existsSync(rulesPath)) return []
       const content = readFileSync(rulesPath, 'utf-8')
-      return JSON.parse(content) as PresetSwitcherRule[]
+      const data = JSON.parse(content)
+      return (Array.isArray(data) ? data : data.rules || []) as PresetSwitcherRule[]
     } catch (err) {
       console.error('[getRules] error:', err)
       return [] as PresetSwitcherRule[]
@@ -284,10 +285,43 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_SET_RULES, (_, rules: PresetSwitcherRule[]) => {
     try {
       const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-      writeFileSync(rulesPath, JSON.stringify(rules, null, 2), 'utf-8')
+      let data: Record<string, unknown> = {}
+      if (existsSync(rulesPath)) {
+        const content = readFileSync(rulesPath, 'utf-8')
+        data = JSON.parse(content)
+      }
+      data.rules = rules
+      writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
       activeWindowMonitor?.setRules(rules)
     } catch (err) {
       console.error('[setRules] error:', err)
+      throw err
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_ENABLED, () => {
+    try {
+      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
+      if (!existsSync(rulesPath)) return true
+      const content = readFileSync(rulesPath, 'utf-8')
+      const data = JSON.parse(content)
+      return data.enabled !== false
+    } catch (err) {
+      console.error('[getEnabled] error:', err)
+      return true
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_SET_ENABLED, (_, enabled: boolean) => {
+    try {
+      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
+      const content = existsSync(rulesPath) ? readFileSync(rulesPath, 'utf-8') : '{}'
+      const data = JSON.parse(content)
+      data.enabled = enabled
+      writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
+      activeWindowMonitor?.setEnabled(enabled)
+    } catch (err) {
+      console.error('[setEnabled] error:', err)
       throw err
     }
   })
@@ -333,8 +367,10 @@ app.whenReady().then(() => {
     const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
     if (existsSync(rulesPath)) {
       const content = readFileSync(rulesPath, 'utf-8')
-      const rules = JSON.parse(content) as PresetSwitcherRule[]
+      const data = JSON.parse(content)
+      const rules = (Array.isArray(data) ? data : data.rules || []) as PresetSwitcherRule[]
       activeWindowMonitor.setRules(rules)
+      activeWindowMonitor.setEnabled(data.enabled !== false)
     }
   } catch (err) {
     console.error('[app init] failed to load preset switcher rules:', err)

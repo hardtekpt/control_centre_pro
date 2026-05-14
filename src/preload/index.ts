@@ -160,6 +160,12 @@ const api = {
   setPresetSwitcherRules: (rules: PresetSwitcherRule[]): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.PRESET_SWITCHER_SET_RULES, rules),
 
+  getPresetSwitcherEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESET_SWITCHER_GET_ENABLED),
+
+  setPresetSwitcherEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PRESET_SWITCHER_SET_ENABLED, enabled),
+
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
 

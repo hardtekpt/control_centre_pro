@@ -64,6 +64,8 @@ declare global {
     getOpenApps: () => Promise<OpenApp[]>
     getPresetSwitcherRules: () => Promise<PresetSwitcherRule[]>
     setPresetSwitcherRules: (rules: PresetSwitcherRule[]) => Promise<void>
+    getPresetSwitcherEnabled: () => Promise<boolean>
+    setPresetSwitcherEnabled: (enabled: boolean) => Promise<void>
 
     // Shell utilities
     openExternal: (url: string) => Promise<void>

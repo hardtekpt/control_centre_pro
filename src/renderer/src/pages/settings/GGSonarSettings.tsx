@@ -39,6 +39,7 @@ export function GGSonarSettings(): JSX.Element {
   const [pollingConfig, setPollingConfig] = useState<SonarPollingConfig | null>(null)
   const [fastInterval, setFastInterval] = useState('')
   const [slowInterval, setSlowInterval] = useState('')
+  const [presetSwitcherEnabled, setPresetSwitcherEnabled] = useState(true)
 
   useEffect(() => {
     // Load current polling config
@@ -48,6 +49,11 @@ export function GGSonarSettings(): JSX.Element {
         setFastInterval(config.fastIntervalMs.toString())
         setSlowInterval(config.slowIntervalMs.toString())
       })
+      .catch(console.error)
+
+    // Load preset switcher enabled state
+    window.api.getPresetSwitcherEnabled()
+      .then(setPresetSwitcherEnabled)
       .catch(console.error)
   }, [])
 
@@ -139,6 +145,36 @@ export function GGSonarSettings(): JSX.Element {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
+          Preset Switcher
+        </h2>
+        <button
+          type="button"
+          onClick={() => {
+            const newState = !presetSwitcherEnabled
+            setPresetSwitcherEnabled(newState)
+            window.api.setPresetSwitcherEnabled(newState).catch(console.error)
+          }}
+          className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left w-fit"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--color-surface-raised)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--color-surface)'
+          }}
+        >
+          <Checkbox checked={presetSwitcherEnabled} onChange={() => {}} />
+          <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+            Enable Automatic Preset Switching
+          </span>
+        </button>
       </div>
 
       <div>

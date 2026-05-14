@@ -14,6 +14,7 @@ export class ActiveWindowMonitor {
   private rules: PresetSwitcherRule[] = []
   private autoApplied = new Map<string, string>()
   private manualOverrides = new Set<string>()
+  private enabled = true
 
   constructor(
     private window: BrowserWindow,
@@ -78,6 +79,10 @@ while ($true) {
     this.rules = rules
   }
 
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled
+  }
+
   /**
    * Called when renderer calls sonarSelectPreset() to detect if the user
    * manually changed a preset that we auto-applied
@@ -104,6 +109,8 @@ while ($true) {
     this.window.webContents.send(IPC_CHANNELS.ACTIVE_WINDOW_CHANGE, {
       processName,
     })
+
+    if (!this.enabled) return
 
     for (const rule of this.rules) {
       if (!rule.enabled) continue
