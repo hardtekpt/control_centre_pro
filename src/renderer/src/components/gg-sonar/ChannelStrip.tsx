@@ -15,10 +15,14 @@ function VerticalFader({
 }): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+  const [dragValue, setDragValue] = useState<number | null>(null)
+
+  // While dragging, show dragValue; otherwise show prop value
+  const displayValue = dragValue !== null ? dragValue : value
 
   function valueFromClientY(clientY: number): number {
     const el = containerRef.current
-    if (!el) return value
+    if (!el) return displayValue
     const rect = el.getBoundingClientRect()
     return Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height))
   }
@@ -27,13 +31,20 @@ function VerticalFader({
     if (disabled) return
     e.preventDefault()
     dragging.current = true
-    onChange(valueFromClientY(e.clientY))
+    const newValue = valueFromClientY(e.clientY)
+    setDragValue(newValue)
+    onChange(newValue)
 
     function onMove(e: MouseEvent): void {
-      if (dragging.current) onChange(valueFromClientY(e.clientY))
+      if (dragging.current) {
+        const newValue = valueFromClientY(e.clientY)
+        setDragValue(newValue)
+        onChange(newValue)
+      }
     }
     function onUp(): void {
       dragging.current = false
+      setDragValue(null)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -42,7 +53,7 @@ function VerticalFader({
   }
 
   // Track occupies container minus 8px top/bottom padding. Thumb is 20×10.
-  const thumbOffset = `calc(8px + ${value} * (100% - 16px) - 5px)`
+  const thumbOffset = `calc(8px + ${displayValue} * (100% - 16px) - 5px)`
 
   return (
     <div
@@ -70,7 +81,7 @@ function VerticalFader({
           left: 'calc(50% - 3px)',
           bottom: 8,
           width: 6,
-          height: `calc(${value} * (100% - 16px))`,
+          height: `calc(${displayValue} * (100% - 16px))`,
           background: disabled ? 'var(--color-text-secondary)' : 'var(--color-accent)',
         }}
       />
