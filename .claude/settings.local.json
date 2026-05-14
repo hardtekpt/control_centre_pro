@@ -21,7 +21,9 @@
       "Bash(Select-Object Name)",
       "WebFetch(domain:github.com)",
       "PowerShell(python -c \"import site; print\\(site.getsitepackages\\(\\)\\)\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

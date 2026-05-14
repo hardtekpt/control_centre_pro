@@ -89,7 +89,7 @@ function navigate(target: NavigateTarget): void {
 }
 
 /** Try to open the SteelSeries GG application */
-function openSteelSeriesGG(): void {
+async function openSteelSeriesGG(): Promise<void> {
   const commonPaths = [
     join(process.env['ProgramFiles'] || '', 'SteelSeries', 'GG', 'SteelSeriesGG.exe'),
     join(process.env['ProgramFiles(x86)'] || '', 'SteelSeries', 'GG', 'SteelSeriesGG.exe'),
@@ -97,13 +97,21 @@ function openSteelSeriesGG(): void {
 
   for (const path of commonPaths) {
     if (existsSync(path)) {
-      spawn(path, { detached: true })
-      return
+      try {
+        spawn(path, [], { detached: true, stdio: 'ignore' })
+        return
+      } catch (err) {
+        console.error('Failed to spawn SteelSeries GG from', path, err)
+      }
     }
   }
 
   // Fallback: try URI scheme
-  shell.openExternal('steelseries-gg://')
+  try {
+    await shell.openExternal('steelseries-gg://')
+  } catch (err) {
+    console.error('Failed to open SteelSeries GG via URI scheme:', err)
+  }
 }
 
 // ─── Window ───────────────────────────────────────────────────────────────────
@@ -233,9 +241,9 @@ function registerIpcHandlers(): void {
     shell.openExternal(url)
   )
 
-  ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_STEELSERIES_GG, () => {
+  ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_STEELSERIES_GG, () =>
     openSteelSeriesGG()
-  })
+  )
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
