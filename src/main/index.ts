@@ -95,10 +95,16 @@ async function openSteelSeriesGG(): Promise<void> {
     join(process.env['ProgramFiles(x86)'] || '', 'SteelSeries', 'GG', 'SteelSeriesGG.exe'),
   ]
 
+  console.log('openSteelSeriesGG called, checking paths:', commonPaths)
+
   for (const path of commonPaths) {
+    console.log('Checking path:', path, 'exists:', existsSync(path))
     if (existsSync(path)) {
       try {
-        spawn(path, [], { detached: true, stdio: 'ignore' })
+        console.log('Spawning SteelSeriesGG from:', path)
+        const child = spawn(path, [], { detached: true, stdio: 'ignore' })
+        console.log('Process spawned, PID:', child.pid)
+        child.unref()
         return
       } catch (err) {
         console.error('Failed to spawn SteelSeries GG from', path, err)
@@ -107,8 +113,10 @@ async function openSteelSeriesGG(): Promise<void> {
   }
 
   // Fallback: try URI scheme
+  console.log('No executable found, trying URI scheme fallback')
   try {
     await shell.openExternal('steelseries-gg://')
+    console.log('URI scheme opened successfully')
   } catch (err) {
     console.error('Failed to open SteelSeries GG via URI scheme:', err)
   }
