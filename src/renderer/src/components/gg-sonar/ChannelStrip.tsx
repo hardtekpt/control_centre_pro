@@ -446,7 +446,7 @@ function ChannelStripComponent({
       </div>
 
       {/* Preset selector (chip + floating menu) — hidden for channels with no favorites */}
-      <div className="px-3 pt-2 flex-shrink-0">
+      <div className="px-3 pt-1 flex-shrink-0">
         <PresetSelector
           presets={presets}
           activePresetId={activePresetId}
