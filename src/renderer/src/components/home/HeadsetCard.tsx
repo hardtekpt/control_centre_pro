@@ -304,9 +304,9 @@ function BluetoothIcon(): JSX.Element {
 
 function SonarIcon(): JSX.Element {
   return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 0-2-2" />
-    </svg>
+    <span className="mono" style={{ fontSize: 8, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.5px' }}>
+      GG
+    </span>
   )
 }
 
@@ -387,8 +387,8 @@ function SonarIndicator({ connected }: { connected: boolean }): JSX.Element {
 // ─── USB input selector ───────────────────────────────────────────────────────
 
 const USB_INPUT_OPTIONS: { value: ArctisState['usbInput']; label: string }[] = [
-  { value: 'INPUT_1', label: 'Input 1' },
-  { value: 'INPUT_2', label: 'Input 2' },
+  { value: 'INPUT_1', label: 'USB-1' },
+  { value: 'INPUT_2', label: 'USB-2' },
 ]
 
 function UsbInputTag({
@@ -430,7 +430,7 @@ function UsbInputTag({
     }
   }, [open])
 
-  const label = value === 'INPUT_1' ? 'Input 1' : 'Input 2'
+  const label = value === 'INPUT_1' ? 'USB-1' : 'USB-2'
 
   return (
     <>
