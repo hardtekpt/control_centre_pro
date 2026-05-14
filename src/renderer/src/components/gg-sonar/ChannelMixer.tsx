@@ -14,9 +14,9 @@ import type {
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
   { channel: 'game', label: 'Game' },
+  { channel: 'media', label: 'Media' },
   { channel: 'chatRender', label: 'Chat' },
   { channel: 'chatCapture', label: 'Mic' },
-  { channel: 'media', label: 'Media' },
   { channel: 'aux', label: 'Aux' },
 ]
 

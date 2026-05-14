@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
-import type { SonarChannel, SonarPollingConfig } from '@shared/types'
+import type { SonarChannel, SonarMode, SonarPollingConfig } from '@shared/types'
 
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
   { channel: 'game', label: 'Game' },
+  { channel: 'media', label: 'Media' },
   { channel: 'chatRender', label: 'Chat' },
   { channel: 'chatCapture', label: 'Mic' },
-  { channel: 'media', label: 'Media' },
   { channel: 'aux', label: 'Aux' },
 ]
 
@@ -35,7 +35,7 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 }
 
 export function GGSonarSettings(): JSX.Element {
-  const { visibleChannels, setChannelVisibility } = useSonarStore()
+  const { sonarState, visibleChannels, setChannelVisibility } = useSonarStore()
   const [pollingConfig, setPollingConfig] = useState<SonarPollingConfig | null>(null)
   const [fastInterval, setFastInterval] = useState('')
   const [slowInterval, setSlowInterval] = useState('')
@@ -53,6 +53,10 @@ export function GGSonarSettings(): JSX.Element {
 
   function handleToggle(channel: SonarChannel): void {
     setChannelVisibility(channel, !visibleChannels.has(channel))
+  }
+
+  function handleModeChange(mode: SonarMode): void {
+    window.api.sonarSetMode(mode).catch(console.error)
   }
 
   async function handleSavePollingConfig(): Promise<void> {
@@ -79,6 +83,32 @@ export function GGSonarSettings(): JSX.Element {
       <h1 className="text-xl font-semibold mb-7 tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
         GG Sonar
       </h1>
+
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
+          Mixer Mode
+        </h2>
+        {sonarState && (
+          <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--color-border)', width: 'fit-content' }}>
+            {(['classic', 'streamer'] as SonarMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => handleModeChange(m)}
+                className="text-xs px-4 py-2 capitalize transition-colors font-medium"
+                style={{
+                  background: sonarState.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                  color: sonarState.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                  border: 'none',
+                  outline: 'none',
+                }}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>

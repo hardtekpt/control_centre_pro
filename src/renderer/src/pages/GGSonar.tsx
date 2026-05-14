@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
-import type { SonarMode } from '@shared/types'
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
@@ -146,10 +145,6 @@ export function GGSonar(): JSX.Element {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
   }
 
-  function handleModeChange(mode: SonarMode): void {
-    window.api.sonarSetMode(mode).catch(console.error)
-  }
-
   const available = sonarState?.available ?? false
 
   return (
@@ -170,30 +165,6 @@ export function GGSonar(): JSX.Element {
         }
         action={
           <div className="flex items-center gap-2">
-            {/* Mode toggle */}
-            {available && (
-              <div
-                className="flex rounded overflow-hidden"
-                style={{ border: '1px solid var(--color-border)' }}
-              >
-                {(['classic', 'streamer'] as SonarMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => handleModeChange(m)}
-                    className="text-xs px-2 py-0.5 capitalize transition-colors"
-                    style={{
-                      background: sonarState?.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                      color: sonarState?.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                      cursor: 'pointer',
-                      border: 'none',
-                      outline: 'none',
-                    }}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            )}
             {!available && (
               <button
                 onClick={handleRetry}
