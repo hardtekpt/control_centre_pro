@@ -134,6 +134,9 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
   },
+
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
 }
 
 contextBridge.exposeInMainWorld('api', api)

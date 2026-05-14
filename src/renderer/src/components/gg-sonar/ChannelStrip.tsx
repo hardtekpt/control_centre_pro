@@ -1,4 +1,5 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
+import ReactDOM from 'react-dom'
 import type { SonarChannel, SonarConfig, SonarAudioSession, SonarStreamerMix, SonarMode } from '@shared/types'
 
 // ─── Vertical fader ───────────────────────────────────────────────────────────
@@ -191,6 +192,156 @@ function RoutedApps({ sessions }: { sessions: SonarAudioSession[] }): JSX.Elemen
   )
 }
 
+// ─── Chevron icon ─────────────────────────────────────────────────────────────
+
+function ChevronIcon({ open }: { open: boolean }): JSX.Element {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 150ms ease',
+        flexShrink: 0,
+      }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+// ─── Preset selector (chip + floating menu) ───────────────────────────────────
+
+function PresetSelector({
+  presets,
+  activePresetId,
+  onSelect,
+  onEdit,
+}: {
+  presets: SonarConfig[]
+  activePresetId?: string
+  onSelect: (id: string) => void
+  onEdit: (config: SonarConfig) => void
+}): JSX.Element | null {
+  const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+
+  const favoritePresets = presets.filter((p) => p.isFavorite)
+  const activePreset = presets.find((p) => p.id === activePresetId)
+
+  function toggle(): void {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left })
+    }
+    setOpen((o) => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onMouseDown(e: MouseEvent): void {
+      const t = e.target as Node
+      if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  if (favoritePresets.length === 0) return null
+
+  return (
+    <div
+      className="flex items-center gap-1 px-3 pb-2 flex-shrink-0"
+      style={{ borderBottom: '1px solid var(--color-border)' }}
+    >
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs flex-1 min-w-0"
+        style={{
+          background: 'var(--color-surface-raised)',
+          border: '1px solid var(--color-border)',
+          color: activePreset ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+          cursor: 'pointer',
+        }}
+      >
+        <span className="truncate flex-1 text-left">{activePreset?.name ?? '—'}</span>
+        <ChevronIcon open={open} />
+      </button>
+      {activePreset && (
+        <button
+          onClick={() => onEdit(activePreset)}
+          className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+          title="View preset details"
+          style={{
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-text-secondary)',
+            border: '1px solid var(--color-border)',
+            cursor: 'pointer',
+            lineHeight: 1,
+          }}
+        >
+          ✎
+        </button>
+      )}
+      {open && pos && ReactDOM.createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            zIndex: 9999,
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            overflow: 'hidden',
+            minWidth: 160,
+            maxHeight: 200,
+            overflowY: 'auto',
+          }}
+        >
+          {favoritePresets.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => { onSelect(p.id); setOpen(false) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs"
+              style={{
+                background: p.id === activePresetId ? 'var(--color-surface-raised)' : 'transparent',
+                color: p.id === activePresetId ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                border: 'none',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ width: 12, color: 'var(--color-accent)', flexShrink: 0 }}>
+                {p.id === activePresetId ? '✓' : ''}
+              </span>
+              {p.name}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
 // ─── Channel strip ────────────────────────────────────────────────────────────
 
 export interface ChannelStripProps {
@@ -225,8 +376,6 @@ export function ChannelStrip({
   onPresetEdit,
 }: ChannelStripProps): JSX.Element {
   const isMicChannel = channel === 'chatCapture'
-  const favoritePresets = presets.filter((p) => p.isFavorite)
-  const activeConfig = presets.find((p) => p.id === activePresetId)
 
   return (
     <div
@@ -249,6 +398,16 @@ export function ChannelStrip({
         >
           {label}
         </span>
+      </div>
+
+      {/* Preset selector (chip + floating menu) — hidden for channels with no favorites */}
+      <div className="px-3 pt-2 flex-shrink-0">
+        <PresetSelector
+          presets={presets}
+          activePresetId={activePresetId}
+          onSelect={(id) => onPresetSelect(channel, id)}
+          onEdit={onPresetEdit}
+        />
       </div>
 
       {/* Fader zone */}
@@ -291,74 +450,18 @@ export function ChannelStrip({
         </button>
       </div>
 
-      {/* Divider */}
-      <div className="mx-3 flex-shrink-0" style={{ height: 1, background: 'var(--color-border)' }} />
-
-      {/* Preset selector */}
-      <div className="px-3 py-2 flex-shrink-0">
-        {favoritePresets.length > 0 ? (
-          <div className="flex items-center gap-1">
-            <div className="relative flex-1 min-w-0">
-              <select
-                value={activePresetId ?? ''}
-                onChange={(e) => {
-                  if (e.target.value) onPresetSelect(channel, e.target.value)
-                }}
-                className="w-full text-xs rounded px-2 py-1 appearance-none truncate"
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  color: 'var(--color-text-primary)',
-                  border: '1px solid var(--color-border)',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  paddingRight: 20,
-                }}
-              >
-                <option value="">— favorite —</option>
-                {favoritePresets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              {/* Dropdown chevron */}
-              <span
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                ▾
-              </span>
-            </div>
-            {activeConfig && (
-              <button
-                onClick={() => onPresetEdit(activeConfig)}
-                className="text-xs px-1.5 py-1 rounded flex-shrink-0"
-                title="Edit preset"
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  color: 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border)',
-                  cursor: 'pointer',
-                  lineHeight: 1,
-                }}
-              >
-                ✎
-              </button>
-            )}
+      {/* Routed apps — skipped for master which never has session routing */}
+      {channel !== 'master' && (
+        <>
+          <div className="mx-3 flex-shrink-0" style={{ height: 1, background: 'var(--color-border)' }} />
+          <div
+            className="px-3 py-2 overflow-y-auto flex-shrink-0"
+            style={{ maxHeight: 96 }}
+          >
+            <RoutedApps sessions={routedSessions} />
           </div>
-        ) : null}
-      </div>
-
-      {/* Divider */}
-      <div className="mx-3 flex-shrink-0" style={{ height: 1, background: 'var(--color-border)' }} />
-
-      {/* Routed apps */}
-      <div
-        className="px-3 py-2 overflow-y-auto flex-shrink-0"
-        style={{ maxHeight: 96 }}
-      >
-        <RoutedApps sessions={routedSessions} />
-      </div>
+        </>
+      )}
     </div>
   )
 }

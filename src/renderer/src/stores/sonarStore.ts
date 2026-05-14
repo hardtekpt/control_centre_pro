@@ -16,7 +16,16 @@ export const useSonarStore = create<SonarStoreState>((set) => ({
   sonarState: null,
   activePresetIds: {},
 
-  setSonarState: (state) => set({ sonarState: state }),
+  setSonarState: (state) =>
+    set((s) => {
+      // Seed activePresetIds from whichever configs the API marks as selected,
+      // so the dropdown shows the real active preset on startup and after polls.
+      const merged = { ...s.activePresetIds }
+      for (const config of state.configs) {
+        if (config.isSelected) merged[config.virtualAudioDevice] = config.id
+      }
+      return { sonarState: state, activePresetIds: merged }
+    }),
 
   patchClassicVolume: (channel, patch) =>
     set((s) => {

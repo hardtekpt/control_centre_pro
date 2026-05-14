@@ -55,6 +55,9 @@ declare global {
     sonarSelectPreset: (id: string) => Promise<void>
     sonarSetMode: (mode: SonarMode) => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
+
+    // Shell utilities
+    openExternal: (url: string) => Promise<void>
     }
   }
 }

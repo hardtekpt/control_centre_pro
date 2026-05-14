@@ -47,7 +47,10 @@ export const IPC_CHANNELS = {
   SONAR_SET_VOLUME: 'sonar:setVolume',      // renderer → main invoke
   SONAR_SET_MUTE: 'sonar:setMute',          // renderer → main invoke
   SONAR_SELECT_PRESET: 'sonar:selectPreset', // renderer → main invoke
-  SONAR_SET_MODE: 'sonar:setMode',          // renderer → main invoke (investigate)
+  SONAR_SET_MODE: 'sonar:setMode',          // renderer → main invoke
+
+  // Shell utilities
+  SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -270,6 +273,8 @@ export interface SonarConfig {
   isPreset: boolean
   isFavorite: boolean
   favoritePosition: number
+  /** Set by the API when this config is the currently active one for its channel */
+  isSelected?: boolean
   image: string
   createdAt: string
   updatedAt: string

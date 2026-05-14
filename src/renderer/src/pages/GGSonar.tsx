@@ -6,21 +6,45 @@ import type { SonarConfig, SonarMode } from '@shared/types'
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
+function ExternalLinkIcon(): JSX.Element {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  )
+}
+
 function HomeSection({
   title,
+  action,
   children,
 }: {
   title: string
+  action?: React.ReactNode
   children: React.ReactNode
 }): JSX.Element {
   return (
     <section className="flex flex-col gap-2">
-      <h2
-        className="text-xs font-semibold uppercase tracking-wider px-1"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
-        {title}
-      </h2>
+      <div className="flex items-center justify-between px-1">
+        <h2
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          {title}
+        </h2>
+        {action}
+      </div>
       {children}
     </section>
   )
@@ -115,60 +139,75 @@ export function GGSonar(): JSX.Element {
       className="flex flex-col gap-6 p-6 overflow-y-auto h-full"
       style={{ background: 'var(--color-bg)' }}
     >
-      <HomeSection title="Mixer">
-        {/* Status + mode controls row */}
-        <div className="flex items-center justify-between px-1">
+      <HomeSection
+        title="Mixer"
+        action={
           <div className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              title={available ? 'Sonar connected' : 'Sonar not detected'}
-              style={{ background: available ? '#5a9a5a' : 'var(--color-text-secondary)' }}
-            />
-            <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              {available ? 'Connected' : 'Not detected'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {available && (
+            {/* Status dot + mode toggle */}
+            <div className="flex items-center gap-1.5">
               <div
-                className="flex rounded overflow-hidden"
-                style={{ border: '1px solid var(--color-border)' }}
-              >
-                {(['classic', 'streamer'] as SonarMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => handleModeChange(m)}
-                    className="text-xs px-3 py-1 capitalize transition-colors"
-                    style={{
-                      background: sonarState?.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                      color: sonarState?.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                      cursor: 'pointer',
-                      border: 'none',
-                      outline: 'none',
-                    }}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            )}
-            {!available && (
-              <button
-                onClick={handleRetry}
-                className="text-xs px-2 py-1 rounded"
-                style={{
-                  background: 'var(--color-surface-raised)',
-                  color: 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border)',
-                  cursor: 'pointer',
-                }}
-              >
-                ↺ Retry
-              </button>
-            )}
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                title={available ? 'Sonar connected' : 'Sonar not detected'}
+                style={{ background: available ? '#5a9a5a' : 'var(--color-text-secondary)' }}
+              />
+              {available && (
+                <div
+                  className="flex rounded overflow-hidden"
+                  style={{ border: '1px solid var(--color-border)' }}
+                >
+                  {(['classic', 'streamer'] as SonarMode[]).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => handleModeChange(m)}
+                      className="text-xs px-2 py-0.5 capitalize transition-colors"
+                      style={{
+                        background: sonarState?.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                        color: sonarState?.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                        cursor: 'pointer',
+                        border: 'none',
+                        outline: 'none',
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!available && (
+                <button
+                  onClick={handleRetry}
+                  className="text-xs px-2 py-0.5 rounded"
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    color: 'var(--color-text-secondary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ↺ Retry
+                </button>
+              )}
+            </div>
+            {/* GG Sonar shortcut */}
+            <button
+              onClick={() => window.api.openExternal('https://steelseries.com/gg/sonar').catch(console.error)}
+              title="Open GG Sonar"
+              className="rounded flex items-center justify-center"
+              style={{
+                width: 22,
+                height: 22,
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <ExternalLinkIcon />
+            </button>
           </div>
-        </div>
-
+        }
+      >
         {available && sonarState ? (
           <ChannelMixer sonarState={sonarState} onPresetEdit={setEditorConfig} />
         ) : (

@@ -27,6 +27,8 @@ export class SonarService {
   private slowTimer: ReturnType<typeof setInterval> | null = null
   private discovering = false
   private lastAvailable = false
+  private pendingMode: SonarMode | null = null
+  private pendingModeExpiry = 0
 
   // Callbacks wired by main/index.ts so SonarService can emit into the service infrastructure
   private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
@@ -115,6 +117,10 @@ export class SonarService {
     if (!this.baseUrl) return
     try {
       await this.httpPutJson(`${this.baseUrl}/mode`, JSON.stringify(mode))
+      // Hold the mode for 4 s so the 1-second fast poll doesn't immediately
+      // revert it if the API echoes back the old value before the change settles.
+      this.pendingMode = mode
+      this.pendingModeExpiry = Date.now() + 4000
       this.state = { ...this.state, mode }
       this.push()
     } catch {
@@ -142,10 +148,15 @@ export class SonarService {
         this.httpGet(`${this.baseUrl}/volumeSettings/streamer`),
         this.httpGet(`${this.baseUrl}/chatMix`),
       ])
+      const polledMode = JSON.parse(modeRaw) as SonarMode
+      const now = Date.now()
+      const effectiveMode = (this.pendingMode !== null && now < this.pendingModeExpiry)
+        ? this.pendingMode
+        : (this.pendingMode = null, polledMode)
       this.state = {
         ...this.state,
         available: true,
-        mode: JSON.parse(modeRaw) as SonarMode,
+        mode: effectiveMode,
         classic: JSON.parse(classicRaw) as SonarClassicVolumes,
         streamer: JSON.parse(streamerRaw),
         chatMix: JSON.parse(chatMixRaw),

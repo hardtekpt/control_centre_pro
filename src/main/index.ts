@@ -200,6 +200,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SONAR_SET_MODE, (_, mode: SonarMode) =>
     sonarService.setMode(mode)
   )
+
+  ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, (_, url: string) =>
+    shell.openExternal(url)
+  )
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
