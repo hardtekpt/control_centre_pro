@@ -194,9 +194,10 @@ export class SonarService {
   private async pollSlow(): Promise<void> {
     if (!this.baseUrl) return
     try {
-      const [configsRaw, selectedRaw] = await Promise.all([
+      const [configsRaw, selectedRaw, routingRaw] = await Promise.all([
         this.httpGet(`${this.baseUrl}/configs`),
         this.httpGet(`${this.baseUrl}/configs/selected`),
+        this.httpGet(`${this.baseUrl}/AudioDeviceRouting`).catch(() => '[]'),
       ])
       const allConfigs = JSON.parse(configsRaw) as SonarConfig[]
       const selectedConfigs = JSON.parse(selectedRaw) as SonarConfig[]
@@ -211,6 +212,7 @@ export class SonarService {
       this.state = {
         ...this.state,
         configs: markedConfigs,
+        routing: JSON.parse(routingRaw),
       }
       this.push()
     } catch {
