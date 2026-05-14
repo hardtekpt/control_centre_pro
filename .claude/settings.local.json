@@ -23,7 +23,10 @@
       "PowerShell(python -c \"import site; print\\(site.getsitepackages\\(\\)\\)\")",
       "Bash(npm run *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "PowerShell(Get-Process | Where-Object {$_.ProcessName -match \"steel|gg\" -or $_.Name -match \"steel|gg\"} | Select-Object Name, ProcessName, Path, Id)",
+      "PowerShell(Get-Process | Where-Object {$_.ProcessName -eq \"SteelSeriesGG\" -or $_.ProcessName -eq \"SteelSeriesGGClient\"} | Select-Object Name, Id)",
+      "PowerShell(Get-Process)"
     ]
   }
 }

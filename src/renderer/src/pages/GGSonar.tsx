@@ -181,7 +181,12 @@ export function GGSonar(): JSX.Element {
             )}
             {/* Open SteelSeries GG app */}
             <button
-              onClick={() => window.api.openSteelSeriesGG().catch(console.error)}
+              onClick={() => {
+                console.log('Opening SteelSeries GG...')
+                window.api.openSteelSeriesGG().catch((err) => {
+                  console.error('Failed to open SteelSeries GG:', err)
+                })
+              }}
               title="Open SteelSeries GG"
               className="rounded flex items-center justify-center"
               style={{
