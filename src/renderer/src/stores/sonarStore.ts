@@ -6,6 +6,10 @@ import type { SonarState, SonarChannel, SonarDeviceChannel, SonarChannelVolume }
 let _activeDrags = 0
 let _postDragHoldTimer: ReturnType<typeof setTimeout> | null = null
 
+// Track preset selections made by the user so they persist across API refreshes
+// until the API confirms the change
+let _pendingPresetSelections: Record<string, number> = {}
+
 interface SonarStoreState {
   sonarState: SonarState | null
   /** Tracks which preset is active per virtualAudioDevice (local-only, not from API) */
@@ -37,8 +41,22 @@ export const useSonarStore = create<SonarStoreState>()(
           // Suppress poll updates while a slider is being dragged or briefly after
           if (_activeDrags > 0 || _postDragHoldTimer !== null) return s
           const merged = { ...s.activePresetIds }
+          const now = Date.now()
+
+          // Clear expired pending selections and sync API state
+          for (const channel in _pendingPresetSelections) {
+            if (now >= _pendingPresetSelections[channel]) {
+              delete _pendingPresetSelections[channel]
+            }
+          }
+
+          // Update activePresetIds from API, but preserve pending user selections
           for (const config of state.configs) {
-            if (config.isSelected) merged[config.virtualAudioDevice] = config.id
+            const channel = config.virtualAudioDevice
+            // Only update from API if this channel doesn't have a pending selection
+            if (!(channel in _pendingPresetSelections) && config.isSelected) {
+              merged[channel] = config.id
+            }
           }
           return { sonarState: state, activePresetIds: merged }
         }),
@@ -73,8 +91,12 @@ export const useSonarStore = create<SonarStoreState>()(
           }
         }),
 
-      setActivePreset: (virtualAudioDevice, presetId) =>
-        set((s) => ({ activePresetIds: { ...s.activePresetIds, [virtualAudioDevice]: presetId } })),
+      setActivePreset: (virtualAudioDevice, presetId) => {
+        // Mark this preset selection as pending for 5 seconds
+        // This keeps the user's selection on screen until the API confirms it
+        _pendingPresetSelections[virtualAudioDevice] = Date.now() + 5000
+        set((s) => ({ activePresetIds: { ...s.activePresetIds, [virtualAudioDevice]: presetId } }))
+      },
 
       setChannelVisibility: (channel, visible) =>
         set((s) => {
