@@ -169,4 +169,8 @@ export interface ArctisState {
   // ── EQ ───────────────────────────────────────────────────────────────────────
   eqPresetIndex: number          // 0x04 = custom; 0x00–0x03 and 0x05–0x18 = named presets
   eqBands: number[]              // 10 band levels, 0–40 (20 = flat / 0 dB)
+
+  // ── GG Sonar / USB Input ─────────────────────────────────────────────────────
+  sonarConnected: boolean        // GG Sonar software is active (from DisplayData.sonar_status)
+  usbInput: 'INPUT_1' | 'INPUT_2'  // UsbInput enum — active USB input channel
 }

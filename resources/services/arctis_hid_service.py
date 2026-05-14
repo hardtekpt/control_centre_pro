@@ -131,6 +131,9 @@ def _read_full_state(headset) -> dict:
         # ── EQ (from mic_eq — same packet as volume/gain/sidetone) ───────────
         "eqPresetIndex": getattr(mic_eq, "eq_preset_index", 0),
         "eqBands":       list(getattr(mic_eq, "eq_bands", [20] * 10)),
+        # ── GG Sonar / USB Input ──────────────────────────────────────────────
+        "sonarConnected": bool(getattr(display, "sonar_status", False)) if display else False,
+        "usbInput":       enum_name(status, "usb_input", default="INPUT_1"),
     }
 
     # Log any fields that fell back to defaults so we can spot wrong attr names
@@ -172,7 +175,7 @@ def _handle_cmd(cmd: str, value) -> None:
     try:
         from arctis_hid import (
             AncMode, GainLevel, SidetoneLevel, AudioOutput,
-            WirelessMode, BtAutoMute, TimeoutStep, HomeScreenMode,
+            WirelessMode, BtAutoMute, TimeoutStep, HomeScreenMode, UsbInput,
         )
 
         if cmd == "setVolume":
@@ -231,6 +234,9 @@ def _handle_cmd(cmd: str, value) -> None:
 
         elif cmd == "setEqBands":
             h.set_eq_bands([int(v) for v in value])
+
+        elif cmd == "setUsbInput":
+            h.set_usb_input(UsbInput[str(value)])
 
         else:
             log("warn", f"Unknown command: {cmd}")
@@ -462,6 +468,17 @@ def main() -> None:
                       "data": {"eqBands": list(buf)}})
 
             headset.on("EqBandEvent", on_eq_band_event)
+
+            # ── USB Input ─────────────────────────────────────────────────────
+            try:
+                from arctis_hid import UsbInputEvent as _UsbInputEvent  # noqa: F401
+                headset.on("UsbInputEvent", lambda e: (
+                    emit({"type": "event", "event": "UsbInputEvent",
+                          "data": {"usbInput": e.input.name}}),
+                    log("info", f"USB input: {e.input.name}"),
+                ))
+            except (ImportError, AttributeError):
+                pass  # event not present in this firmware/library version
 
             headset.listen()  # blocks until DeviceIOError or stop()
 

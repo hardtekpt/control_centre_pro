@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ArctisState, TimeoutStep } from '@shared/types'
 
@@ -301,6 +302,24 @@ function BluetoothIcon(): JSX.Element {
   )
 }
 
+function SonarIcon(): JSX.Element {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 0-2-2" />
+    </svg>
+  )
+}
+
+function UsbIcon(): JSX.Element {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="9" width="6" height="6" rx="1" />
+      <rect x="16" y="9" width="6" height="6" rx="1" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  )
+}
+
 const GREEN = '#22c55e'
 const RED   = '#ef4444'
 const BLUE  = '#3b82f6'
@@ -344,6 +363,130 @@ function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dot
     >
       {icon}
     </div>
+  )
+}
+
+// ─── GG Sonar indicator ───────────────────────────────────────────────────────
+
+function SonarIndicator({ connected }: { connected: boolean }): JSX.Element {
+  return (
+    <div
+      title={connected ? 'GG Sonar connected' : 'GG Sonar not detected'}
+      className="w-5 h-5 rounded flex items-center justify-center"
+      style={{
+        background: connected ? 'rgba(34,197,94,0.14)' : 'rgba(140,140,140,0.10)',
+        border: `1px solid ${connected ? GREEN : 'var(--color-border)'}`,
+        color: connected ? GREEN : 'var(--color-text-secondary)',
+      }}
+    >
+      <SonarIcon />
+    </div>
+  )
+}
+
+// ─── USB input selector ───────────────────────────────────────────────────────
+
+const USB_INPUT_OPTIONS: { value: ArctisState['usbInput']; label: string }[] = [
+  { value: 'INPUT_1', label: 'Input 1' },
+  { value: 'INPUT_2', label: 'Input 2' },
+]
+
+function UsbInputTag({
+  value,
+  onChange,
+}: {
+  value: ArctisState['usbInput']
+  onChange: (v: ArctisState['usbInput']) => void
+}): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left })
+    }
+    setOpen((o) => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onMouseDown(e: MouseEvent) {
+      const t = e.target as Node
+      if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) {
+        setOpen(false)
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  const label = value === 'INPUT_1' ? 'Input 1' : 'Input 2'
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
+        style={{
+          background: 'var(--color-surface-raised)',
+          border: '1px solid var(--color-border)',
+          color: 'var(--color-text-secondary)',
+          cursor: 'pointer',
+        }}
+      >
+        <UsbIcon />
+        <span style={{ color: 'var(--color-text-primary)' }}>{label}</span>
+        <ChevronIcon open={open} />
+      </button>
+      {open && pos && ReactDOM.createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            zIndex: 9999,
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            overflow: 'hidden',
+            minWidth: 100,
+          }}
+        >
+          {USB_INPUT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs"
+              style={{
+                background: opt.value === value ? 'var(--color-surface-raised)' : 'transparent',
+                color: opt.value === value ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                border: 'none',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ width: 12, color: 'var(--color-accent)', flexShrink: 0 }}>
+                {opt.value === value ? '✓' : ''}
+              </span>
+              {opt.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -590,6 +733,11 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
           <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             Arctis Nova Pro Wireless
           </span>
+          <SonarIndicator connected={state.sonarConnected} />
+          <UsbInputTag
+            value={state.usbInput}
+            onChange={(v) => cmd('setUsbInput', v, { usbInput: v })}
+          />
         </div>
         <div className="flex items-center gap-2">
           <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
