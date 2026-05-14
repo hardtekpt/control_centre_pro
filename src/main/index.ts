@@ -201,6 +201,14 @@ function registerIpcHandlers(): void {
     sonarService.setMode(mode)
   )
 
+  ipcMain.handle(IPC_CHANNELS.SONAR_GET_POLLING_CONFIG, () =>
+    sonarService.getPollingConfig()
+  )
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_SET_POLLING_CONFIG, (_, config) => {
+    sonarService.setPollingConfig(config)
+  })
+
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, (_, url: string) =>
     shell.openExternal(url)
   )

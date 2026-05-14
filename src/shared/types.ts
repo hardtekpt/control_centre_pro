@@ -48,6 +48,8 @@ export const IPC_CHANNELS = {
   SONAR_SET_MUTE: 'sonar:setMute',          // renderer → main invoke
   SONAR_SELECT_PRESET: 'sonar:selectPreset', // renderer → main invoke
   SONAR_SET_MODE: 'sonar:setMode',          // renderer → main invoke
+  SONAR_GET_POLLING_CONFIG: 'sonar:getPollingConfig', // renderer → main invoke
+  SONAR_SET_POLLING_CONFIG: 'sonar:setPollingConfig', // renderer → main invoke
 
   // Shell utilities
   SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke
@@ -293,4 +295,9 @@ export interface SonarState {
   configs: SonarConfig[]
   routing: SonarDeviceRoute[]
   chatMix: SonarChatMix | null
+}
+
+export interface SonarPollingConfig {
+  fastIntervalMs: number  // Fast poll interval (ms) — default 1000
+  slowIntervalMs: number  // Slow poll interval (ms) — default 5000
 }

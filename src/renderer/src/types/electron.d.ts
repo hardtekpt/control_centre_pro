@@ -1,6 +1,6 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig,
 } from '../../../shared/types'
 
 /**
@@ -54,6 +54,8 @@ declare global {
     sonarSetMute: (channel: SonarChannel, muted: boolean) => Promise<void>
     sonarSelectPreset: (id: string) => Promise<void>
     sonarSetMode: (mode: SonarMode) => Promise<void>
+    sonarGetPollingConfig: () => Promise<SonarPollingConfig>
+    sonarSetPollingConfig: (config: SonarPollingConfig) => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
 
     // Shell utilities

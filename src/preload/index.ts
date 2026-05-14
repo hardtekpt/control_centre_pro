@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig,
 } from '../shared/types'
 
 /**
@@ -128,6 +128,12 @@ const api = {
 
   sonarSetMode: (mode: SonarMode): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_SET_MODE, mode),
+
+  sonarGetPollingConfig: (): Promise<SonarPollingConfig> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_GET_POLLING_CONFIG),
+
+  sonarSetPollingConfig: (config: SonarPollingConfig): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_SET_POLLING_CONFIG, config),
 
   onSonarStateChange: (callback: (state: SonarState) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: SonarState): void => callback(state)

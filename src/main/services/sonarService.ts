@@ -10,6 +10,7 @@ import type {
   SonarClassicVolumes,
   SonarChannelVolume,
   SonarConfig,
+  SonarPollingConfig,
 } from '../../shared/types'
 
 // ─── SonarService ─────────────────────────────────────────────────────────────
@@ -33,6 +34,11 @@ export class SonarService {
   // Callbacks wired by main/index.ts so SonarService can emit into the service infrastructure
   private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangeFn: (() => void) | null = null
+
+  private pollingConfig: SonarPollingConfig = {
+    fastIntervalMs: 1000,
+    slowIntervalMs: 5000,
+  }
 
   private state: SonarState = {
     available: false,
@@ -66,13 +72,26 @@ export class SonarService {
     return this.state.available
   }
 
+  getPollingConfig(): SonarPollingConfig {
+    return { ...this.pollingConfig }
+  }
+
+  setPollingConfig(config: SonarPollingConfig): void {
+    this.pollingConfig = { ...config }
+    // Restart timers with new intervals if service is running
+    if (this.fastTimer !== null || this.slowTimer !== null) {
+      this.stop()
+      this.start()
+    }
+  }
+
   start(): void {
     // Prevent timer accumulation if called more than once (e.g. re-enable from settings)
     this.stop()
     this.pollFast()
     this.pollSlow()
-    this.fastTimer = setInterval(() => this.pollFast(), 1000)
-    this.slowTimer = setInterval(() => this.pollSlow(), 5000)
+    this.fastTimer = setInterval(() => this.pollFast(), this.pollingConfig.fastIntervalMs)
+    this.slowTimer = setInterval(() => this.pollSlow(), this.pollingConfig.slowIntervalMs)
   }
 
   stop(): void {

@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
-import type { SonarChannel } from '@shared/types'
+import type { SonarChannel, SonarPollingConfig } from '@shared/types'
 
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
@@ -35,9 +36,42 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 
 export function GGSonarSettings(): JSX.Element {
   const { visibleChannels, setChannelVisibility } = useSonarStore()
+  const [pollingConfig, setPollingConfig] = useState<SonarPollingConfig | null>(null)
+  const [fastInterval, setFastInterval] = useState('')
+  const [slowInterval, setSlowInterval] = useState('')
+
+  useEffect(() => {
+    // Load current polling config
+    window.api.sonarGetPollingConfig()
+      .then((config) => {
+        setPollingConfig(config)
+        setFastInterval(config.fastIntervalMs.toString())
+        setSlowInterval(config.slowIntervalMs.toString())
+      })
+      .catch(console.error)
+  }, [])
 
   function handleToggle(channel: SonarChannel): void {
     setChannelVisibility(channel, !visibleChannels.has(channel))
+  }
+
+  async function handleSavePollingConfig(): Promise<void> {
+    const fastMs = Math.max(100, parseInt(fastInterval, 10) || 1000)
+    const slowMs = Math.max(100, parseInt(slowInterval, 10) || 5000)
+
+    const newConfig: SonarPollingConfig = {
+      fastIntervalMs: fastMs,
+      slowIntervalMs: slowMs,
+    }
+
+    try {
+      await window.api.sonarSetPollingConfig(newConfig)
+      setPollingConfig(newConfig)
+      setFastInterval(fastMs.toString())
+      setSlowInterval(slowMs.toString())
+    } catch (err) {
+      console.error('Failed to save polling config:', err)
+    }
   }
 
   return (
@@ -46,7 +80,7 @@ export function GGSonarSettings(): JSX.Element {
         GG Sonar
       </h1>
 
-      <div>
+      <div className="mb-8">
         <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
           Visible Channels
         </h2>
@@ -74,6 +108,70 @@ export function GGSonarSettings(): JSX.Element {
               </span>
             </button>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
+          State Polling
+        </h2>
+        <div className="space-y-3 max-w-sm">
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              Fast Poll Interval (ms)
+            </label>
+            <input
+              type="number"
+              min="100"
+              step="100"
+              value={fastInterval}
+              onChange={(e) => setFastInterval(e.target.value)}
+              className="w-full px-3 py-2 rounded text-sm"
+              style={{
+                background: 'var(--color-surface-raised)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+              }}
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              Updates mode, volumes, and chat mix
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              Slow Poll Interval (ms)
+            </label>
+            <input
+              type="number"
+              min="100"
+              step="100"
+              value={slowInterval}
+              onChange={(e) => setSlowInterval(e.target.value)}
+              className="w-full px-3 py-2 rounded text-sm"
+              style={{
+                background: 'var(--color-surface-raised)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+              }}
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              Updates presets and routing
+            </p>
+          </div>
+
+          <button
+            onClick={handleSavePollingConfig}
+            className="w-full py-2 px-3 rounded text-sm font-medium transition-colors"
+            style={{
+              background: 'var(--color-accent)',
+              color: 'var(--color-bg)',
+              cursor: 'pointer',
+              border: 'none',
+            }}
+          >
+            Save Polling Config
+          </button>
         </div>
       </div>
     </div>

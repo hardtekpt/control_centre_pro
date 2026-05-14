@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(git -C \"c:/Users/ffvd/Documents/control_centre_pro\" log --oneline -5)",
+      "Bash(git -C \"c:/Users/ffvd/Documents/control_centre_pro\" branch -a)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Read(//tmp/**)",
+      "Read(//tmp/arctis_nova_pro_hid/**)",
+      "Bash(ls -la \"C:\\\\tmp\\\\arctis_nova_pro_hid\\\\\" 2>/dev/null || echo \"Path issue - using PowerShell\")",
+      "Read(//c/tmp/arctis_nova_pro_hid\" 2>/dev/**)",
+      "Bash(grep -i \"bluetooth\" \"C:\\\\Users\\\\ffvd\\\\Documents\\\\arctis_centre\\\\src\\\\APIs\\\\arctis_nova_api\\\\tools\\\\*.json\" 2>nul)",
+      "Read(//c/Users/ffvd/Documents/arctis_centre/src/APIs/arctis_nova_api/tools/**)",
+      "Bash(python -c \"import arctis_hid; import inspect; print\\(inspect.getfile\\(arctis_hid\\)\\)\")",
+      "Bash(python -c \"import sys; print\\(sys.path\\)\")",
+      "Bash(pip show *)",
+      "Bash(pip list *)",
+      "Bash(python -c \"import arctis_nova_api; import inspect; print\\(inspect.getfile\\(arctis_nova_api\\)\\)\")",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\ffvd\\\\Documents\\\\arctis_centre\\\\src\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Name)",
+      "WebFetch(domain:github.com)",
+      "PowerShell(python -c \"import site; print\\(site.getsitepackages\\(\\)\\)\")"
+    ]
+  }
+}
