@@ -445,7 +445,6 @@ function UsbInputTag({
           cursor: 'pointer',
         }}
       >
-        <UsbIcon />
         <span style={{ color: 'var(--color-text-primary)' }}>{label}</span>
         <ChevronIcon open={open} />
       </button>
