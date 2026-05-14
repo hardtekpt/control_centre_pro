@@ -295,14 +295,13 @@ function PresetSelector({
         onClick={toggle}
         className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs flex-1 min-w-0"
         style={{
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
+          background: 'transparent',
+          border: 'none',
           color: activePreset ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
           cursor: 'pointer',
         }}
       >
         <span className="truncate flex-1 text-left">{activePreset?.name ?? '—'}</span>
-        <ChevronIcon open={open} />
       </button>
       {activePreset && (
         <button
@@ -310,9 +309,9 @@ function PresetSelector({
           className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
           title="View preset details"
           style={{
-            background: 'var(--color-surface-raised)',
+            background: 'transparent',
             color: 'var(--color-text-secondary)',
-            border: '1px solid var(--color-border)',
+            border: 'none',
             cursor: 'pointer',
             lineHeight: 1,
           }}
