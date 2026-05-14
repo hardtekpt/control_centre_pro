@@ -47,7 +47,7 @@ function VerticalFader({
     <div
       ref={containerRef}
       className="relative w-full flex-1 cursor-ns-resize"
-      style={{ minHeight: 60 }}
+      style={{ minHeight: 180 }}
       onMouseDown={onMouseDown}
     >
       {/* Track background */}
@@ -230,12 +230,12 @@ export function ChannelStrip({
 
   return (
     <div
-      className="flex flex-col h-full"
+      className="flex flex-col rounded-lg flex-shrink-0"
       style={{
-        minWidth: 110,
-        flex: '1 1 0',
+        width: 130,
+        minHeight: 420,
         background: 'var(--color-surface)',
-        borderRight: '1px solid var(--color-border)',
+        border: '1px solid var(--color-border)',
       }}
     >
       {/* Channel label */}
