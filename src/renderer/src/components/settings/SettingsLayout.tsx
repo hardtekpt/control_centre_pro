@@ -8,11 +8,11 @@ import { About } from '../../pages/settings/About'
 import { useAppStore } from '../../stores/appStore'
 
 export function SettingsLayout(): JSX.Element {
-  const { currentSettingsTab, setView } = useAppStore()
+  const { currentSettingsTab, goBack } = useAppStore()
 
   return (
     <div className="flex flex-col h-full">
-      <TopBar settingsMode onBack={() => setView('home')} />
+      <TopBar settingsMode onBack={goBack} />
       <div className="flex flex-1 overflow-hidden">
         <SettingsSidebar />
         <main className="flex-1 overflow-y-auto selectable" style={{ background: 'var(--color-bg)' }}>

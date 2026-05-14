@@ -21,6 +21,7 @@ let _peekHideTimer: ReturnType<typeof setTimeout> | null = null
 interface AppState {
   /* ── Navigation ──────────────────────────────────────────────────────────── */
   currentView: AppView
+  previousView: AppView
   currentSettingsTab: SettingsTab
 
   /* ── Sidebar ─────────────────────────────────────────────────────────────── */
@@ -47,6 +48,7 @@ interface AppState {
 
   /* ── Actions ─────────────────────────────────────────────────────────────── */
   setView: (view: AppView) => void
+  goBack: () => void
   setSettingsTab: (tab: SettingsTab) => void
   toggleSidebar: () => void
   setSidebarWidth: (width: number) => void
@@ -72,6 +74,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   currentView: 'home',
+  previousView: 'home',
   currentSettingsTab: 'general',
   sidebarCollapsed: false,
   sidebarWidth: 240,
@@ -80,7 +83,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   isMaximized: false,
   theme: 'dark',
 
-  setView: (view) => set({ currentView: view }),
+  setView: (view) => set((s) => ({
+    previousView: s.currentView !== 'settings' ? s.currentView : s.previousView,
+    currentView: view,
+  })),
+  goBack: () => set((s) => ({ currentView: s.previousView })),
   setSettingsTab: (tab) => set({ currentSettingsTab: tab }),
 
   toggleSidebar: () => {
