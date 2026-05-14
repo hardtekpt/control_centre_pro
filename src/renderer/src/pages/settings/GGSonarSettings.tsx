@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import type { SonarChannel, SonarMode, SonarPollingConfig } from '@shared/types'
@@ -46,17 +46,29 @@ export function GGSonarSettings(): JSX.Element {
   const { sonarState, visibleChannels, setChannelVisibility } = useSonarStore()
   const { setDirty, registerSave } = useSettingsForm()
 
-  // ── Polling config draft ─────────────────────────────────────────────────────
+  // ── Polling config ───────────────────────────────────────────────────────────
   const [savedPollingConfig, setSavedPollingConfig] = useState<SonarPollingConfig | null>(null)
   const [draftFastInterval, setDraftFastInterval] = useState('')
   const [draftSlowInterval, setDraftSlowInterval] = useState('')
 
-  // ── Visible channels draft ───────────────────────────────────────────────────
+  // ── Visible channels ─────────────────────────────────────────────────────────
   const [draftVisibleChannels, setDraftVisibleChannels] = useState(() => new Set(visibleChannels))
 
-  // ── Preset switcher enabled draft ────────────────────────────────────────────
+  // ── Preset switcher enabled ──────────────────────────────────────────────────
   const [savedPresetSwitcherEnabled, setSavedPresetSwitcherEnabled] = useState(true)
   const [draftPresetSwitcherEnabled, setDraftPresetSwitcherEnabled] = useState(true)
+
+  // Refs mirror every draft value so the save handler always reads the latest
+  // state even if registered before the most recent state update's effect fired.
+  const draftFastIntervalRef = useRef(draftFastInterval)
+  const draftSlowIntervalRef = useRef(draftSlowInterval)
+  const draftVisibleChannelsRef = useRef(draftVisibleChannels)
+  const draftPresetSwitcherEnabledRef = useRef(draftPresetSwitcherEnabled)
+
+  useEffect(() => { draftFastIntervalRef.current = draftFastInterval }, [draftFastInterval])
+  useEffect(() => { draftSlowIntervalRef.current = draftSlowInterval }, [draftSlowInterval])
+  useEffect(() => { draftVisibleChannelsRef.current = draftVisibleChannels }, [draftVisibleChannels])
+  useEffect(() => { draftPresetSwitcherEnabledRef.current = draftPresetSwitcherEnabled }, [draftPresetSwitcherEnabled])
 
   useEffect(() => {
     window.api.sonarGetPollingConfig()
@@ -87,12 +99,18 @@ export function GGSonarSettings(): JSX.Element {
     setDirty(pollingDirty || channelsDirty || presetSwitcherDirty)
   }, [pollingDirty, channelsDirty, presetSwitcherDirty, setDirty])
 
-  // ── Register save handler ────────────────────────────────────────────────────
+  // ── Register save handler (once — reads latest values via refs) ───────────────
   useEffect(() => {
     registerSave(async () => {
+      // Preset switcher — save first so it's never skipped by an error below
+      const psEnabled = draftPresetSwitcherEnabledRef.current
+      await window.api.setPresetSwitcherEnabled(psEnabled)
+      setSavedPresetSwitcherEnabled(psEnabled)
+      setDraftPresetSwitcherEnabled(psEnabled)
+
       // Polling config
-      const fastMs = Math.max(100, parseInt(draftFastInterval, 10) || 1000)
-      const slowMs = Math.max(100, parseInt(draftSlowInterval, 10) || 5000)
+      const fastMs = Math.max(100, parseInt(draftFastIntervalRef.current, 10) || 1000)
+      const slowMs = Math.max(100, parseInt(draftSlowIntervalRef.current, 10) || 5000)
       const newConfig: SonarPollingConfig = { fastIntervalMs: fastMs, slowIntervalMs: slowMs }
       await window.api.sonarSetPollingConfig(newConfig)
       setSavedPollingConfig(newConfig)
@@ -100,16 +118,13 @@ export function GGSonarSettings(): JSX.Element {
       setDraftSlowInterval(slowMs.toString())
 
       // Visible channels (persisted via Zustand localStorage middleware)
+      const channels = draftVisibleChannelsRef.current
       for (const ch of SONAR_CHANNELS) {
-        setChannelVisibility(ch, draftVisibleChannels.has(ch))
+        setChannelVisibility(ch, channels.has(ch))
       }
-
-      // Preset switcher enabled
-      await window.api.setPresetSwitcherEnabled(draftPresetSwitcherEnabled)
-      setSavedPresetSwitcherEnabled(draftPresetSwitcherEnabled)
     })
     return () => registerSave(null)
-  }, [draftFastInterval, draftSlowInterval, draftVisibleChannels, draftPresetSwitcherEnabled, registerSave, setChannelVisibility])
+  }, [registerSave, setChannelVisibility])
 
   function handleToggleChannel(channel: SonarChannel): void {
     setDraftVisibleChannels((prev) => {
@@ -118,6 +133,12 @@ export function GGSonarSettings(): JSX.Element {
       else next.add(channel)
       return next
     })
+  }
+
+  function handleTogglePresetSwitcher(): void {
+    const next = !draftPresetSwitcherEnabledRef.current
+    draftPresetSwitcherEnabledRef.current = next
+    setDraftPresetSwitcherEnabled(next)
   }
 
   // Mixer mode is live audio state — applied immediately, not deferred
@@ -190,7 +211,7 @@ export function GGSonarSettings(): JSX.Element {
         </h2>
         <button
           type="button"
-          onClick={() => setDraftPresetSwitcherEnabled((prev) => !prev)}
+          onClick={handleTogglePresetSwitcher}
           className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left w-fit"
           style={{
             background: 'var(--color-surface)',
