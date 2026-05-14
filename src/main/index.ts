@@ -101,6 +101,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     frame: false,
     backgroundColor: '#141413',
+    icon: join(__dirname, '../../resources/mission-control-terracotta-1024.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
