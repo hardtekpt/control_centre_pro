@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SonarState, SonarChannel, SonarDeviceChannel, SonarChannelVolume } from '@shared/types'
 
+// Module-level drag tracking — not Zustand state, so no re-renders
+let _activeDrags = 0
+let _postDragHoldTimer: ReturnType<typeof setTimeout> | null = null
+
 interface SonarStoreState {
   sonarState: SonarState | null
   /** Tracks which preset is active per virtualAudioDevice (local-only, not from API) */
@@ -14,6 +18,9 @@ interface SonarStoreState {
   patchClassicVolume: (channel: SonarChannel, patch: Partial<SonarChannelVolume>) => void
   setActivePreset: (virtualAudioDevice: string, presetId: string) => void
   setChannelVisibility: (channel: SonarChannel, visible: boolean) => void
+  /** Called by VerticalFader on drag start/end to suppress poll updates during interaction */
+  beginDrag: () => void
+  endDrag: () => void
 }
 
 const DEFAULT_VISIBLE_CHANNELS: SonarChannel[] = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux']
@@ -27,6 +34,8 @@ export const useSonarStore = create<SonarStoreState>()(
 
       setSonarState: (state) =>
         set((s) => {
+          // Suppress poll updates while a slider is being dragged or briefly after
+          if (_activeDrags > 0 || _postDragHoldTimer !== null) return s
           const merged = { ...s.activePresetIds }
           for (const config of state.configs) {
             if (config.isSelected) merged[config.virtualAudioDevice] = config.id
@@ -77,6 +86,17 @@ export const useSonarStore = create<SonarStoreState>()(
           }
           return { visibleChannels: newSet }
         }),
+
+      beginDrag: () => { _activeDrags++ },
+      endDrag: () => {
+        _activeDrags = Math.max(0, _activeDrags - 1)
+        if (_activeDrags === 0) {
+          if (_postDragHoldTimer !== null) clearTimeout(_postDragHoldTimer)
+          // Hold off poll updates for 1.5 s — enough for the write to settle and
+          // the next fast poll (1 s) to fetch the confirmed value from the API
+          _postDragHoldTimer = setTimeout(() => { _postDragHoldTimer = null }, 1500)
+        }
+      },
     }),
     {
       name: 'sonar-store',

@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useMemo, useCallback, memo } from 'react'
 import ReactDOM from 'react-dom'
 import type { SonarChannel, SonarConfig, SonarAudioSession, SonarStreamerMix, SonarMode } from '@shared/types'
+import { useSonarStore } from '../../stores/sonarStore'
 
 // ─── Vertical fader ───────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ function VerticalFaderComponent({
 }: VerticalFaderProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+  const dragValueRef = useRef<number | null>(null)
   const [dragValue, setDragValue] = useState<number | null>(null)
 
   // While dragging, show dragValue; otherwise show prop value
@@ -33,20 +35,25 @@ function VerticalFaderComponent({
     if (disabled) return
     e.preventDefault()
     dragging.current = true
+    useSonarStore.getState().beginDrag()
     const newValue = valueFromClientY(e.clientY)
+    dragValueRef.current = newValue
     setDragValue(newValue)
-    onChange(newValue)
 
-    function onMove(e: MouseEvent): void {
+    function onMove(ev: MouseEvent): void {
       if (dragging.current) {
-        const newValue = valueFromClientY(e.clientY)
-        setDragValue(newValue)
-        onChange(newValue)
+        const v = valueFromClientY(ev.clientY)
+        dragValueRef.current = v
+        setDragValue(v)
       }
     }
     function onUp(): void {
       dragging.current = false
+      const finalValue = dragValueRef.current
+      dragValueRef.current = null
       setDragValue(null)
+      useSonarStore.getState().endDrag()
+      if (finalValue !== null) onChange(finalValue)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
