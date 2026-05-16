@@ -121,6 +121,8 @@ export function GeneralSettings(): JSX.Element {
               border: '1px solid var(--color-border)',
               borderRadius: '0.5rem',
               overflow: 'hidden',
+              marginTop: '0.5rem',
+              marginBottom: '0.5rem',
             }}
           >
             <table
