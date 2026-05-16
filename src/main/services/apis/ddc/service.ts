@@ -26,6 +26,7 @@ const INPUT_NAME_MAP: Record<string, string> = {
 // EnumDisplayDevices with EDD_GET_DEVICE_INTERFACE_NAME (0x1) to get the
 // primary monitor's exact device interface path — same format as ddcci paths.
 const PS_PRIMARY_MONITOR_SCRIPT = [
+  '$ProgressPreference = "SilentlyContinue"',
   'Add-Type -TypeDefinition @"',
   'using System;',
   'using System.Runtime.InteropServices;',
