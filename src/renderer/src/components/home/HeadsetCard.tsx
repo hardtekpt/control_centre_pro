@@ -242,7 +242,7 @@ function Section({
           {title}
         </span>
         <div className="flex items-center gap-2">
-          {summary && (
+          {summary && !open && (
             <span className="text-xs mono" style={{ color: 'var(--color-text-secondary)' }}>
               {summary}
             </span>
