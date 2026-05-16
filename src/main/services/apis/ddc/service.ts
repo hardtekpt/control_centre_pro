@@ -97,12 +97,19 @@ export class DdcService {
   private async detectPrimaryDevicePath(): Promise<void> {
     try {
       const encoded = Buffer.from(PS_PRIMARY_MONITOR_SCRIPT, 'utf16le').toString('base64')
-      const result = execSync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
-        encoding: 'utf-8',
-        timeout: 15000,
-        windowsHide: true,
-      })
-      this.primaryDevicePath = result.trim().toLowerCase() || null
+      // -OutputFormat Text prevents PowerShell from serialising output as CLIXML
+      // when stdout is piped (non-interactive mode).
+      const result = execSync(
+        `powershell -NoProfile -OutputFormat Text -EncodedCommand ${encoded}`,
+        { encoding: 'utf-8', timeout: 15000, windowsHide: true },
+      )
+      // Extract only the device interface path line (starts with \\?\) to skip
+      // any stray progress or verbose output that may still appear.
+      const pathLine = result
+        .split('\n')
+        .map((l) => l.trim())
+        .find((l) => l.startsWith('\\\\?\\'))
+      this.primaryDevicePath = pathLine?.toLowerCase() ?? null
       if (this.primaryDevicePath) {
         this.log('info', `Primary monitor path: ${this.primaryDevicePath}`)
       }
