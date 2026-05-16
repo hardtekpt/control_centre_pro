@@ -210,6 +210,16 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
                       newBands[i] = Number(e.target.value)
                       cmd('setEqBands', newBands, { eqBands: newBands })
                     }}
+                    onWheel={(e) => {
+                      e.preventDefault()
+                      const delta = e.deltaY < 0 ? 1 : -1
+                      const newValue = Math.max(0, Math.min(40, raw + delta))
+                      if (newValue !== raw) {
+                        const newBands = [...bands]
+                        newBands[i] = newValue
+                        cmd('setEqBands', newBands, { eqBands: newBands })
+                      }
+                    }}
                     style={{
                       accentColor: 'var(--color-accent)',
                       cursor: 'pointer',
