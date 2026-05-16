@@ -216,7 +216,7 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
                       width: '100%',
                       writingMode: 'vertical-lr',
                       direction: 'rtl',
-                      height: 72,
+                      height: 144,
                       // @ts-expect-error — non-standard but supported in Chromium (Electron)
                       appearance: 'slider-vertical',
                     }}
