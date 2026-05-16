@@ -96,7 +96,16 @@ export function GGSonarSettings(): JSX.Element {
   const presetSwitcherDirty = draftPresetSwitcherEnabled !== savedPresetSwitcherEnabled
 
   useEffect(() => {
-    setDirty(pollingDirty || channelsDirty || presetSwitcherDirty)
+    const isDirty = pollingDirty || channelsDirty || presetSwitcherDirty
+    console.log('[GGSonarSettings] Dirty state:', {
+      pollingDirty,
+      channelsDirty,
+      presetSwitcherDirty,
+      isDirty,
+      draftPresetSwitcherEnabled,
+      savedPresetSwitcherEnabled,
+    })
+    setDirty(isDirty)
   }, [pollingDirty, channelsDirty, presetSwitcherDirty, setDirty])
 
   // ── Register save handler (once — reads latest values via refs) ───────────────
@@ -104,9 +113,16 @@ export function GGSonarSettings(): JSX.Element {
     registerSave(async () => {
       // Preset switcher — save first so it's never skipped by an error below
       const psEnabled = draftPresetSwitcherEnabledRef.current
-      await window.api.setPresetSwitcherEnabled(psEnabled)
-      setSavedPresetSwitcherEnabled(psEnabled)
-      setDraftPresetSwitcherEnabled(psEnabled)
+      console.log('[GGSonarSettings] Saving preset switcher enabled:', psEnabled)
+      try {
+        await window.api.setPresetSwitcherEnabled(psEnabled)
+        console.log('[GGSonarSettings] Preset switcher saved successfully')
+        setSavedPresetSwitcherEnabled(psEnabled)
+        setDraftPresetSwitcherEnabled(psEnabled)
+      } catch (err) {
+        console.error('[GGSonarSettings] Failed to save preset switcher:', err)
+        throw err
+      }
 
       // Polling config
       const fastMs = Math.max(100, parseInt(draftFastIntervalRef.current, 10) || 1000)
@@ -137,6 +153,7 @@ export function GGSonarSettings(): JSX.Element {
 
   function handleTogglePresetSwitcher(): void {
     const next = !draftPresetSwitcherEnabledRef.current
+    console.log('[GGSonarSettings] Toggling preset switcher from', draftPresetSwitcherEnabledRef.current, 'to', next)
     draftPresetSwitcherEnabledRef.current = next
     setDraftPresetSwitcherEnabled(next)
   }
