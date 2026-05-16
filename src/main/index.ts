@@ -456,10 +456,9 @@ function registerIpcHandlers(): void {
     flushDdcQueue()
   })
 
-  ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, async (_, monitorId: number, inputValue: string) => {
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, (_, monitorId: number, inputValue: string) => {
     ddcService.setInputSource(monitorId, inputValue)
-    // Refresh to confirm the change
-    await refreshDdcMonitors()
+    // Don't refresh — let the next periodic poll update the UI to avoid flicker
   })
 
   ipcMain.handle(IPC_CHANNELS.DDC_GET_POLL_INTERVAL, () => ddcPollIntervalSec)

@@ -211,13 +211,7 @@ export class DdcService {
 
       ddcci._setVCP(devicePath, 0x60, inputCode)
       this.log('info', `Set monitor ${monitorId} input to ${inputValue}`)
-
-      // Update cached state immediately (optimistic)
-      const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
-      if (monitor) {
-        monitor.input_source = inputValue.toLowerCase()
-        this.notifyStateChanged()
-      }
+      // Don't update cache here — let periodic poll refresh the UI to avoid flicker
     } catch (err) {
       this.log('error', `Failed to set input source to ${inputValue}: ${err instanceof Error ? err.message : String(err)}`)
     }
