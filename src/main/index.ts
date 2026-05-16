@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
@@ -190,18 +190,6 @@ function createWindow(): void {
 
 // ─── DDC Helper Functions ─────────────────────────────────────────────────────
 
-// Marks which monitor corresponds to the OS primary display by correlating
-// DDC enumeration order with Electron's screen.getAllDisplays() order.
-function markPrimaryMonitor(monitors: DdcMonitor[]): void {
-  if (monitors.length === 0) return
-  const allDisplays = screen.getAllDisplays()
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const primaryIdx = allDisplays.findIndex((d) => d.id === primaryDisplay.id)
-  monitors.forEach((m, i) => {
-    m.is_primary = i === primaryIdx
-  })
-}
-
 async function refreshDdcMonitors(): Promise<DdcMonitor[]> {
   if (ddcInFlight) return ddcCache
 
@@ -344,6 +332,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SONAR_SET_POLLING_CONFIG, (_, config) => {
     sonarService.setPollingConfig(config)
   })
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_SET_REDIRECTION, (_, channel: SonarDeviceChannel, deviceId: string) =>
+    sonarService.setRedirection(channel, deviceId)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.SONAR_ROUTE_PROCESS, (_, sessionId: string, targetDeviceId: string) =>
+    sonarService.routeProcess(sessionId, targetDeviceId)
+  )
 
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, (_, url: string) =>
     shell.openExternal(url)
@@ -521,7 +517,6 @@ app.whenReady().then(() => {
     serviceManager.emitNativeLog('ddc', 'DDC Display', level, msg)
   })
   ddcService.setStateChangedCallback((monitors) => {
-    markPrimaryMonitor(monitors)
     ddcCache = monitors
     mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, monitors)
   })
