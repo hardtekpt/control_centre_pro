@@ -98,51 +98,28 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
 
       {/* Input Control */}
       {supportsInput && monitor.available_inputs.length > 0 ? (
-        <div className="mb-3">
-          <label htmlFor={`input-${monitor.monitor_id}`} className="text-xs font-medium block mb-1" style={{ color: 'var(--color-text-primary)' }}>
-            Input: {getInputName(monitor.input_source)}
-          </label>
-          <select
-            id={`input-${monitor.monitor_id}`}
-            value={monitor.input_source}
-            onChange={(e) => {
-              if (e.currentTarget.value) {
-                window.api.ddcSetInputSource(monitor.monitor_id, e.currentTarget.value).catch(console.error)
-              }
-            }}
-            className="w-full text-xs p-1.5 rounded"
-            style={{
-              background: 'var(--color-surface-raised)',
-              color: 'var(--color-text-primary)',
-              border: '1px solid var(--color-border)',
-            }}
-          >
-            {monitor.available_inputs.map((input) => (
-              <option key={input} value={input}>
-                {getInputName(input)}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
-
-      {/* Features */}
-      {monitor.supports.length > 0 && (
-        <div className="flex gap-1 flex-wrap">
-          {monitor.supports.map((feature) => (
-            <span
-              key={feature}
-              className="text-xs px-2 py-0.5 rounded"
-              style={{
-                background: 'var(--color-surface-raised)',
-                color: 'var(--color-text-secondary)',
-              }}
-            >
-              {feature}
-            </span>
+        <select
+          id={`input-${monitor.monitor_id}`}
+          value={monitor.input_source}
+          onChange={(e) => {
+            if (e.currentTarget.value) {
+              window.api.ddcSetInputSource(monitor.monitor_id, e.currentTarget.value).catch(console.error)
+            }
+          }}
+          className="w-full text-xs p-1.5 rounded"
+          style={{
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-text-primary)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          {monitor.available_inputs.map((input) => (
+            <option key={input} value={input}>
+              {getInputName(input)}
+            </option>
           ))}
-        </div>
-      )}
+        </select>
+      ) : null}
     </div>
   )
 }
