@@ -22,9 +22,13 @@ const INPUT_NAME_MAP: Record<string, string> = {
   '0x1b': 'USB-C',
 }
 
-// PowerShell script (UTF-16LE encoded for -EncodedCommand) that uses
-// EnumDisplayDevices with EDD_GET_DEVICE_INTERFACE_NAME (0x1) to get the
-// primary monitor's exact device interface path — same format as ddcci paths.
+// PowerShell script that emits prefixed diagnostic lines so we can trace
+// exactly what EnumDisplayDevices returns even when EDD_GET_DEVICE_INTERFACE_NAME
+// doesn't populate DeviceID (which happens on some driver configurations).
+// Outputs:
+//   ADAPTER:<GDI name>   – e.g. ADAPTER:\\.\DISPLAY1
+//   PATH:<device path>   – e.g. PATH:\\?\DISPLAY#...  (may be empty)
+//   DEVID:<raw DeviceID> – e.g. DEVID:MONITOR\DELA0BC\{...}  (without EDD flag)
 const PS_PRIMARY_MONITOR_SCRIPT = [
   '$ProgressPreference = "SilentlyContinue"',
   'Add-Type -TypeDefinition @"',
@@ -50,10 +54,15 @@ const PS_PRIMARY_MONITOR_SCRIPT = [
   '    $a.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($a)',
   '    if (-not [Win32Display]::EnumDisplayDevices($null, $i, [ref]$a, 0)) { break }',
   '    if ($a.StateFlags -band 4) {',
+  '        Write-Output "ADAPTER:$($a.DeviceName)"',
   '        $m = New-Object Win32Display+DISPLAY_DEVICE',
   '        $m.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($m)',
   '        [Win32Display]::EnumDisplayDevices($a.DeviceName, 0, [ref]$m, 1) | Out-Null',
-  '        $m.DeviceID',
+  '        Write-Output "PATH:$($m.DeviceID)"',
+  '        $m2 = New-Object Win32Display+DISPLAY_DEVICE',
+  '        $m2.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($m2)',
+  '        [Win32Display]::EnumDisplayDevices($a.DeviceName, 0, [ref]$m2, 0) | Out-Null',
+  '        Write-Output "DEVID:$($m2.DeviceID)"',
   '        break',
   '    }',
   '    $i++',
@@ -97,24 +106,29 @@ export class DdcService {
   private async detectPrimaryDevicePath(): Promise<void> {
     try {
       const encoded = Buffer.from(PS_PRIMARY_MONITOR_SCRIPT, 'utf16le').toString('base64')
-      // -OutputFormat Text prevents PowerShell from serialising output as CLIXML
-      // when stdout is piped (non-interactive mode).
       const result = execSync(
         `powershell -NoProfile -OutputFormat Text -EncodedCommand ${encoded}`,
         { encoding: 'utf-8', timeout: 15000, windowsHide: true },
       )
-      // Extract only the device interface path line (starts with \\?\) to skip
-      // any stray progress or verbose output that may still appear.
-      const pathLine = result
-        .split('\n')
-        .map((l) => l.trim())
-        .find((l) => l.startsWith('\\\\?\\'))
-      this.primaryDevicePath = pathLine?.toLowerCase() ?? null
-      if (this.primaryDevicePath) {
-        this.log('info', `Primary monitor path: ${this.primaryDevicePath}`)
+
+      const lines = result.split('\n').map((l) => l.trim()).filter(Boolean)
+      const get = (prefix: string): string =>
+        lines.find((l) => l.startsWith(prefix))?.slice(prefix.length) ?? ''
+
+      const adapter = get('ADAPTER:')
+      const path    = get('PATH:')
+      const devId   = get('DEVID:')
+
+      this.log('info', `DDC primary adapter: ${adapter || '(none found)'}`)
+      this.log('info', `DDC primary PATH (EDD_GET_DEVICE_INTERFACE_NAME): ${path || '(empty)'}`)
+      this.log('info', `DDC primary DEVID (raw): ${devId || '(empty)'}`)
+
+      this.primaryDevicePath = path.toLowerCase() || null
+      if (!this.primaryDevicePath) {
+        this.log('warn', 'Primary monitor device interface path is empty — primary badge will not appear')
       }
     } catch (err) {
-      this.log('warn', `Could not detect primary monitor: ${err instanceof Error ? err.message : String(err)}`)
+      this.log('warn', `Primary monitor detection failed: ${err instanceof Error ? err.message : String(err)}`)
       this.primaryDevicePath = null
     }
   }
@@ -226,6 +240,7 @@ export class DdcService {
 
     if (monitors.length > 0) {
       this.log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
+      this.devicePaths.forEach((p, id) => this.log('info', `  ddcci[${id}]: ${p}`))
     }
 
     // Mark which monitor is the OS primary display
