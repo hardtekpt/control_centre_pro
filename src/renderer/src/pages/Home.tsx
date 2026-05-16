@@ -38,7 +38,13 @@ export function Home(): JSX.Element {
       </HomeSection>
       {ddcMonitors.length > 0 && (
         <HomeSection title="Display">
-          <div className="flex flex-col gap-2">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '12px',
+            }}
+          >
             {ddcMonitors.map((monitor) => (
               <DisplayCard key={monitor.monitor_id} monitor={monitor} />
             ))}

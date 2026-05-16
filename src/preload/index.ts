@@ -194,6 +194,9 @@ const api = {
   ddcSetBrightness: (monitorId: number, value: number): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_BRIGHTNESS, monitorId, value),
 
+  ddcSetInputSource: (monitorId: number, inputValue: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, monitorId, inputValue),
+
   onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, monitors: DdcMonitor[]): void =>
       callback(monitors)

@@ -223,6 +223,20 @@ export default function App(): JSX.Element {
     return cleanup
   }, [setDdcMonitors])
 
+  // Refresh DDC monitors when navigating to home page
+  useEffect(() => {
+    if (currentView === 'home') {
+      window.api.ddcGetMonitors().catch(console.error)
+    }
+  }, [currentView])
+
+  // Refresh DDC monitors when navigating to DDC settings
+  useEffect(() => {
+    if (currentSettingsTab === 'ddc') {
+      window.api.ddcGetMonitors().catch(console.error)
+    }
+  }, [currentSettingsTab])
+
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>
       {currentView === 'settings' ? <SettingsLayout /> : <MainLayout />}

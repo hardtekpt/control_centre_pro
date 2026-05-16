@@ -10,17 +10,30 @@ try {
 
 export class DdcService {
   private devicePaths = new Map<number, string>() // monitorId → device path
+  private cachedMonitors: DdcMonitor[] = []
+  private cacheTimestamp = 0
   private available = ddcci !== null
   private running = false
   private logEmitter: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
+  private stateChangedCallback: ((monitors: DdcMonitor[]) => void) | null = null
 
   setLogEmitter(emitter: (level: 'info' | 'warn' | 'error', msg: string) => void): void {
     this.logEmitter = emitter
   }
 
+  setStateChangedCallback(callback: (monitors: DdcMonitor[]) => void): void {
+    this.stateChangedCallback = callback
+  }
+
   private log(level: 'info' | 'warn' | 'error', message: string): void {
     if (this.logEmitter) {
       this.logEmitter(level, message)
+    }
+  }
+
+  private notifyStateChanged(): void {
+    if (this.stateChangedCallback) {
+      this.stateChangedCallback(this.cachedMonitors)
     }
   }
 
@@ -42,7 +55,11 @@ export class DdcService {
     this.log('info', 'DDC display control service stopped')
   }
 
-  async listMonitors(): Promise<DdcMonitor[]> {
+  getCachedMonitors(): DdcMonitor[] {
+    return this.cachedMonitors
+  }
+
+  async refreshMonitors(): Promise<DdcMonitor[]> {
     if (!this.available || !this.running) return []
 
     let devicePaths: string[]
@@ -50,11 +67,13 @@ export class DdcService {
       devicePaths = ddcci.getMonitorList()
     } catch (err) {
       this.log('error', `Failed to enumerate monitors: ${err instanceof Error ? err.message : String(err)}`)
-      return []
+      return this.cachedMonitors
     }
 
     if (!Array.isArray(devicePaths) || devicePaths.length === 0) {
       this.log('info', 'No DDC-capable monitors found')
+      this.cachedMonitors = []
+      this.cacheTimestamp = Date.now()
       return []
     }
 
@@ -65,11 +84,8 @@ export class DdcService {
       const devicePath = devicePaths[i]
       const monitorId = i + 1
 
-      // Store device path for later use in setBrightness
       this.devicePaths.set(monitorId, devicePath)
 
-      // Extract a friendly name from the device path
-      // Format: \\?\DISPLAY#MODEL#...#{GUID}
       const parts = devicePath.split('#')
       const modelName = parts.length > 1 ? parts[1] : `Monitor ${monitorId}`
 
@@ -78,6 +94,8 @@ export class DdcService {
         name: modelName,
         brightness: 0,
         contrast: 0,
+        input_source: '',
+        available_inputs: [],
         supports: [],
       }
 
@@ -110,6 +128,10 @@ export class DdcService {
       this.log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
     }
 
+    this.cachedMonitors = monitors
+    this.cacheTimestamp = Date.now()
+    this.notifyStateChanged()
+
     return monitors
   }
 
@@ -125,6 +147,13 @@ export class DdcService {
     try {
       const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
       ddcci.setBrightness(devicePath, normalizedValue)
+
+      // Update cached state immediately (optimistic)
+      const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+      if (monitor) {
+        monitor.brightness = normalizedValue
+        this.notifyStateChanged()
+      }
     } catch (err) {
       this.log('error', `Failed to set brightness: ${err instanceof Error ? err.message : String(err)}`)
     }

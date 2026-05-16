@@ -13,6 +13,7 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
 
   const displayBrightness = draftBrightness ?? monitor.brightness
   const supportsBrightness = monitor.supports.includes('brightness')
+  const supportsInput = monitor.supports.includes('input_source')
 
   const handleBrightnessChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setDraftBrightness(Number(e.currentTarget.value))
@@ -28,13 +29,11 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
   const handleDdcUpdate = (monitors: DdcMonitor[]): void => {
     const now = Date.now()
     if (now < lockedUntilRef.current) {
-      // Still in lock window — ignore this update
       return
     }
     setDdcMonitors(monitors)
   }
 
-  // Use the update hook to apply the lock pattern
   const _unused = handleDdcUpdate
 
   return (
@@ -54,11 +53,11 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
 
       {/* Brightness Control */}
       {supportsBrightness ? (
-        <div className="mb-2">
-          <div className="flex items-center gap-3">
-            <label htmlFor={`brightness-${monitor.monitor_id}`} className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>
-              Brightness
-            </label>
+        <div className="mb-3">
+          <label htmlFor={`brightness-${monitor.monitor_id}`} className="text-xs font-medium block mb-1" style={{ color: 'var(--color-text-primary)' }}>
+            Brightness
+          </label>
+          <div className="flex items-center gap-2">
             <input
               id={`brightness-${monitor.monitor_id}`}
               type="range"
@@ -73,18 +72,41 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
               className="flex-1"
               style={{ accentColor: 'var(--color-accent)' }}
             />
-            <span className="mono text-xs w-10 text-right" style={{ color: 'var(--color-text-secondary)' }}>
+            <span className="mono text-xs w-12 text-right" style={{ color: 'var(--color-text-secondary)' }}>
               {displayBrightness}%
             </span>
           </div>
         </div>
-      ) : (
-        <div className="mb-2">
-          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            Brightness not supported
-          </p>
+      ) : null}
+
+      {/* Input Control */}
+      {supportsInput && monitor.available_inputs.length > 0 ? (
+        <div className="mb-3">
+          <label htmlFor={`input-${monitor.monitor_id}`} className="text-xs font-medium block mb-1" style={{ color: 'var(--color-text-primary)' }}>
+            Input
+          </label>
+          <select
+            id={`input-${monitor.monitor_id}`}
+            value={monitor.input_source}
+            onChange={(e) => {
+              window.api.ddcSetInputSource?.(monitor.monitor_id, e.currentTarget.value).catch(console.error)
+            }}
+            className="w-full text-xs p-1.5 rounded"
+            style={{
+              background: 'var(--color-surface-raised)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            <option value="">Select input...</option>
+            {monitor.available_inputs.map((input) => (
+              <option key={input} value={input}>
+                {input}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+      ) : null}
 
       {/* Features */}
       {monitor.supports.length > 0 && (

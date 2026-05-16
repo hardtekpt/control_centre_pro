@@ -189,28 +189,22 @@ function createWindow(): void {
 
 // ─── DDC Helper Functions ─────────────────────────────────────────────────────
 
-async function fetchAndBroadcastDdcMonitors(): Promise<void> {
-  if (ddcInFlight) return
-
-  const now = Date.now()
-  const cacheAge = now - ddcCacheTs
-  const isStale = cacheAge > 60_000 // 60 second cache
-
-  if (!isStale && ddcCache.length > 0) {
-    // Cache is fresh, broadcast immediately
-    mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, ddcCache)
-    return
-  }
+async function refreshDdcMonitors(): Promise<DdcMonitor[]> {
+  if (ddcInFlight) return ddcCache
 
   ddcInFlight = true
   try {
-    const monitors = await ddcService.listMonitors()
+    const monitors = await ddcService.refreshMonitors()
     ddcCache = monitors
     ddcCacheTs = Date.now()
-    mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, monitors)
+    return monitors
   } finally {
     ddcInFlight = false
   }
+}
+
+function broadcastDdcMonitors(): void {
+  mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, ddcCache)
 }
 
 function flushDdcQueue(): void {
@@ -236,9 +230,9 @@ function flushDdcQueue(): void {
 
 function startDdcPolling(): void {
   if (ddcPollTimer) return
-  const pollIntervalMs = 300_000 // 5 minutes
+  const pollIntervalMs = 60_000 // 60 seconds (configurable in settings)
   ddcPollTimer = setInterval(() => {
-    fetchAndBroadcastDdcMonitors().catch(console.error)
+    refreshDdcMonitors().catch(console.error)
   }, pollIntervalMs)
 }
 
@@ -444,8 +438,8 @@ function registerIpcHandlers(): void {
 
   // ── DDC Display Control ────────────────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.DDC_GET_MONITORS, async () => {
-    await fetchAndBroadcastDdcMonitors()
-    return ddcCache
+    const monitors = await refreshDdcMonitors()
+    return monitors
   })
 
   ipcMain.handle(IPC_CHANNELS.DDC_SET_BRIGHTNESS, (_, monitorId: number, value: number) => {
@@ -457,6 +451,12 @@ function registerIpcHandlers(): void {
     })
 
     flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, (_, monitorId: number, inputValue: string) => {
+    // TODO: Implement input source setting once @hensm/ddcci exposes it
+    // For now, this is a placeholder
+    console.log(`[DDC] Set input ${inputValue} for monitor ${monitorId}`)
   })
 }
 
@@ -495,6 +495,9 @@ app.whenReady().then(() => {
   ddcService.setLogEmitter((level, msg) => {
     serviceManager.emitNativeLog('ddc', 'DDC Display', level, msg)
   })
+  ddcService.setStateChangedCallback((monitors) => {
+    mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, monitors)
+  })
   serviceManager.registerNativeService({
     id: 'ddc',
     name: 'DDC Display Control',
@@ -502,7 +505,7 @@ app.whenReady().then(() => {
     onEnable: () => {
       ddcService.start()
       startDdcPolling()
-      fetchAndBroadcastDdcMonitors().catch(console.error)
+      ddcService.refreshMonitors().catch(console.error)
     },
     onDisable: () => {
       ddcService.stop()

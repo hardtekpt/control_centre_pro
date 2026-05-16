@@ -65,9 +65,10 @@ export const IPC_CHANNELS = {
   SHELL_OPEN_STEELSERIES_GG: 'shell:openSteelSeriesGG', // renderer → main invoke
 
   // DDC/CI display control
-  DDC_GET_MONITORS: 'ddc:getMonitors',      // renderer → main invoke
-  DDC_SET_BRIGHTNESS: 'ddc:setBrightness',  // renderer → main invoke
-  DDC_UPDATE: 'ddc:update',                 // main → renderer push
+  DDC_GET_MONITORS: 'ddc:getMonitors',       // renderer → main invoke
+  DDC_SET_BRIGHTNESS: 'ddc:setBrightness',   // renderer → main invoke
+  DDC_SET_INPUT_SOURCE: 'ddc:setInputSource', // renderer → main invoke
+  DDC_UPDATE: 'ddc:update',                  // main → renderer push
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -344,5 +345,7 @@ export interface DdcMonitor {
   name: string            // Human-readable monitor name
   brightness: number      // 0–100 %
   contrast: number        // 0–100 %
-  supports: string[]      // Features available: ['brightness', 'contrast']
+  input_source: string    // Current input: hex string (e.g. "0x11") or empty if unsupported
+  available_inputs: string[]  // Available input options: hex strings
+  supports: string[]      // Features available: ['brightness', 'contrast', 'input_source']
 }
