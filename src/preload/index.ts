@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig,
-  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings,
+  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
 } from '../shared/types'
 
 /**
@@ -185,6 +185,21 @@ const api = {
 
   setSettings: (settings: AppSettings): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, settings),
+
+  // ── DDC Display Control ────────────────────────────────────────────────────
+
+  ddcGetMonitors: (): Promise<DdcMonitor[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_GET_MONITORS),
+
+  ddcSetBrightness: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_BRIGHTNESS, monitorId, value),
+
+  onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, monitors: DdcMonitor[]): void =>
+      callback(monitors)
+    ipcRenderer.on(IPC_CHANNELS.DDC_UPDATE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.DDC_UPDATE, handler)
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)

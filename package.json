@@ -12,13 +12,15 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
+    "@hensm/ddcci": "^1.0.0",
     "electron-updater": "^6.1.7"
   },
   "build": {
     "files": ["dist", "resources"],
     "win": {
       "icon": "resources/mission-control-terracotta-1024.png"
-    }
+    },
+    "asarUnpack": ["**/node_modules/@hensm/ddcci/**"]
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

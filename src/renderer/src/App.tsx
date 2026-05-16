@@ -18,7 +18,7 @@ export default function App(): JSX.Element {
     setMaximized, setView, setSettingsTab, toggleSidebar,
     setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
-  const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState } =
+  const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } =
     useServiceStore()
   const { setSonarState } = useSonarStore()
 
@@ -215,6 +215,13 @@ export default function App(): JSX.Element {
     const cleanup = window.api.onSonarStateChange(setSonarState)
     return cleanup
   }, [setSonarState])
+
+  // Load initial DDC monitor list and subscribe to updates
+  useEffect(() => {
+    window.api.ddcGetMonitors().then(setDdcMonitors)
+    const cleanup = window.api.onDdcUpdate(setDdcMonitors)
+    return cleanup
+  }, [setDdcMonitors])
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>

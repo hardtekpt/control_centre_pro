@@ -1,7 +1,7 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig,
-  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings,
+  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
 } from '../../../shared/types'
 
 /**
@@ -75,6 +75,11 @@ declare global {
     // Persistent app settings
     getSettings: () => Promise<AppSettings>
     setSettings: (settings: AppSettings) => Promise<void>
+
+    // DDC Display Control
+    ddcGetMonitors: () => Promise<DdcMonitor[]>
+    ddcSetBrightness: (monitorId: number, value: number) => Promise<void>
+    onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void) => () => void
     }
   }
 }

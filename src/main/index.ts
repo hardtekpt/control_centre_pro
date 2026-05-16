@@ -4,16 +4,30 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, PresetSwitcherRule, OpenApp, AppSettings } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
+import { DdcService } from './services/apis/ddc/service'
 
 let mainWindow: BrowserWindow | null = null
 let serviceManager: ServiceManager
 let sonarService: SonarService
+let ddcService: DdcService
 let activeWindowMonitor: ActiveWindowMonitor | null = null
+
+// ─── DDC Service State ────────────────────────────────────────────────────────
+let ddcCache: DdcMonitor[] = []
+let ddcCacheTs = 0
+let ddcInFlight = false
+let ddcPollTimer: NodeJS.Timeout | null = null
+interface DDCBrightnessJob {
+  monitorName: string
+  value: number
+}
+const ddcQueue = new Map<number, DDCBrightnessJob>() // monitorId → latest job
+let ddcQueueRunning = false
 
 // ─── App Menu ─────────────────────────────────────────────────────────────────
 
@@ -170,6 +184,68 @@ function createWindow(): void {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+// ─── DDC Helper Functions ─────────────────────────────────────────────────────
+
+async function fetchAndBroadcastDdcMonitors(): Promise<void> {
+  if (ddcInFlight) return
+
+  const now = Date.now()
+  const cacheAge = now - ddcCacheTs
+  const isStale = cacheAge > 60_000 // 60 second cache
+
+  if (!isStale && ddcCache.length > 0) {
+    // Cache is fresh, broadcast immediately
+    mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, ddcCache)
+    return
+  }
+
+  ddcInFlight = true
+  try {
+    const monitors = await ddcService.listMonitors()
+    ddcCache = monitors
+    ddcCacheTs = Date.now()
+    mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, monitors)
+  } finally {
+    ddcInFlight = false
+  }
+}
+
+function flushDdcQueue(): void {
+  if (ddcQueueRunning || ddcQueue.size === 0) return
+
+  const entries = ddcQueue.entries()
+  const [monitorId, job] = entries.next().value
+  ddcQueue.delete(monitorId)
+  ddcQueueRunning = true
+
+  setImmediate(() => {
+    try {
+      ddcService.setBrightness(job.monitorName, job.value)
+    } catch (err) {
+      console.error('[DDC] Failed to set brightness:', err)
+    }
+    ddcQueueRunning = false
+    if (ddcQueue.size > 0) {
+      flushDdcQueue()
+    }
+  })
+}
+
+function startDdcPolling(): void {
+  if (ddcPollTimer) return
+  const pollIntervalMs = 300_000 // 5 minutes
+  ddcPollTimer = setInterval(() => {
+    fetchAndBroadcastDdcMonitors().catch(console.error)
+  }, pollIntervalMs)
+}
+
+function stopDdcPolling(): void {
+  if (ddcPollTimer) {
+    clearInterval(ddcPollTimer)
+    ddcPollTimer = null
   }
 }
 
@@ -365,6 +441,24 @@ function registerIpcHandlers(): void {
       throw err
     }
   })
+
+  // ── DDC Display Control ────────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.DDC_GET_MONITORS, async () => {
+    await fetchAndBroadcastDdcMonitors()
+    return ddcCache
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_BRIGHTNESS, (_, monitorId: number, value: number) => {
+    const monitor = ddcCache.find((m) => m.monitor_id === monitorId)
+    if (!monitor) return
+
+    ddcQueue.set(monitorId, {
+      monitorName: monitor.name,
+      value: Math.max(0, Math.min(100, Math.round(value))),
+    })
+
+    flushDdcQueue()
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -378,6 +472,7 @@ app.whenReady().then(() => {
 
   serviceManager = new ServiceManager()
   sonarService = new SonarService()
+  ddcService = new DdcService()
 
   // Wire SonarService into the service infrastructure so it appears in the
   // service list and About terminal alongside the Python services
@@ -394,6 +489,27 @@ app.whenReady().then(() => {
     onEnable: () => sonarService.start(),
     onDisable: () => sonarService.stop(),
     isRunning: () => sonarService.isAvailable(),
+  })
+
+  // Wire DDCService into the service infrastructure so it appears in the
+  // service list and About terminal alongside the Python services
+  ddcService.setLogEmitter((level, msg) => {
+    serviceManager.emitNativeLog('ddc', 'DDC Display', level, msg)
+  })
+  serviceManager.registerNativeService({
+    id: 'ddc',
+    name: 'DDC Display Control',
+    description: 'DDC/CI brightness control for connected monitors (Windows only)',
+    onEnable: () => {
+      ddcService.start()
+      startDdcPolling()
+      fetchAndBroadcastDdcMonitors().catch(console.error)
+    },
+    onDisable: () => {
+      ddcService.stop()
+      stopDdcPolling()
+    },
+    isRunning: () => ddcService.isAvailable(),
   })
 
   registerIpcHandlers()

@@ -1,5 +1,6 @@
 import { useServiceStore } from '../stores/serviceStore'
 import { HeadsetCard } from '../components/home/HeadsetCard'
+import { DisplayCard } from '../components/home/DisplayCard'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ function HomeSection({
 // ─── Home page ────────────────────────────────────────────────────────────────
 
 export function Home(): JSX.Element {
-  const { arctisState } = useServiceStore()
+  const { arctisState, ddcMonitors } = useServiceStore()
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -35,6 +36,15 @@ export function Home(): JSX.Element {
           <HeadsetCard state={arctisState} />
         ) : null}
       </HomeSection>
+      {ddcMonitors.length > 0 && (
+        <HomeSection title="Display">
+          <div className="flex flex-col gap-2">
+            {ddcMonitors.map((monitor) => (
+              <DisplayCard key={monitor.monitor_id} monitor={monitor} />
+            ))}
+          </div>
+        </HomeSection>
+      )}
     </div>
   )
 }

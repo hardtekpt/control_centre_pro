@@ -63,6 +63,11 @@ export const IPC_CHANNELS = {
   // Shell utilities
   SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke
   SHELL_OPEN_STEELSERIES_GG: 'shell:openSteelSeriesGG', // renderer → main invoke
+
+  // DDC/CI display control
+  DDC_GET_MONITORS: 'ddc:getMonitors',      // renderer → main invoke
+  DDC_SET_BRIGHTNESS: 'ddc:setBrightness',  // renderer → main invoke
+  DDC_UPDATE: 'ddc:update',                 // main → renderer push
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -329,4 +334,15 @@ export interface PresetSwitcherRule {
   channel: string         // SonarConfig.virtualAudioDevice
   presetId: string        // SonarConfig.id
   enabled: boolean
+}
+
+// ─── DDC/CI Display Control ───────────────────────────────────────────────────
+
+/** Live state snapshot of a single connected display with DDC/CI support */
+export interface DdcMonitor {
+  monitor_id: number      // 1-based index
+  name: string            // Human-readable monitor name
+  brightness: number      // 0–100 %
+  contrast: number        // 0–100 %
+  supports: string[]      // Features available: ['brightness', 'contrast']
 }
