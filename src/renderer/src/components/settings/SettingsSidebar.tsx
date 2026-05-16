@@ -8,7 +8,6 @@ interface SettingsNavItem {
 
 const SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'general', label: 'General' },
-  { id: 'app', label: 'App' },
   { id: 'gg-sonar', label: 'GG Sonar' },
   { id: 'ddc', label: 'DDC' },
   { id: 'about', label: 'About' },

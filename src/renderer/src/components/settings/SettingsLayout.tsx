@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { TopBar } from '../layout/TopBar'
 import { SettingsSidebar } from './SettingsSidebar'
 import { GeneralSettings } from '../../pages/settings/GeneralSettings'
-import { AppSettings } from '../../pages/settings/AppSettings'
 import { GGSonarSettings } from '../../pages/settings/GGSonarSettings'
 import { DDCSettings } from '../../pages/settings/DDCSettings'
 import { About } from '../../pages/settings/About'
@@ -12,7 +11,7 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import type { SettingsTab } from '@shared/types'
 
 // About is read-only — no save footer needed
-const SAVEABLE_TABS: SettingsTab[] = ['general', 'app', 'gg-sonar', 'ddc']
+const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc']
 
 function SettingsLayoutInner(): JSX.Element {
   const { currentSettingsTab, setSettingsTab, goBack } = useAppStore()
@@ -72,7 +71,6 @@ function SettingsLayoutInner(): JSX.Element {
         >
           <div className="flex-1 overflow-y-auto px-8 py-6">
             {currentSettingsTab === 'general' && <GeneralSettings />}
-            {currentSettingsTab === 'app' && <AppSettings />}
             {currentSettingsTab === 'gg-sonar' && <GGSonarSettings />}
             {currentSettingsTab === 'ddc' && <DDCSettings />}
             {currentSettingsTab === 'about' && <About />}
