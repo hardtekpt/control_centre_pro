@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ArctisState, Option } from '@shared/types'
 
@@ -110,6 +111,7 @@ function OptionGroup<T extends string>({
 
 export function EqPanel({ state, expandByDefault = false }: { state: ArctisState; expandByDefault?: boolean }): JSX.Element {
   const { updateArctisState } = useServiceStore()
+  const containerRef = useRef<HTMLDivElement>(null)
 
   function cmd<K extends keyof ArctisState>(
     cmdName: string,
@@ -119,6 +121,36 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
     updateArctisState(patch)
     window.api.arctisCmd(cmdName, value).catch(console.error)
   }
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' && target.getAttribute('type') === 'range') {
+        e.preventDefault()
+        const input = target as HTMLInputElement
+        const delta = e.deltaY < 0 ? 1 : -1
+        const currentValue = Number(input.value)
+        const min = Number(input.min)
+        const max = Number(input.max)
+        const newValue = Math.max(min, Math.min(max, currentValue + delta))
+
+        if (newValue !== currentValue) {
+          const bandIndex = Array.from(container.querySelectorAll('input[type="range"]')).indexOf(input)
+          if (bandIndex >= 0) {
+            const newBands = [...bands]
+            newBands[bandIndex] = newValue
+            cmd('setEqBands', newBands, { eqBands: newBands })
+          }
+        }
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [bands])
 
   const isCustom = state.eqPresetIndex === EQ_CUSTOM_INDEX
   const namedPreset = EQ_NAMED_PRESETS.find((p) => p.index === state.eqPresetIndex)
@@ -185,6 +217,7 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
         {/* Custom EQ band levels */}
         {isCustom && (
           <div
+            ref={containerRef}
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(10, 1fr)',
@@ -209,16 +242,6 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
                       const newBands = [...bands]
                       newBands[i] = Number(e.target.value)
                       cmd('setEqBands', newBands, { eqBands: newBands })
-                    }}
-                    onWheel={(e) => {
-                      e.preventDefault()
-                      const delta = e.deltaY < 0 ? 1 : -1
-                      const newValue = Math.max(0, Math.min(40, raw + delta))
-                      if (newValue !== raw) {
-                        const newBands = [...bands]
-                        newBands[i] = newValue
-                        cmd('setEqBands', newBands, { eqBands: newBands })
-                      }
                     }}
                     style={{
                       accentColor: 'var(--color-accent)',

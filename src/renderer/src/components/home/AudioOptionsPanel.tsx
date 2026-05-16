@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ArctisState, Option } from '@shared/types'
 
@@ -122,21 +123,35 @@ function AncModeControl({
   onModeChange: (v: ArctisState['ancMode']) => void
   onLevelChange: (v: number) => void
 }): JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   const ANC_OPTIONS: Option<ArctisState['ancMode']>[] = [
     { value: 'OFF', label: 'Off' },
     { value: 'TRANSPARENCY', label: 'Transparency' },
     { value: 'ANC', label: 'ANC' },
   ]
 
-  function handleWheel(e: React.WheelEvent) {
-    e.preventDefault()
-    const delta = e.deltaY < 0 ? 1 : -1
-    const next = Math.max(1, Math.min(10, transparencyLevel + delta))
-    if (next !== transparencyLevel) onLevelChange(next)
-  }
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      const button = (e.target as HTMLElement).closest('button')
+      if (button && button.textContent?.includes('Transparency')) {
+        e.preventDefault()
+        const delta = e.deltaY < 0 ? 1 : -1
+        const next = Math.max(1, Math.min(10, transparencyLevel + delta))
+        if (next !== transparencyLevel) onLevelChange(next)
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [transparencyLevel, onLevelChange])
 
   return (
     <div
+      ref={containerRef}
       className="flex overflow-hidden rounded"
       style={{ border: '1px solid var(--color-border)' }}
     >
@@ -147,7 +162,6 @@ function AncModeControl({
           <button
             key={opt.value}
             onClick={() => onModeChange(opt.value)}
-            onWheel={isTransparency ? handleWheel : undefined}
             className="flex-1 text-xs py-1 px-2 transition-colors flex items-center justify-center gap-1"
             style={{
               background: isActive ? 'var(--color-accent)' : 'var(--color-surface-raised)',
