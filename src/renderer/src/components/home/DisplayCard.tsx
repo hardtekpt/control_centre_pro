@@ -70,9 +70,17 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <span style={{ color: 'var(--color-accent)' }}><MonitorIcon /></span>
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        <h3 className="text-sm font-semibold flex-1" style={{ color: 'var(--color-text-primary)' }}>
           {monitor.name}
         </h3>
+        {monitor.is_primary && (
+          <span
+            className="text-xs px-1.5 py-0.5 rounded"
+            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)' }}
+          >
+            Primary
+          </span>
+        )}
       </div>
 
       {/* Brightness Control */}

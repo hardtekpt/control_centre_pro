@@ -353,4 +353,5 @@ export interface DdcMonitor {
   input_source: string    // Current input: hex string (e.g. "0x11") or empty if unsupported
   available_inputs: string[]  // Available input options: hex strings
   supports: string[]      // Features available: ['brightness', 'contrast', 'input_source']
+  is_primary?: boolean    // true if this is the OS primary display
 }

@@ -90,9 +90,19 @@ export function DDCSettings(): JSX.Element {
                 }}
               >
                 <div className="mb-3">
-                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                    {monitor.name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium flex-1" style={{ color: 'var(--color-text-primary)' }}>
+                      {monitor.name}
+                    </p>
+                    {monitor.is_primary && (
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded"
+                        style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)' }}
+                      >
+                        Primary
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                     Monitor {monitor.monitor_id}
                   </p>

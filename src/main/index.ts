@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, screen } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
@@ -189,6 +189,18 @@ function createWindow(): void {
 }
 
 // ─── DDC Helper Functions ─────────────────────────────────────────────────────
+
+// Marks which monitor corresponds to the OS primary display by correlating
+// DDC enumeration order with Electron's screen.getAllDisplays() order.
+function markPrimaryMonitor(monitors: DdcMonitor[]): void {
+  if (monitors.length === 0) return
+  const allDisplays = screen.getAllDisplays()
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const primaryIdx = allDisplays.findIndex((d) => d.id === primaryDisplay.id)
+  monitors.forEach((m, i) => {
+    m.is_primary = i === primaryIdx
+  })
+}
 
 async function refreshDdcMonitors(): Promise<DdcMonitor[]> {
   if (ddcInFlight) return ddcCache
@@ -509,6 +521,8 @@ app.whenReady().then(() => {
     serviceManager.emitNativeLog('ddc', 'DDC Display', level, msg)
   })
   ddcService.setStateChangedCallback((monitors) => {
+    markPrimaryMonitor(monitors)
+    ddcCache = monitors
     mainWindow?.webContents.send(IPC_CHANNELS.DDC_UPDATE, monitors)
   })
   serviceManager.registerNativeService({
