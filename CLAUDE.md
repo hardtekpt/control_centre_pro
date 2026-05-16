@@ -252,6 +252,131 @@ mounts/unmounts automatically based on `arctisState !== null`.
 
 ---
 
+## DDC/CI Display Control Service
+
+**Why native service instead of Python subprocess?** DDC/CI calls are synchronous and relatively fast
+(200–400 ms each), so blocking Node.js threads is acceptable. Native registration simplifies the
+caching layer and state management — no subprocess protocol overhead. Windows-only via `@hensm/ddcci`.
+
+**Package**: [`@hensm/ddcci`](https://www.npmjs.com/package/@hensm/ddcci) — Windows DDC/CI library.
+Add to `package.json` with `electron-builder` ASAR unpack config:
+```json
+"@hensm/ddcci": "*",
+"build": { "asarUnpack": ["**/node_modules/@hensm/ddcci/**"] }
+```
+
+**Key API**:
+- `getMonitorList(): string[]` — array of device paths (e.g., `"\\\\?\\DISPLAY#...\\Monitor#1"`)
+- `getBrightness(devicePath: string): number` — 0–100
+- `setBrightness(devicePath: string, value: number): void`
+- `_getVCP(devicePath: string, code: number): number[]` — raw VCP value (used for input source)
+- `_setVCP(devicePath: string, code: number, value: number): void` — raw VCP write
+
+**VCP codes** (Virtual Control Panel codes per DDC-CI spec):
+- `0x10` — brightness
+- `0x12` — contrast
+- `0x60` — input source (values: `0x01`–`0x04` VGA/DVI, `0x0f`–`0x10` DisplayPort, `0x11`–`0x12` HDMI, `0x1b` USB-C)
+
+**DdcService** (`src/main/services/apis/ddc/service.ts`):
+- **Constructor**: tries to load `@hensm/ddcci`; sets `available = false` on error
+- **State**:
+  - `cachedMonitors: DdcMonitor[]` — persisted across calls
+  - `cacheTimestamp: number` — for cache freshness checking
+  - `devicePaths: Map<number, string>` — monitorId → device path (stable across polls)
+  - `stateChangedCallback: (monitors: DdcMonitor[]) => void` — called whenever cache updates
+  - `logEmitter: (level, msg) => void` — wired to the About page terminal log
+- **Methods**:
+  - `refreshMonitors(): Promise<DdcMonitor[]>` — enumerate, read brightness/contrast/input; update cache; notify callback
+  - `setBrightness(monitorId, value)` — write to hardware + update cache
+  - `setInputSource(monitorId, inputValue)` — write via VCP code 0x60 + update cache
+  - `getInputName(inputHex): string` — map hex codes to friendly names (VGA 1, HDMI 1, etc.)
+  - `isAvailable(): boolean` — true if module loaded and service is running
+  - `start() / stop()` — service lifecycle
+
+**DdcMonitor interface** (shared type in `types.ts`):
+```typescript
+export interface DdcMonitor {
+  monitor_id: number                 // 1-indexed
+  name: string                       // extracted from device path
+  brightness: number                 // 0–100
+  contrast: number                   // 0–100
+  input_source: string               // hex like "0x11" (lowercase)
+  available_inputs: string[]         // sorted list of detected input codes
+  supports: string[]                 // ['brightness', 'contrast', 'input_source']
+}
+```
+
+**IPC channels**:
+- `DDC_GET_MONITORS` — invoke to get monitors (forces refresh if cache >60s old)
+- `DDC_SET_BRIGHTNESS` — invoke(monitorId, value) — queued + coalesced
+- `DDC_SET_INPUT_SOURCE` — invoke(monitorId, inputValue) — direct write + refresh
+- `DDC_UPDATE` — push event (broadcast on state change or periodic poll)
+
+**Main process architecture** (`src/main/index.ts`):
+- Module-level state: `ddcCache`, `ddcCacheTs`, `ddcInFlight` flag, `ddcPollTimer`, `ddcQueue` Map
+- **Command queue** (`ddcQueue: Map<monitorId, { value }>`) — coalesces rapid brightness changes
+  from slider drags. Called via:
+  ```typescript
+  ddcQueue.set(monitorId, { value })
+  setImmediate(flushDdcQueue)  // batch writes
+  ```
+- **`refreshDdcMonitors()`** — calls service `refreshMonitors()`, guarded by `ddcInFlight` flag
+  to prevent overlapping reads (DDC is slow)
+- **`broadcastDdcMonitors()`** — sends `DDC_UPDATE` to all renderer windows
+- **`startDdcPolling() / stopDdcPolling()`** — 60s background refresh via `setInterval`
+
+**Smart refresh strategy** (minimize slow DDC calls):
+1. **Startup**: after `serviceManager.startAll()`, schedule refresh with 5 retries (5s delays)
+2. **Navigation**: `App.tsx` refreshes when navigating to home page or DDC settings tab
+3. **Periodic**: 60s interval (configurable in DDC settings, default 60s)
+4. **Post-change**: refresh after `setBrightness` or `setInputSource` to read back actual values
+5. **Cache**: return cached data if <60s old; otherwise refresh
+
+**DisplayCard component** (`src/renderer/src/components/home/DisplayCard.tsx`):
+- **Props**: `monitor: DdcMonitor`
+- **Local state**:
+  - `draftBrightness: number | null` — user's slider drag value (optimistic UI)
+  - `lockedUntilRef: useRef<number>` — timestamp to ignore stale `DDC_UPDATE` events during drag
+- **Brightness slider**:
+  - `onChange` → update draft only (visual feedback without waiting for hardware)
+  - `onPointerUp` / `onKeyUp('Enter'|' ')` → fire IPC + clear draft after 1200ms lock
+  - Display value = `draftBrightness ?? monitor.brightness` (draft takes precedence)
+- **Input selector**: dropdown showing `available_inputs`, calls `window.api.ddcSetInputSource`
+- **Layout**: `rounded-lg px-4 py-3` card with monitor name + ID header, feature badges
+- **Pattern**: write-lock prevents echoed `DDC_UPDATE` from clobbering user's in-flight drag
+
+**Home page display grid** (`src/renderer/src/pages/Home.tsx`):
+```tsx
+{ddcMonitors.length > 0 && (
+  <HomeSection title="Display">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+      {ddcMonitors.map(m => <DisplayCard key={m.monitor_id} monitor={m} />)}
+    </div>
+  </HomeSection>
+)}
+```
+Responsive: 2 columns on wide screens, 1 on narrow (CSS `auto-fit` + `minmax`).
+
+**Input source mapping** (case-insensitive lookup via `INPUT_NAME_MAP: Record<string, string>`):
+- Keys are lowercase hex: `'0x01'`, `'0x02'`, `'0x0f'`, etc.
+- Values: `'VGA 1'`, `'DVI 1'`, `'DisplayPort 1'`, `'HDMI 1'`, `'USB-C'`
+- Padding: always `padStart(2, '0')` and `.toLowerCase()` on hex strings to ensure consistency
+
+**Architectural lessons**:
+1. **DDC latency**: 200–400 ms per call. Caching + in-flight guard prevents UI hangs from
+   overlapping reads. Always guard `ddcInFlight = true/false` around actual refreshes.
+2. **Optimistic UI**: local draft state in DisplayCard + write-lock pattern avoids flashing
+   old values when echoed updates arrive from the backend.
+3. **Command coalescing**: rapid slider drags produce many `DDC_SET_BRIGHTNESS` calls. Queue
+   + `setImmediate` ensures we only write to hardware once per gesture, not once per tick.
+4. **Input discovery**: Rather than querying monitor capabilities (slow + unreliable), use a
+   fixed list of common input codes. Always include the current input in `available_inputs`.
+5. **Service callback**: `setStateChangedCallback()` decouples the service from IPC. Main process
+   calls `broadcastDdcMonitors()` when the callback fires, keeping renderer in sync without
+   explicit polling.
+
+---
+
 ## Adding a New Page / Section
 
 1. Add a new `NavItemDef` entry to the `MAIN_NAV` array in [Sidebar.tsx](src/renderer/src/components/layout/Sidebar.tsx).
