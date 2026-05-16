@@ -88,7 +88,8 @@ while ($true) {
    * manually changed a preset that we auto-applied
    */
   notifyManualPresetChange(presetId: string): void {
-    const config = this.sonarService.state?.configs?.find((c) => c.id === presetId)
+    const state = this.sonarService.getState()
+    const config = state?.configs?.find((c) => c.id === presetId)
     if (!config) return
 
     const channel = config.virtualAudioDevice

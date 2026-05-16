@@ -210,8 +210,10 @@ function broadcastDdcMonitors(): void {
 function flushDdcQueue(): void {
   if (ddcQueueRunning || ddcQueue.size === 0) return
 
-  const entries = ddcQueue.entries()
-  const [monitorId, job] = entries.next().value
+  const entry = ddcQueue.entries().next().value as [number, DDCBrightnessJob] | undefined
+  if (!entry) return
+
+  const [monitorId, job] = entry
   ddcQueue.delete(monitorId)
   ddcQueueRunning = true
 

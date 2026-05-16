@@ -1,4 +1,4 @@
-import type { DdcMonitor } from '../../../shared/types'
+import type { DdcMonitor } from '../../../../shared/types'
 
 let ddcci: any = null
 try {

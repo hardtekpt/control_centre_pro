@@ -14,7 +14,7 @@ import type { ArctisState } from '@shared/types'
  */
 export default function App(): JSX.Element {
   const {
-    currentView, theme, sidebarWidth, sidebarCollapsed,
+    currentView, currentSettingsTab, theme, sidebarWidth, sidebarCollapsed,
     setMaximized, setView, setSettingsTab, toggleSidebar,
     setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
@@ -232,10 +232,10 @@ export default function App(): JSX.Element {
 
   // Refresh DDC monitors when navigating to DDC settings
   useEffect(() => {
-    if (currentSettingsTab === 'ddc') {
+    if (currentView === 'settings' && currentSettingsTab === 'ddc') {
       window.api.ddcGetMonitors().catch(console.error)
     }
-  }, [currentSettingsTab])
+  }, [currentView, currentSettingsTab])
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>
