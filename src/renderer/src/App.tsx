@@ -14,9 +14,9 @@ import type { ArctisState } from '@shared/types'
  */
 export default function App(): JSX.Element {
   const {
-    currentView, currentSettingsTab, theme, accentColor, sidebarWidth, sidebarCollapsed,
+    currentView, currentSettingsTab, theme, sidebarWidth, sidebarCollapsed,
     setMaximized, setView, setSettingsTab, toggleSidebar,
-    setTheme, setAccentColor, setSidebarWidth, setSidebarCollapsed,
+    setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
   const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } =
     useServiceStore()
@@ -29,12 +29,11 @@ export default function App(): JSX.Element {
   useEffect(() => {
     window.api.getSettings().then((settings) => {
       setTheme(settings.theme)
-      setAccentColor(settings.accentColor)
       setSidebarWidth(settings.sidebarWidth)
       setSidebarCollapsed(settings.sidebarCollapsed)
       settingsLoadedRef.current = true
     }).catch(console.error)
-  }, [setTheme, setAccentColor, setSidebarWidth, setSidebarCollapsed])
+  }, [setTheme, setSidebarWidth, setSidebarCollapsed])
 
   // Auto-save sidebar width and collapsed state (debounced)
   useEffect(() => {
@@ -61,12 +60,6 @@ export default function App(): JSX.Element {
         : root.removeAttribute('data-theme')
     }
   }, [theme])
-
-  // Apply accent color to CSS custom properties
-  useEffect(() => {
-    const root = document.documentElement
-    root.style.setProperty('--color-accent', accentColor)
-  }, [accentColor])
 
   // Sync isMaximized with real window state
   useEffect(() => {
