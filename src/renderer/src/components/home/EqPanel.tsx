@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ArctisState, Option } from '@shared/types'
 
@@ -27,62 +26,34 @@ const EQ_NAMED_PRESETS: { index: number; label: string }[] = [
 
 const EQ_BAND_FREQS = ['31', '62', '125', '250', '500', '1K', '2K', '4K', '8K', '16K']
 
-function ChevronIcon({ open }: { open: boolean }): JSX.Element {
+function EqIcon(): JSX.Element {
   return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{
-        transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-        transition: 'transform 150ms ease',
-        flexShrink: 0,
-      }}
-    >
-      <polyline points="6 9 12 15 18 9" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="3" height="16" rx="1" />
+      <rect x="10" y="8" width="3" height="12" rx="1" />
+      <rect x="18" y="6" width="3" height="14" rx="1" />
     </svg>
   )
 }
 
 function Section({
   title,
-  summary,
   children,
-  expandByDefault = false,
+  icon,
 }: {
   title: string
-  summary?: string
   children: React.ReactNode
-  expandByDefault?: boolean
+  icon?: React.ReactNode
 }): JSX.Element {
-  const [open, setOpen] = useState(expandByDefault)
   return (
-    <div style={{ borderTop: '1px solid var(--color-border)' }}>
-      <button
-        className="w-full flex items-center justify-between"
-        onClick={() => setOpen((o) => !o)}
-        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: '10px 0' }}
-      >
+    <div>
+      <div className="flex items-center gap-2 mb-2.5">
+        {icon && <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}>{icon}</span>}
         <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {title}
         </span>
-        <div className="flex items-center gap-2">
-          {summary && !open && (
-            <span className="text-xs mono" style={{ color: 'var(--color-text-secondary)' }}>
-              {summary}
-            </span>
-          )}
-          <span style={{ color: 'var(--color-text-secondary)' }}>
-            <ChevronIcon open={open} />
-          </span>
-        </div>
-      </button>
-      {open && <div className="flex flex-col gap-2.5 pb-3">{children}</div>}
+      </div>
+      <div className="flex flex-col gap-2.5">{children}</div>
     </div>
   )
 }
@@ -159,7 +130,7 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
       className="rounded-lg px-4 py-3 flex flex-col"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      <Section title="EQ" summary={summary} expandByDefault={expandByDefault}>
+      <Section title="EQ" icon={<EqIcon />}>
         {/* Mode toggle — Custom first, then Preset */}
         <ControlRow label="Mode">
           <OptionGroup
