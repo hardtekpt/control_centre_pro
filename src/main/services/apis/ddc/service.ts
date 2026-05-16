@@ -8,6 +8,19 @@ try {
   // @hensm/ddcci not available (not installed or platform-specific)
 }
 
+// Common input source hex codes to friendly names
+const INPUT_NAME_MAP: Record<string, string> = {
+  '0x01': 'VGA 1',
+  '0x02': 'VGA 2',
+  '0x03': 'DVI 1',
+  '0x04': 'DVI 2',
+  '0x0F': 'DisplayPort 1',
+  '0x10': 'DisplayPort 2',
+  '0x11': 'HDMI 1',
+  '0x12': 'HDMI 2',
+  '0x1B': 'USB-C',
+}
+
 export class DdcService {
   private devicePaths = new Map<number, string>() // monitorId → device path
   private cachedMonitors: DdcMonitor[] = []
@@ -121,6 +134,31 @@ export class DdcService {
         // contrast not supported or read failed
       }
 
+      // Read input source (VCP code 0x60)
+      try {
+        const inputData = ddcci._getVCP(devicePath, 0x60)
+        if (Array.isArray(inputData) && inputData.length >= 1) {
+          const currentInput = inputData[0]
+          const inputHex = '0x' + currentInput.toString(16).padStart(2, '0')
+          monitor.input_source = inputHex
+          monitor.supports.push('input_source')
+
+          // Try to discover available inputs from the monitor's capabilities
+          try {
+            // For now, we'll just list common inputs that might be available
+            // A more sophisticated approach would query the monitor's capabilities
+            monitor.available_inputs = ['0x01', '0x03', '0x0F', '0x11', '0x12'].filter(
+              (inp) => INPUT_NAME_MAP[inp]
+            )
+          } catch {
+            // If we can't discover inputs, at least include the current one
+            monitor.available_inputs = [inputHex]
+          }
+        }
+      } catch {
+        // input not supported or read failed
+      }
+
       monitors.push(monitor)
     }
 
@@ -148,7 +186,6 @@ export class DdcService {
       const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
       ddcci.setBrightness(devicePath, normalizedValue)
 
-      // Update cached state immediately (optimistic)
       const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
       if (monitor) {
         monitor.brightness = normalizedValue
@@ -157,6 +194,39 @@ export class DdcService {
     } catch (err) {
       this.log('error', `Failed to set brightness: ${err instanceof Error ? err.message : String(err)}`)
     }
+  }
+
+  setInputSource(monitorId: number, inputValue: string): void {
+    if (!this.available || !this.running) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) {
+      this.log('warn', `No device path found for monitor ${monitorId}`)
+      return
+    }
+
+    try {
+      // Parse hex string (e.g., "0x11" -> 17)
+      const inputCode = parseInt(inputValue, 16)
+      if (isNaN(inputCode)) {
+        this.log('error', `Invalid input value: ${inputValue}`)
+        return
+      }
+
+      ddcci._setVCP(devicePath, 0x60, inputCode)
+
+      const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+      if (monitor) {
+        monitor.input_source = inputValue
+        this.notifyStateChanged()
+      }
+    } catch (err) {
+      this.log('error', `Failed to set input source: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  getInputName(inputHex: string): string {
+    return INPUT_NAME_MAP[inputHex] || inputHex
   }
 
   getDevicePath(monitorId: number): string | null {

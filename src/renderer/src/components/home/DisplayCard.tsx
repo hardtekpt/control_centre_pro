@@ -6,6 +6,22 @@ interface DisplayCardProps {
   monitor: DdcMonitor
 }
 
+const INPUT_NAME_MAP: Record<string, string> = {
+  '0x01': 'VGA 1',
+  '0x02': 'VGA 2',
+  '0x03': 'DVI 1',
+  '0x04': 'DVI 2',
+  '0x0F': 'DisplayPort 1',
+  '0x10': 'DisplayPort 2',
+  '0x11': 'HDMI 1',
+  '0x12': 'HDMI 2',
+  '0x1B': 'USB-C',
+}
+
+function getInputName(inputHex: string): string {
+  return INPUT_NAME_MAP[inputHex] || inputHex
+}
+
 export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
@@ -83,13 +99,15 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
       {supportsInput && monitor.available_inputs.length > 0 ? (
         <div className="mb-3">
           <label htmlFor={`input-${monitor.monitor_id}`} className="text-xs font-medium block mb-1" style={{ color: 'var(--color-text-primary)' }}>
-            Input
+            Input: {getInputName(monitor.input_source)}
           </label>
           <select
             id={`input-${monitor.monitor_id}`}
             value={monitor.input_source}
             onChange={(e) => {
-              window.api.ddcSetInputSource?.(monitor.monitor_id, e.currentTarget.value).catch(console.error)
+              if (e.currentTarget.value) {
+                window.api.ddcSetInputSource(monitor.monitor_id, e.currentTarget.value).catch(console.error)
+              }
             }}
             className="w-full text-xs p-1.5 rounded"
             style={{
@@ -98,10 +116,9 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
               border: '1px solid var(--color-border)',
             }}
           >
-            <option value="">Select input...</option>
             {monitor.available_inputs.map((input) => (
               <option key={input} value={input}>
-                {input}
+                {getInputName(input)}
               </option>
             ))}
           </select>

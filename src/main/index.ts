@@ -455,10 +455,10 @@ function registerIpcHandlers(): void {
     flushDdcQueue()
   })
 
-  ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, (_, monitorId: number, inputValue: string) => {
-    // TODO: Implement input source setting once @hensm/ddcci exposes it
-    // For now, this is a placeholder
-    console.log(`[DDC] Set input ${inputValue} for monitor ${monitorId}`)
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, async (_, monitorId: number, inputValue: string) => {
+    ddcService.setInputSource(monitorId, inputValue)
+    // Refresh to confirm the change
+    await refreshDdcMonitors()
   })
 }
 

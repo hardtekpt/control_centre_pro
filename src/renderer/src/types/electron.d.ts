@@ -79,7 +79,7 @@ declare global {
     // DDC Display Control
     ddcGetMonitors: () => Promise<DdcMonitor[]>
     ddcSetBrightness: (monitorId: number, value: number) => Promise<void>
-    ddcSetInputSource?: (monitorId: number, inputValue: string) => Promise<void>
+    ddcSetInputSource: (monitorId: number, inputValue: string) => Promise<void>
     onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void) => () => void
     }
   }
