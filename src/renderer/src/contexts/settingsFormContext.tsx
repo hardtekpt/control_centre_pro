@@ -26,18 +26,17 @@ export function SettingsFormProvider({ children }: { children: React.ReactNode }
 
   const triggerSave = useCallback(async () => {
     console.log('[SettingsForm] triggerSave called, saveHandler exists:', !!saveHandlerRef.current)
-    try {
-      if (saveHandlerRef.current) {
+    if (saveHandlerRef.current) {
+      try {
         await saveHandlerRef.current()
         console.log('[SettingsForm] Save handler completed successfully')
+      } catch (err) {
+        console.error('[SettingsForm] Save handler failed:', err)
+        throw err
       }
-    } catch (err) {
-      console.error('[SettingsForm] Save handler failed:', err)
-      throw err
-    } finally {
-      console.log('[SettingsForm] Setting isDirty to false')
-      setIsDirty(false)
     }
+    console.log('[SettingsForm] Setting isDirty to false')
+    setIsDirty(false)
   }, [])
 
   return (
