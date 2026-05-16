@@ -23,7 +23,7 @@ let ddcCacheTs = 0
 let ddcInFlight = false
 let ddcPollTimer: NodeJS.Timeout | null = null
 interface DDCBrightnessJob {
-  monitorName: string
+  monitorId: number
   value: number
 }
 const ddcQueue = new Map<number, DDCBrightnessJob>() // monitorId → latest job
@@ -223,7 +223,7 @@ function flushDdcQueue(): void {
 
   setImmediate(() => {
     try {
-      ddcService.setBrightness(job.monitorName, job.value)
+      ddcService.setBrightness(job.monitorId, job.value)
     } catch (err) {
       console.error('[DDC] Failed to set brightness:', err)
     }
@@ -449,11 +449,10 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.DDC_SET_BRIGHTNESS, (_, monitorId: number, value: number) => {
-    const monitor = ddcCache.find((m) => m.monitor_id === monitorId)
-    if (!monitor) return
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
 
     ddcQueue.set(monitorId, {
-      monitorName: monitor.name,
+      monitorId,
       value: Math.max(0, Math.min(100, Math.round(value))),
     })
 

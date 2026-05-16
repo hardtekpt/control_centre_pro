@@ -9,7 +9,7 @@ try {
 }
 
 export class DdcService {
-  private preferredKeys = new Map<string, string>()
+  private devicePaths = new Map<number, string>() // monitorId → device path
   private available = ddcci !== null
   private running = false
   private logEmitter: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
@@ -45,62 +45,58 @@ export class DdcService {
   async listMonitors(): Promise<DdcMonitor[]> {
     if (!this.available || !this.running) return []
 
-    let raw: any[]
+    let devicePaths: string[]
     try {
-      raw = ddcci.getAllMonitors('accurate', false, true)
+      devicePaths = ddcci.getMonitorList()
     } catch (err) {
       this.log('error', `Failed to enumerate monitors: ${err instanceof Error ? err.message : String(err)}`)
       return []
     }
 
-    if (!Array.isArray(raw) || raw.length === 0) {
+    if (!Array.isArray(devicePaths) || devicePaths.length === 0) {
       this.log('info', 'No DDC-capable monitors found')
       return []
     }
 
     const monitors: DdcMonitor[] = []
+    this.devicePaths.clear()
 
-    for (let i = 0; i < raw.length; i++) {
-      const rawMon = raw[i]
-      const monitorName = rawMon.fullName || rawMon.id || `Monitor ${i + 1}`
+    for (let i = 0; i < devicePaths.length; i++) {
+      const devicePath = devicePaths[i]
+      const monitorId = i + 1
 
-      // Resolve preferred key (cached or discover)
-      let preferredKey = this.preferredKeys.get(monitorName)
-      if (!preferredKey) {
-        preferredKey = await this.discoverKey(rawMon)
-        if (preferredKey) {
-          this.preferredKeys.set(monitorName, preferredKey)
-        }
-      }
+      // Store device path for later use in setBrightness
+      this.devicePaths.set(monitorId, devicePath)
 
-      if (!preferredKey) {
-        continue // couldn't find a working key for this monitor
-      }
+      // Extract a friendly name from the device path
+      // Format: \\?\DISPLAY#MODEL#...#{GUID}
+      const parts = devicePath.split('#')
+      const modelName = parts.length > 1 ? parts[1] : `Monitor ${monitorId}`
 
       const monitor: DdcMonitor = {
-        monitor_id: i + 1,
-        name: monitorName,
+        monitor_id: monitorId,
+        name: modelName,
         brightness: 0,
         contrast: 0,
         supports: [],
       }
 
-      // Read brightness (VCP code 0x10)
+      // Read brightness
       try {
-        const brt = ddcci.getVCP(preferredKey, 0x10)
-        if (brt && typeof brt.current === 'number') {
-          monitor.brightness = Math.max(0, Math.min(100, Math.round((brt.current / (brt.maximum || 100)) * 100)))
+        const brt = ddcci.getBrightness(devicePath)
+        if (typeof brt === 'number') {
+          monitor.brightness = Math.max(0, Math.min(100, Math.round(brt)))
           monitor.supports.push('brightness')
         }
       } catch {
         // brightness not supported or read failed
       }
 
-      // Read contrast (VCP code 0x12)
+      // Read contrast
       try {
-        const con = ddcci.getVCP(preferredKey, 0x12)
-        if (con && typeof con.current === 'number') {
-          monitor.contrast = Math.max(0, Math.min(100, Math.round((con.current / (con.maximum || 100)) * 100)))
+        const con = ddcci.getContrast(devicePath)
+        if (typeof con === 'number') {
+          monitor.contrast = Math.max(0, Math.min(100, Math.round(con)))
           monitor.supports.push('contrast')
         }
       } catch {
@@ -117,59 +113,24 @@ export class DdcService {
     return monitors
   }
 
-  private async discoverKey(rawMon: any): Promise<string | null> {
-    // Build candidate keys from all string values and array elements
-    const candidates = new Set<string>()
-
-    for (const val of Object.values(rawMon)) {
-      if (typeof val === 'string' && val.trim()) {
-        candidates.add(val.trim())
-      } else if (Array.isArray(val)) {
-        for (const item of val) {
-          if (typeof item === 'string' && item.trim()) {
-            candidates.add(item.trim())
-          }
-        }
-      }
-    }
-
-    // Try each candidate with a VCP read
-    for (const key of candidates) {
-      try {
-        ddcci.getVCP(key, 0x10) // Brightness
-        return key
-      } catch {
-        // This key didn't work, try next
-      }
-      try {
-        ddcci.getVCP(key, 0x12) // Contrast
-        return key
-      } catch {
-        // This key didn't work, try next
-      }
-    }
-
-    return null
-  }
-
-  setBrightness(monitorName: string, value: number): void {
+  setBrightness(monitorId: number, value: number): void {
     if (!this.available || !this.running) return
 
-    const preferredKey = this.preferredKeys.get(monitorName)
-    if (!preferredKey) {
-      this.log('warn', `No preferred key found for monitor: ${monitorName}`)
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) {
+      this.log('warn', `No device path found for monitor ${monitorId}`)
       return
     }
 
     try {
       const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
-      ddcci.setVCP(preferredKey, 0x10, normalizedValue)
+      ddcci.setBrightness(devicePath, normalizedValue)
     } catch (err) {
       this.log('error', `Failed to set brightness: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
-  getPreferredKey(monitorName: string): string | null {
-    return this.preferredKeys.get(monitorName) ?? null
+  getDevicePath(monitorId: number): string | null {
+    return this.devicePaths.get(monitorId) ?? null
   }
 }

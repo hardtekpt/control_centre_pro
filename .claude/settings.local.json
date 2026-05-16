@@ -29,7 +29,8 @@
       "PowerShell(Get-Process)",
       "Bash(cd '/c/Users/ffvd/Documents/control_centre_pro' && grep -n \"w-1.5 h-1.5 rounded-full\" src/renderer/src/components/gg-sonar/*.tsx src/renderer/src/pages/*.tsx)",
       "Read(//c/c/Users/ffvd/Documents/control_centre_pro/src/renderer/src/components/**)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git commit *)"
     ]
   }
 }
