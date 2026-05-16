@@ -19,6 +19,7 @@ function VerticalFaderComponent({
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const dragValueRef = useRef<number | null>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [dragValue, setDragValue] = useState<number | null>(null)
 
   // While dragging, show dragValue; otherwise show prop value
@@ -31,6 +32,14 @@ function VerticalFaderComponent({
     return Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height))
   }
 
+  function triggerChange(v: number): void {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    debounceTimerRef.current = setTimeout(() => {
+      onChange(v)
+      debounceTimerRef.current = null
+    }, 50)
+  }
+
   function onMouseDown(e: React.MouseEvent): void {
     if (disabled) return
     e.preventDefault()
@@ -39,14 +48,13 @@ function VerticalFaderComponent({
     const newValue = valueFromClientY(e.clientY)
     dragValueRef.current = newValue
     setDragValue(newValue)
-    onChange(newValue)
 
     function onMove(ev: MouseEvent): void {
       if (dragging.current) {
         const v = valueFromClientY(ev.clientY)
         dragValueRef.current = v
         setDragValue(v)
-        onChange(v)
+        triggerChange(v)
       }
     }
     function onUp(): void {
@@ -54,6 +62,11 @@ function VerticalFaderComponent({
       dragValueRef.current = null
       setDragValue(null)
       useSonarStore.getState().endDrag()
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = null
+      }
+      if (dragValueRef.current !== null) onChange(dragValueRef.current)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
