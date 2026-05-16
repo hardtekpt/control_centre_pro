@@ -75,7 +75,10 @@ export class DdcService {
   private cacheTimestamp = 0
   private available = ddcci !== null
   private running = false
+  // Exact device interface path (from EDD_GET_DEVICE_INTERFACE_NAME) — preferred
   private primaryDevicePath: string | null = null
+  // Model ID fallback (e.g. "aoc2402") used when EDD_GET_DEVICE_INTERFACE_NAME is empty
+  private primaryModelId: string | null = null
   private logEmitter: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangedCallback: ((monitors: DdcMonitor[]) => void) | null = null
 
@@ -124,8 +127,21 @@ export class DdcService {
       this.log('info', `DDC primary DEVID (raw): ${devId || '(empty)'}`)
 
       this.primaryDevicePath = path.toLowerCase() || null
-      if (!this.primaryDevicePath) {
-        this.log('warn', 'Primary monitor device interface path is empty — primary badge will not appear')
+
+      if (!this.primaryDevicePath && devId) {
+        // EDD_GET_DEVICE_INTERFACE_NAME returned nothing — extract model from raw DEVID
+        // DEVID format: MONITOR\<ModelID>\{ClassGUID}\instance  OR  MONITOR\<ModelID>\{ClassGUID}
+        const parts = devId.split('\\')
+        // parts[0] = "MONITOR", parts[1] = model ID
+        const model = parts.length >= 2 ? parts[1].toLowerCase() : null
+        this.primaryModelId = model
+        if (model) {
+          this.log('info', `DDC primary model ID fallback: ${model}`)
+        } else {
+          this.log('warn', 'Could not extract model ID from DEVID — primary badge will not appear')
+        }
+      } else if (!this.primaryDevicePath) {
+        this.log('warn', 'Primary monitor device interface path is empty and no DEVID — primary badge will not appear')
       }
     } catch (err) {
       this.log('warn', `Primary monitor detection failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -243,12 +259,15 @@ export class DdcService {
       this.devicePaths.forEach((p, id) => this.log('info', `  ddcci[${id}]: ${p}`))
     }
 
-    // Mark which monitor is the OS primary display
+    // Mark which monitor is the OS primary display (two strategies)
     monitors.forEach((m) => {
-      const devicePath = this.devicePaths.get(m.monitor_id)
-      m.is_primary = Boolean(
-        devicePath && this.primaryDevicePath && devicePath.toLowerCase() === this.primaryDevicePath
-      )
+      const devicePath = this.devicePaths.get(m.monitor_id)?.toLowerCase()
+      const byPath = Boolean(devicePath && this.primaryDevicePath && devicePath === this.primaryDevicePath)
+      const byModel = Boolean(!byPath && devicePath && this.primaryModelId && devicePath.includes(`#${this.primaryModelId}#`))
+      m.is_primary = byPath || byModel
+      if (m.is_primary) {
+        this.log('info', `Primary monitor: ${m.name} (monitor ${m.monitor_id}, matched by ${byPath ? 'path' : 'model ID'})`)
+      }
     })
 
     this.cachedMonitors = monitors
