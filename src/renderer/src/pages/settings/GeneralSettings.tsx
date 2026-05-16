@@ -9,13 +9,15 @@ type Theme = 'light' | 'dark' | 'system'
 // ─── General settings page ────────────────────────────────────────────────────
 
 export function GeneralSettings(): JSX.Element {
-  const { theme, setTheme } = useAppStore()
+  const { theme, accentColor, setTheme, setAccentColor } = useAppStore()
   const { services } = useServiceStore()
   const { setDirty, registerSave } = useSettingsForm()
 
   const [draftTheme, setDraftTheme] = useState<Theme>(theme)
+  const [draftAccentColor, setDraftAccentColor] = useState(accentColor)
   const [draftPythonPath, setDraftPythonPath] = useState('')
   const [savedPythonPath, setSavedPythonPath] = useState('')
+  const [savedAccentColor, setSavedAccentColor] = useState(accentColor)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export function GeneralSettings(): JSX.Element {
   }, [])
 
   // Sync dirty state to context
-  const isDirtyLocal = draftTheme !== theme || draftPythonPath !== savedPythonPath
+  const isDirtyLocal = draftTheme !== theme || draftAccentColor !== savedAccentColor || draftPythonPath !== savedPythonPath
   useEffect(() => {
     setDirty(isDirtyLocal)
   }, [isDirtyLocal, setDirty])
@@ -36,8 +38,10 @@ export function GeneralSettings(): JSX.Element {
   useEffect(() => {
     registerSave(async () => {
       const currentSettings = await window.api.getSettings()
-      await window.api.setSettings({ ...currentSettings, theme: draftTheme })
+      await window.api.setSettings({ ...currentSettings, theme: draftTheme, accentColor: draftAccentColor })
       setTheme(draftTheme)
+      setAccentColor(draftAccentColor)
+      setSavedAccentColor(draftAccentColor)
 
       const trimmedPath = draftPythonPath.trim()
       if (trimmedPath) {
@@ -46,7 +50,7 @@ export function GeneralSettings(): JSX.Element {
       }
     })
     return () => registerSave(null)
-  }, [draftTheme, draftPythonPath, registerSave, setTheme])
+  }, [draftTheme, draftAccentColor, draftPythonPath, registerSave, setTheme, setAccentColor])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
@@ -60,7 +64,6 @@ export function GeneralSettings(): JSX.Element {
         <SettingRow
           label="Theme"
           helper="Choose the color scheme for the application"
-          last
         >
           <select
             value={draftTheme}
@@ -77,6 +80,45 @@ export function GeneralSettings(): JSX.Element {
             <option value="light">Light</option>
             <option value="system">System</option>
           </select>
+        </SettingRow>
+        <SettingRow
+          label="Accent Color"
+          helper="Choose the accent color for interactive elements"
+          last
+        >
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="color"
+              value={draftAccentColor}
+              onChange={(e) => setDraftAccentColor(e.target.value)}
+              style={{
+                width: 40,
+                height: 32,
+                border: '1px solid var(--color-border)',
+                borderRadius: '0.375rem',
+                cursor: 'pointer',
+              }}
+            />
+            <input
+              type="text"
+              value={draftAccentColor}
+              onChange={(e) => {
+                const val = e.target.value
+                if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                  setDraftAccentColor(val)
+                }
+              }}
+              placeholder="#525252"
+              className="text-sm px-2 py-1 rounded mono"
+              style={{
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                width: 100,
+              }}
+            />
+          </div>
         </SettingRow>
       </SettingsSection>
 
