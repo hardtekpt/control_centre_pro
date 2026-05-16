@@ -321,10 +321,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_ENABLED, () => {
     try {
       const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-      if (!existsSync(rulesPath)) return true
+      if (!existsSync(rulesPath)) {
+        console.log('[getEnabled] file does not exist, returning true')
+        return true
+      }
       const content = readFileSync(rulesPath, 'utf-8')
       const data = JSON.parse(content)
-      return data.enabled !== false
+      const enabled = data.enabled !== false
+      console.log('[getEnabled] file contents:', JSON.stringify(data), 'returning:', enabled)
+      return enabled
     } catch (err) {
       console.error('[getEnabled] error:', err)
       return true
@@ -334,10 +339,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_SET_ENABLED, (_, enabled: boolean) => {
     try {
       const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
+      console.log('[setEnabled] saving to:', rulesPath, 'enabled:', enabled)
       const content = existsSync(rulesPath) ? readFileSync(rulesPath, 'utf-8') : '{}'
       const data = JSON.parse(content)
       data.enabled = enabled
-      writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
+      const fileContent = JSON.stringify(data, null, 2)
+      writeFileSync(rulesPath, fileContent, 'utf-8')
+      console.log('[setEnabled] successfully wrote file, contents:', fileContent)
       activeWindowMonitor?.setEnabled(enabled)
       mainWindow?.webContents.send(IPC_CHANNELS.PRESET_SWITCHER_ENABLED_CHANGE, enabled)
     } catch (err) {
