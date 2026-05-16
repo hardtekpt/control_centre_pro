@@ -55,8 +55,9 @@ export function GGSonarSettings(): JSX.Element {
   const [draftVisibleChannels, setDraftVisibleChannels] = useState(() => new Set(visibleChannels))
 
   // ── Preset switcher enabled ──────────────────────────────────────────────────
-  const [savedPresetSwitcherEnabled, setSavedPresetSwitcherEnabled] = useState(true)
-  const [draftPresetSwitcherEnabled, setDraftPresetSwitcherEnabled] = useState(true)
+  // Start as null to avoid rendering with wrong value before fetch completes
+  const [savedPresetSwitcherEnabled, setSavedPresetSwitcherEnabled] = useState<boolean | null>(null)
+  const [draftPresetSwitcherEnabled, setDraftPresetSwitcherEnabled] = useState<boolean | null>(null)
 
   // Refs mirror every draft value so the save handler always reads the latest
   // state even if registered before the most recent state update's effect fired.
@@ -93,19 +94,10 @@ export function GGSonarSettings(): JSX.Element {
     draftSlowInterval !== savedPollingConfig.slowIntervalMs.toString()
   )
   const channelsDirty = !setsEqual(draftVisibleChannels, visibleChannels)
-  const presetSwitcherDirty = draftPresetSwitcherEnabled !== savedPresetSwitcherEnabled
+  const presetSwitcherDirty = savedPresetSwitcherEnabled !== null && draftPresetSwitcherEnabled !== savedPresetSwitcherEnabled
 
   useEffect(() => {
-    const isDirty = pollingDirty || channelsDirty || presetSwitcherDirty
-    console.log('[GGSonarSettings] Dirty state:', {
-      pollingDirty,
-      channelsDirty,
-      presetSwitcherDirty,
-      isDirty,
-      draftPresetSwitcherEnabled,
-      savedPresetSwitcherEnabled,
-    })
-    setDirty(isDirty)
+    setDirty(pollingDirty || channelsDirty || presetSwitcherDirty)
   }, [pollingDirty, channelsDirty, presetSwitcherDirty, setDirty])
 
   // ── Register save handler (once — reads latest values via refs) ───────────────
@@ -113,16 +105,9 @@ export function GGSonarSettings(): JSX.Element {
     registerSave(async () => {
       // Preset switcher — save first so it's never skipped by an error below
       const psEnabled = draftPresetSwitcherEnabledRef.current
-      console.log('[GGSonarSettings] Saving preset switcher enabled:', psEnabled)
-      try {
-        await window.api.setPresetSwitcherEnabled(psEnabled)
-        console.log('[GGSonarSettings] Preset switcher saved successfully')
-        setSavedPresetSwitcherEnabled(psEnabled)
-        setDraftPresetSwitcherEnabled(psEnabled)
-      } catch (err) {
-        console.error('[GGSonarSettings] Failed to save preset switcher:', err)
-        throw err
-      }
+      await window.api.setPresetSwitcherEnabled(psEnabled)
+      setSavedPresetSwitcherEnabled(psEnabled)
+      setDraftPresetSwitcherEnabled(psEnabled)
 
       // Polling config
       const fastMs = Math.max(100, parseInt(draftFastIntervalRef.current, 10) || 1000)
@@ -153,7 +138,6 @@ export function GGSonarSettings(): JSX.Element {
 
   function handleTogglePresetSwitcher(): void {
     const next = !draftPresetSwitcherEnabledRef.current
-    console.log('[GGSonarSettings] Toggling preset switcher from', draftPresetSwitcherEnabledRef.current, 'to', next)
     draftPresetSwitcherEnabledRef.current = next
     setDraftPresetSwitcherEnabled(next)
   }
@@ -222,27 +206,29 @@ export function GGSonarSettings(): JSX.Element {
         </div>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-          Preset Switcher
-        </h2>
-        <button
-          type="button"
-          onClick={handleTogglePresetSwitcher}
-          className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left w-fit"
-          style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-raised)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)' }}
-        >
-          <Checkbox checked={draftPresetSwitcherEnabled} onChange={() => {}} />
-          <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-            Enable Automatic Preset Switching
-          </span>
-        </button>
-      </div>
+      {savedPresetSwitcherEnabled !== null && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
+            Preset Switcher
+          </h2>
+          <button
+            type="button"
+            onClick={handleTogglePresetSwitcher}
+            className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left w-fit"
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-raised)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)' }}
+          >
+            <Checkbox checked={draftPresetSwitcherEnabled ?? false} onChange={() => {}} />
+            <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+              Enable Automatic Preset Switching
+            </span>
+          </button>
+        </div>
+      )}
 
       <div>
         <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
