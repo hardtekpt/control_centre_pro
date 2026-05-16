@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { ArctisState, Option, TimeoutStep } from '@shared/types'
+import { ConfirmDialog } from '../common/ConfirmDialog'
 
 const TIMEOUT_OPTIONS: Option<TimeoutStep>[] = [
   { value: 'OFF',         label: 'Off' },
@@ -146,6 +148,7 @@ function OptionGroup<T extends string>({
 
 export function BaseStationPanel({ state, expandByDefault = false }: { state: ArctisState; expandByDefault?: boolean }): JSX.Element {
   const { updateArctisState } = useServiceStore()
+  const [showResetDialog, setShowResetDialog] = useState(false)
 
   function cmd<K extends keyof ArctisState>(
     cmdName: string,
@@ -157,10 +160,8 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
   }
 
   function handleFactoryReset(): void {
-    const confirmed = confirm('Reset headset and base station to factory defaults?\n\nAll custom settings will be lost.')
-    if (confirmed) {
-      window.api.arctisCmd('factoryReset').catch(console.error)
-    }
+    window.api.arctisCmd('factoryReset').catch(console.error)
+    setShowResetDialog(false)
   }
 
   return (
@@ -218,7 +219,7 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
         }}
       >
         <button
-          onClick={handleFactoryReset}
+          onClick={() => setShowResetDialog(true)}
           className="text-xs px-3 py-1.5 rounded transition-colors"
           style={{
             background: 'var(--color-surface-raised)',
@@ -240,6 +241,17 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
           Factory Reset
         </button>
       </div>
+      {showResetDialog && (
+        <ConfirmDialog
+          title="Factory Reset"
+          message="Reset headset and base station to factory defaults?\n\nAll custom settings will be lost."
+          confirmLabel="Reset"
+          cancelLabel="Cancel"
+          isDangerous={true}
+          onConfirm={handleFactoryReset}
+          onCancel={() => setShowResetDialog(false)}
+        />
+      )}
     </div>
   )
 }
