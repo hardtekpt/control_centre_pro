@@ -307,7 +307,13 @@ function registerIpcHandlers(): void {
       let data: Record<string, unknown> = {}
       if (existsSync(rulesPath)) {
         const content = readFileSync(rulesPath, 'utf-8')
-        data = JSON.parse(content)
+        const parsed = JSON.parse(content)
+        // Handle both old format (array) and new format (object)
+        if (Array.isArray(parsed)) {
+          data = { enabled: true }  // Old array format, preserve default enabled state
+        } else {
+          data = parsed as Record<string, unknown>
+        }
       }
       data.rules = rules
       writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
@@ -326,9 +332,17 @@ function registerIpcHandlers(): void {
         return true
       }
       const content = readFileSync(rulesPath, 'utf-8')
-      const data = JSON.parse(content)
-      const enabled = data.enabled !== false
-      console.log('[getEnabled] file contents:', JSON.stringify(data), 'returning:', enabled)
+      const parsed = JSON.parse(content)
+
+      // Handle both old format (array) and new format (object with rules)
+      let enabled: boolean
+      if (Array.isArray(parsed)) {
+        enabled = true  // Old format defaults to enabled
+      } else {
+        enabled = (parsed as Record<string, unknown>).enabled !== false
+      }
+
+      console.log('[getEnabled] file contents:', JSON.stringify(parsed), 'returning:', enabled)
       return enabled
     } catch (err) {
       console.error('[getEnabled] error:', err)
@@ -341,8 +355,17 @@ function registerIpcHandlers(): void {
       const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
       console.log('[setEnabled] saving to:', rulesPath, 'enabled:', enabled)
       const content = existsSync(rulesPath) ? readFileSync(rulesPath, 'utf-8') : '{}'
-      const data = JSON.parse(content)
-      data.enabled = enabled
+      const parsed = JSON.parse(content)
+
+      // Handle both old format (array) and new format (object with rules)
+      let data: Record<string, unknown>
+      if (Array.isArray(parsed)) {
+        data = { rules: parsed, enabled }
+      } else {
+        data = parsed as Record<string, unknown>
+        data.enabled = enabled
+      }
+
       const fileContent = JSON.stringify(data, null, 2)
       writeFileSync(rulesPath, fileContent, 'utf-8')
       console.log('[setEnabled] successfully wrote file, contents:', fileContent)
