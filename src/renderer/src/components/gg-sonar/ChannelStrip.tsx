@@ -39,21 +39,21 @@ function VerticalFaderComponent({
     const newValue = valueFromClientY(e.clientY)
     dragValueRef.current = newValue
     setDragValue(newValue)
+    onChange(newValue)
 
     function onMove(ev: MouseEvent): void {
       if (dragging.current) {
         const v = valueFromClientY(ev.clientY)
         dragValueRef.current = v
         setDragValue(v)
+        onChange(v)
       }
     }
     function onUp(): void {
       dragging.current = false
-      const finalValue = dragValueRef.current
       dragValueRef.current = null
       setDragValue(null)
       useSonarStore.getState().endDrag()
-      if (finalValue !== null) onChange(finalValue)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
