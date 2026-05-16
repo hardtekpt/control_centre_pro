@@ -147,7 +147,7 @@ export class DdcService {
           const commonInputs = ['0x01', '0x02', '0x03', '0x04', '0x0f', '0x10', '0x11', '0x12', '0x1b']
           monitor.available_inputs = Array.from(new Set([
             inputHex, // Always include the current input
-            ...commonInputs.filter((inp) => INPUT_NAME_MAP[inp.toUpperCase()])
+            ...commonInputs.filter((inp) => INPUT_NAME_MAP[inp.toLowerCase()])
           ])).sort()
         }
       } catch (err) {
