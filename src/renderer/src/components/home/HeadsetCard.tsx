@@ -134,13 +134,15 @@ function GridPanel({
   summary,
   children,
   collapsible = false,
+  expandByDefault = false,
 }: {
   title: string
   summary?: string
   children: React.ReactNode
   collapsible?: boolean
+  expandByDefault?: boolean
 }): JSX.Element {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(expandByDefault)
   return (
     <div className="flex flex-col gap-2.5">
       {collapsible ? (
@@ -221,12 +223,14 @@ function Section({
   title,
   summary,
   children,
+  expandByDefault = false,
 }: {
   title: string
   summary?: string
   children: React.ReactNode
+  expandByDefault?: boolean
 }): JSX.Element {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(expandByDefault)
   return (
     <div style={{ borderTop: '1px solid var(--color-border)' }}>
       <button
@@ -734,7 +738,7 @@ const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
 
 // ─── HeadsetCard ──────────────────────────────────────────────────────────────
 
-export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
+export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisState; expandByDefault?: boolean }): JSX.Element {
   const { updateArctisState } = useServiceStore()
 
   function cmd<K extends keyof ArctisState>(
@@ -855,6 +859,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         <GridPanel
           title="Audio Options"
           collapsible
+          expandByDefault={expandByDefault}
           summary={[
             state.ancMode === 'TRANSPARENCY' ? `Transparency ${state.transparencyLevel}` : state.ancMode === 'ANC' ? 'ANC' : 'Off',
             { OFF: 'Off', LOW: 'Low', MEDIUM: 'Med', HIGH: 'High' }[state.sidetone],
@@ -897,6 +902,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         <GridPanel
           title="Wireless & Audio Output"
           collapsible
+          expandByDefault={expandByDefault}
           summary={[
             state.wirelessMode === 'PERFORMANCE' ? 'Performance' : 'Range',
             state.audioOutput === 'SPEAKERS' ? 'Speakers' : 'Stream',
@@ -967,6 +973,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
       {/* ── Base Station ── */}
       <Section
         title="Base Station"
+        expandByDefault={expandByDefault}
         summary={`OLED ${state.oledBrightness} · Dim-Screen ${TIMEOUT_LABELS[state.dimTimeout]} · Homescreen ${state.homescreenMode === 'DETAILED' ? 'Detailed' : 'Simple'} · Mic-LED ${state.micLedBrightness} · Auto-Off ${TIMEOUT_LABELS[state.autoOffTimeout]}`}
       >
         <ControlRow label="OLED Brightness">
@@ -1015,7 +1022,7 @@ export function HeadsetCard({ state }: { state: ArctisState }): JSX.Element {
         const summary = isCustom ? 'Custom' : (namedPreset?.label ?? `Preset ${state.eqPresetIndex}`)
         const bands = state.eqBands?.length === 10 ? state.eqBands : Array(10).fill(20)
         return (
-          <Section title="EQ" summary={summary}>
+          <Section title="EQ" summary={summary} expandByDefault={expandByDefault}>
             {/* Mode toggle — Custom first, then Preset */}
             <ControlRow label="Mode">
               <OptionGroup

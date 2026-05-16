@@ -14,7 +14,7 @@ export function Arctis(): JSX.Element {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <HeadsetCard state={arctisState} />
+      <HeadsetCard state={arctisState} expandByDefault={true} />
     </div>
   )
 }
