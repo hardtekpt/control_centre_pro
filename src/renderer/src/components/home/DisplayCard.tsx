@@ -23,6 +23,16 @@ function getInputName(inputHex: string): string {
   return INPUT_NAME_MAP[key] || inputHex
 }
 
+function MonitorIcon(): JSX.Element {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  )
+}
+
 export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
@@ -59,13 +69,16 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       {/* Header */}
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          {monitor.name}
-        </h3>
-        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          Monitor {monitor.monitor_id}
-        </p>
+      <div className="flex items-center gap-2 mb-3">
+        <span style={{ color: 'var(--color-accent)' }}><MonitorIcon /></span>
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            {monitor.name}
+          </h3>
+          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            Monitor {monitor.monitor_id}
+          </p>
+        </div>
       </div>
 
       {/* Brightness Control */}
