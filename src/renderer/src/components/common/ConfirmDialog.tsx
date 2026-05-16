@@ -73,10 +73,14 @@ export function ConfirmDialog({
             marginBottom: '20px',
             margin: '0 0 20px 0',
             lineHeight: '1.5',
-            whiteSpace: 'pre-wrap',
           }}
         >
-          {message}
+          {message.split('\n').map((line, i) => (
+            <React.Fragment key={i}>
+              {line}
+              {i < message.split('\n').length - 1 && <br />}
+            </React.Fragment>
+          ))}
         </p>
         <div
           style={{
