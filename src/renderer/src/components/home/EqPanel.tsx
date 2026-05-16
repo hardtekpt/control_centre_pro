@@ -122,6 +122,11 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
     window.api.arctisCmd(cmdName, value).catch(console.error)
   }
 
+  const isCustom = state.eqPresetIndex === EQ_CUSTOM_INDEX
+  const namedPreset = EQ_NAMED_PRESETS.find((p) => p.index === state.eqPresetIndex)
+  const summary = isCustom ? 'Custom' : (namedPreset?.label ?? `Preset ${state.eqPresetIndex}`)
+  const bands = state.eqBands?.length === 10 ? state.eqBands : Array(10).fill(20)
+
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -150,12 +155,7 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
 
     container.addEventListener('wheel', handleWheel, { passive: false })
     return () => container.removeEventListener('wheel', handleWheel)
-  }, [bands])
-
-  const isCustom = state.eqPresetIndex === EQ_CUSTOM_INDEX
-  const namedPreset = EQ_NAMED_PRESETS.find((p) => p.index === state.eqPresetIndex)
-  const summary = isCustom ? 'Custom' : (namedPreset?.label ?? `Preset ${state.eqPresetIndex}`)
-  const bands = state.eqBands?.length === 10 ? state.eqBands : Array(10).fill(20)
+  }, [bands, cmd])
 
   return (
     <div
