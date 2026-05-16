@@ -116,27 +116,116 @@ export function GeneralSettings(): JSX.Element {
             No services registered
           </div>
         ) : (
-          services.map((svc, i) => (
-            <SettingRow
-              key={svc.id}
-              label={svc.name}
-              helper={svc.description}
-              last={i === services.length - 1}
+          <div
+            style={{
+              border: '1px solid var(--color-border)',
+              borderRadius: '0.5rem',
+              overflow: 'hidden',
+            }}
+          >
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+              }}
             >
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-xs mono"
+              <thead>
+                <tr
                   style={{
-                    color: 'var(--color-text-secondary)',
-                    opacity: svc.enabled ? 1 : 0.5,
+                    background: 'var(--color-surface)',
+                    borderBottom: '1px solid var(--color-border)',
                   }}
                 >
-                  {svc.running ? 'running' : 'stopped'}
-                </span>
-                <Toggle checked={svc.enabled} onChange={() => handleToggleService(svc)} />
-              </div>
-            </SettingRow>
-          ))
+                  <th
+                    style={{
+                      padding: '0.75rem 1rem',
+                      textAlign: 'left',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
+                    Service
+                  </th>
+                  <th
+                    style={{
+                      padding: '0.75rem 1rem',
+                      textAlign: 'left',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
+                    Status
+                  </th>
+                  <th
+                    style={{
+                      padding: '0.75rem 1rem',
+                      textAlign: 'right',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
+                    Enabled
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {services.map((svc) => {
+                  const toggleColor = svc.enabled && svc.running ? 'green' : svc.enabled ? 'red' : 'gray'
+                  return (
+                    <tr
+                      key={svc.id}
+                      style={{
+                        borderBottom: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: '0.75rem 1rem',
+                          fontSize: '0.875rem',
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        <div className="font-medium">{svc.name}</div>
+                        <div
+                          className="text-xs mt-0.5"
+                          style={{ color: 'var(--color-text-secondary)' }}
+                        >
+                          {svc.description}
+                        </div>
+                      </td>
+                      <td
+                        style={{
+                          padding: '0.75rem 1rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--color-text-secondary)',
+                        }}
+                      >
+                        <span
+                          className="mono"
+                          style={{
+                            opacity: svc.enabled ? 1 : 0.6,
+                          }}
+                        >
+                          {svc.enabled ? (svc.running ? 'running' : 'stopped') : 'disabled'}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          padding: '0.75rem 1rem',
+                          textAlign: 'right',
+                        }}
+                      >
+                        <Toggle color={toggleColor} checked={svc.enabled} onChange={() => handleToggleService(svc)} />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </SettingsSection>
     </div>
@@ -147,11 +236,19 @@ export function GeneralSettings(): JSX.Element {
 
 function Toggle({
   checked,
+  color = 'gray',
   onChange,
 }: {
   checked: boolean
+  color?: 'green' | 'red' | 'gray'
   onChange: () => void
 }): JSX.Element {
+  const colorMap = {
+    green: '#22c55e',
+    red: '#ef4444',
+    gray: 'var(--color-border)',
+  }
+
   return (
     <button
       onClick={onChange}
@@ -159,7 +256,7 @@ function Toggle({
         width: 36,
         height: 20,
         borderRadius: 10,
-        background: checked ? 'var(--color-accent)' : 'var(--color-border)',
+        background: checked ? colorMap[color] : colorMap.gray,
         border: 'none',
         cursor: 'pointer',
         position: 'relative',
