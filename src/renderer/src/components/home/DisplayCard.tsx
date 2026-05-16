@@ -71,14 +71,9 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <span style={{ color: 'var(--color-accent)' }}><MonitorIcon /></span>
-        <div>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {monitor.name}
-          </h3>
-          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            Monitor {monitor.monitor_id}
-          </p>
-        </div>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          {monitor.name}
+        </h3>
       </div>
 
       {/* Brightness Control */}
