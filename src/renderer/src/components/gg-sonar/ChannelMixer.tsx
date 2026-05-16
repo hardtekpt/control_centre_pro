@@ -117,7 +117,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
             activePresetId={activePresetIds[channel]}
             routedSessions={sessionsByRole[channel] ?? []}
             audioDevices={sonarState.audioDevices}
-            currentDeviceId={sonarState.redirections[channel]}
+            currentDevice={sonarState.redirections[channel]}
             onVolume={handleVolume}
             onMute={handleMute}
             onPresetSelect={handlePresetSelect}

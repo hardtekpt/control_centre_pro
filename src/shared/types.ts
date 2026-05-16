@@ -315,8 +315,8 @@ export interface SonarAudioDevice {
   name: string  // Friendly display name
 }
 
-/** Maps Sonar channel role ('game', 'chatRender', etc.) → Windows device GUID */
-export type SonarRedirections = Record<string, string>
+/** Maps Sonar channel role ('game', 'chatRender', etc.) → the currently assigned device */
+export type SonarRedirections = Record<string, SonarAudioDevice>
 
 export interface SonarState {
   available: boolean

@@ -278,12 +278,12 @@ function RoutedApps({ sessions, channelRole }: RoutedAppsProps): JSX.Element {
 
 function DeviceSelector({
   audioDevices,
-  currentDeviceId,
+  currentDevice,
   channel,
   onSelect,
 }: {
   audioDevices: SonarAudioDevice[]
-  currentDeviceId?: string
+  currentDevice?: SonarAudioDevice
   channel: SonarChannel
   onSelect: (channel: SonarChannel, deviceId: string) => void
 }): JSX.Element | null {
@@ -291,8 +291,6 @@ function DeviceSelector({
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
-
-  const currentDevice = audioDevices.find((d) => d.id === currentDeviceId)
 
   function toggle(): void {
     if (!open && btnRef.current) {
@@ -327,17 +325,17 @@ function DeviceSelector({
         ref={btnRef}
         onClick={toggle}
         className="w-full flex items-center gap-1 rounded px-1.5 py-1 text-xs"
-        title={currentDevice?.name ?? 'Select output device'}
+        title={currentDevice?.name ?? 'No device assigned'}
         style={{
           background: 'var(--color-surface-raised)',
           border: '1px solid var(--color-border)',
-          color: 'var(--color-text-secondary)',
+          color: currentDevice ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
           cursor: 'pointer',
           minWidth: 0,
         }}
       >
         <span className="truncate flex-1 text-left" style={{ fontSize: 10 }}>
-          {currentDevice ? currentDevice.name : 'Default'}
+          {currentDevice?.name ?? '—'}
         </span>
         <ChevronIcon open={open} />
       </button>
@@ -365,15 +363,15 @@ function DeviceSelector({
               onClick={() => { onSelect(channel, d.id); setOpen(false) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-xs"
               style={{
-                background: d.id === currentDeviceId ? 'var(--color-surface-raised)' : 'transparent',
-                color: d.id === currentDeviceId ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                background: d.id === currentDevice?.id ? 'var(--color-surface-raised)' : 'transparent',
+                color: d.id === currentDevice?.id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                 cursor: 'pointer',
                 border: 'none',
                 textAlign: 'left',
               }}
             >
               <span style={{ width: 12, color: 'var(--color-accent)', flexShrink: 0 }}>
-                {d.id === currentDeviceId ? '✓' : ''}
+                {d.id === currentDevice?.id ? '✓' : ''}
               </span>
               <span className="truncate">{d.name}</span>
             </button>
@@ -528,7 +526,7 @@ export interface ChannelStripProps {
   activePresetId?: string
   routedSessions: SonarAudioSession[]
   audioDevices: SonarAudioDevice[]
-  currentDeviceId?: string
+  currentDevice?: SonarAudioDevice
   onVolume: (channel: SonarChannel, value: number) => void
   onMute: (channel: SonarChannel) => void
   onPresetSelect: (channel: SonarChannel, presetId: string) => void
@@ -547,7 +545,7 @@ function ChannelStripComponent({
   activePresetId,
   routedSessions,
   audioDevices,
-  currentDeviceId,
+  currentDevice,
   onVolume,
   onMute,
   onPresetSelect,
@@ -626,7 +624,7 @@ function ChannelStripComponent({
       {channel !== 'master' && (
         <DeviceSelector
           audioDevices={audioDevices}
-          currentDeviceId={currentDeviceId}
+          currentDevice={currentDevice}
           channel={channel}
           onSelect={handleDeviceSelect}
         />

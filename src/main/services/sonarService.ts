@@ -158,10 +158,14 @@ export class SonarService {
       `${this.baseUrl}/classicRedirections/${channel}`,
       JSON.stringify({ deviceId }),
     )
-    // Store normalised so it matches what parseRedirections produces
-    this.state = {
-      ...this.state,
-      redirections: { ...this.state.redirections, [channel]: this.normaliseGuid(deviceId) },
+    // Optimistic update: resolve the full device from audioDevices so the dropdown
+    // immediately shows the correct name without waiting for the next poll
+    const device = this.state.audioDevices.find((d) => d.id === deviceId)
+    if (device) {
+      this.state = {
+        ...this.state,
+        redirections: { ...this.state.redirections, [channel]: device },
+      }
     }
     this.push()
   }
@@ -269,8 +273,9 @@ export class SonarService {
     }
   }
 
-  // Fetch /audioDevices and /classicRedirections, log raw shapes on first run, update state.
-  // Called from pollSlow and whenever Sonar first becomes available.
+  // Fetch /audioDevices and /classicRedirections, cross-reference them at the service level,
+  // and store the resolved SonarAudioDevice per channel in state.redirections.
+  // Called immediately on first connect and on every slow poll.
   private async fetchDevices(): Promise<void> {
     if (!this.baseUrl) return
     const firstFetch = this.state.audioDevices.length === 0
@@ -288,29 +293,57 @@ export class SonarService {
     }
 
     if (firstFetch) {
-      // Log the raw shapes once so the About terminal can be used to verify the format
       try {
         const deviceCount = (JSON.parse(audioDevicesRaw) as unknown[]).length
-        this.log('info', `GG Sonar: /audioDevices returned ${deviceCount} device(s)`)
+        this.log('info', `GG Sonar: /audioDevices — ${deviceCount} device(s)`)
       } catch {
-        this.log('warn', `GG Sonar: /audioDevices returned non-JSON: ${audioDevicesRaw.slice(0, 120)}`)
+        this.log('warn', `GG Sonar: /audioDevices non-JSON: ${audioDevicesRaw.slice(0, 120)}`)
       }
       try {
-        JSON.parse(redirectionsRaw) // validate
-        this.log('info', `GG Sonar: /classicRedirections: ${redirectionsRaw.slice(0, 200)}`)
+        JSON.parse(redirectionsRaw)
+        this.log('info', `GG Sonar: /classicRedirections — ${redirectionsRaw.slice(0, 300)}`)
       } catch {
-        this.log('warn', `GG Sonar: /classicRedirections returned non-JSON: ${redirectionsRaw.slice(0, 120)}`)
+        this.log('warn', `GG Sonar: /classicRedirections non-JSON: ${redirectionsRaw.slice(0, 120)}`)
       }
     }
 
     const audioDevices = this.parseAudioDevices(audioDevicesRaw)
-    const redirections = this.parseRedirections(redirectionsRaw)
+    const rawIds = this.parseRawRedirections(redirectionsRaw) // channel → raw id string
+
+    // Build a normalised-id → device lookup for cross-referencing
+    const byNormId = new Map<string, SonarAudioDevice>()
+    const byName = new Map<string, SonarAudioDevice>()
+    for (const d of audioDevices) {
+      byNormId.set(this.normalise(d.id), d)
+      byName.set(d.name.toLowerCase(), d)
+    }
+
+    // Resolve each channel to a full SonarAudioDevice
+    const redirections: SonarRedirections = {}
+    for (const [channel, rawId] of Object.entries(rawIds)) {
+      const byId = byNormId.get(this.normalise(rawId))
+      if (byId) {
+        redirections[channel] = byId
+      } else {
+        // ID match failed — try name match as fallback
+        const byNameMatch = byName.get(rawId.toLowerCase())
+        if (byNameMatch) {
+          redirections[channel] = byNameMatch
+        } else {
+          // No match at all — keep the raw value visible (not silent "Default")
+          redirections[channel] = { id: rawId, name: rawId }
+          if (firstFetch && rawId) {
+            this.log('warn', `GG Sonar: no audioDevice matched "${rawId}" for channel "${channel}"`)
+          }
+        }
+      }
+    }
+
     this.state = { ...this.state, audioDevices, redirections }
   }
 
-  // Normalise a Windows device GUID for stable comparison:
-  // strips surrounding braces and lowercases so {A-B} == a-b.
-  private normaliseGuid(raw: string): string {
+  // Normalise a device identifier for comparison: lowercase, strip surrounding braces.
+  private normalise(raw: string): string {
     return raw.replace(/^\{/, '').replace(/\}$/, '').toLowerCase()
   }
 
@@ -323,12 +356,12 @@ export class SonarService {
       }
       const parsed = (data as Record<string, unknown>[])
         .map((d) => ({
-          id: this.normaliseGuid(String(d.id ?? d.deviceId ?? '')),
+          id: String(d.id ?? d.deviceId ?? ''),
           name: String(d.name ?? d.friendlyName ?? d.deviceName ?? 'Unknown'),
         }))
         .filter((d) => d.id.length > 0)
       if (parsed.length === 0 && (data as unknown[]).length > 0) {
-        this.log('warn', `GG Sonar: /audioDevices entries have no id/deviceId field — first entry: ${JSON.stringify(data[0])}`)
+        this.log('warn', `GG Sonar: /audioDevices entries lack id/deviceId — first: ${JSON.stringify((data as unknown[])[0])}`)
       }
       return parsed
     } catch (err) {
@@ -337,27 +370,28 @@ export class SonarService {
     }
   }
 
-  private parseRedirections(raw: string): SonarRedirections {
+  // Returns channel → raw id string; cross-referencing with audioDevices happens in fetchDevices.
+  private parseRawRedirections(raw: string): Record<string, string> {
     try {
       const data = JSON.parse(raw)
-      const result: SonarRedirections = {}
+      const result: Record<string, string> = {}
 
       if (Array.isArray(data)) {
         // Shape: [{ role: "game", deviceId: "..." }, ...]
         for (const entry of data as Record<string, unknown>[]) {
-          const role = String(entry.role ?? '')
+          const role = String(entry.role ?? entry.channel ?? '')
           const rawId = String(entry.deviceId ?? entry.id ?? '')
-          if (role && rawId) result[role] = this.normaliseGuid(rawId)
+          if (role && rawId) result[role] = rawId
         }
       } else if (data && typeof data === 'object') {
-        // Shape: { game: "...", media: "..." }  or { game: { deviceId|id: "..." }, ... }
+        // Shape: { game: "...", ... }  or { game: { deviceId|id: "..." }, ... }
         for (const [role, val] of Object.entries(data as Record<string, unknown>)) {
           if (typeof val === 'string') {
-            result[role] = this.normaliseGuid(val)
+            result[role] = val
           } else if (val && typeof val === 'object') {
             const v = val as Record<string, unknown>
             const rawId = String(v.deviceId ?? v.id ?? '')
-            if (rawId) result[role] = this.normaliseGuid(rawId)
+            if (rawId) result[role] = rawId
           }
         }
       } else {
@@ -367,7 +401,7 @@ export class SonarService {
       return result
     } catch (err) {
       this.log('warn', `GG Sonar: failed to parse /classicRedirections — ${String(err)}`)
-      return this.state.redirections
+      return {}
     }
   }
 
