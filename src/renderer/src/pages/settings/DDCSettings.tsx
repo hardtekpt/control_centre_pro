@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
+import { useSettingsForm } from '../../contexts/settingsFormContext'
 import type { DdcMonitor } from '@shared/types'
 
 export function DDCSettings(): JSX.Element {
   const { ddcMonitors } = useServiceStore()
   const [monitors, setMonitors] = useState<DdcMonitor[]>(ddcMonitors)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const { setDirty, registerSave } = useSettingsForm()
 
   const [savedInterval, setSavedInterval] = useState<number | null>(null)
   const [draftInterval, setDraftInterval] = useState('')
-  const [isSavingInterval, setIsSavingInterval] = useState(false)
 
   useEffect(() => {
     setMonitors(ddcMonitors)
@@ -22,6 +23,23 @@ export function DDCSettings(): JSX.Element {
     }).catch(console.error)
   }, [])
 
+  const intervalDirty = savedInterval !== null && draftInterval !== savedInterval.toString()
+
+  useEffect(() => {
+    setDirty(intervalDirty)
+  }, [intervalDirty, setDirty])
+
+  useEffect(() => {
+    registerSave(async () => {
+      const parsed = parseInt(draftInterval, 10)
+      if (!isNaN(parsed) && parsed >= 10 && parsed <= 3600) {
+        await window.api.ddcSetPollInterval(parsed)
+        setSavedInterval(parsed)
+      }
+    })
+    return () => registerSave(null)
+  }, [draftInterval, registerSave])
+
   const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true)
     try {
@@ -30,22 +48,6 @@ export function DDCSettings(): JSX.Element {
       console.error('Failed to refresh monitors:', err)
     } finally {
       setIsRefreshing(false)
-    }
-  }
-
-  const intervalDirty = savedInterval !== null && draftInterval !== savedInterval.toString()
-
-  const handleSaveInterval = async (): Promise<void> => {
-    const parsed = parseInt(draftInterval, 10)
-    if (isNaN(parsed) || parsed < 10 || parsed > 3600) return
-    setIsSavingInterval(true)
-    try {
-      await window.api.ddcSetPollInterval(parsed)
-      setSavedInterval(parsed)
-    } catch (err) {
-      console.error('Failed to set poll interval:', err)
-    } finally {
-      setIsSavingInterval(false)
     }
   }
 
@@ -142,39 +144,21 @@ export function DDCSettings(): JSX.Element {
           How often the app polls displays for changes in the background (10–3600 seconds).
         </p>
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="number"
-              min={10}
-              max={3600}
-              value={draftInterval}
-              onChange={(e) => setDraftInterval(e.target.value)}
-              className="text-sm px-3 py-1.5 rounded w-28"
-              style={{
-                background: 'var(--color-surface-raised)',
-                color: 'var(--color-text-primary)',
-                border: '1px solid var(--color-border)',
-                outline: 'none',
-              }}
-            />
-          </div>
+          <input
+            type="number"
+            min={10}
+            max={3600}
+            value={draftInterval}
+            onChange={(e) => setDraftInterval(e.target.value)}
+            className="text-sm px-3 py-1.5 rounded w-28"
+            style={{
+              background: 'var(--color-surface-raised)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+              outline: 'none',
+            }}
+          />
           <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>seconds</span>
-          {intervalDirty && (
-            <button
-              onClick={handleSaveInterval}
-              disabled={isSavingInterval}
-              className="text-sm px-4 py-1.5 rounded font-medium"
-              style={{
-                background: 'var(--color-accent)',
-                color: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                cursor: isSavingInterval ? 'default' : 'pointer',
-                opacity: isSavingInterval ? 0.6 : 1,
-              }}
-            >
-              {isSavingInterval ? 'Saving...' : 'Save'}
-            </button>
-          )}
         </div>
       </div>
 

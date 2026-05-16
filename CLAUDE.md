@@ -395,6 +395,59 @@ Responsive: 2 columns on wide screens, 1 on narrow (CSS `auto-fit` + `minmax`).
 
 ---
 
+## Persisting User-Configurable Settings
+
+**All user-configurable settings must use the global `AppSettings` system** — never add a local
+"Save" button to a settings page. The global Save button in the settings layout handles all saves.
+
+### AppSettings (`src/shared/types.ts`)
+
+Add new fields to the `AppSettings` interface and a default in `DEFAULT_SETTINGS`. The file is
+persisted to `app.getPath('userData')/settings.json` and loaded/saved via `SETTINGS_GET` /
+`SETTINGS_SET` IPC channels.
+
+```typescript
+// In AppSettings interface:
+myNewSetting: number  // or string, boolean, etc.
+
+// In DEFAULT_SETTINGS:
+myNewSetting: 42
+```
+
+If the new setting requires the main process to react immediately (e.g. restart a timer), add a
+dedicated `MY_FEATURE_SET_FOO` IPC channel that writes to `settings.json` itself and applies the
+change. The IPC handler should call `loadAppSettings()`, update the field, write back, then apply.
+
+### Settings page pattern (`useSettingsForm` context)
+
+Every settings page must use the `useSettingsForm()` context from
+`src/renderer/src/contexts/settingsFormContext.tsx`:
+
+```typescript
+const { setDirty, registerSave } = useSettingsForm()
+
+// Mark the form dirty whenever a draft value differs from the saved value
+useEffect(() => { setDirty(draftValue !== savedValue) }, [draftValue, savedValue, setDirty])
+
+// Register the save handler — re-register whenever draft values change
+useEffect(() => {
+  registerSave(async () => {
+    const current = await window.api.getSettings()
+    await window.api.setSettings({ ...current, myNewSetting: draftValue })
+    setSavedValue(draftValue)
+  })
+  return () => registerSave(null)
+}, [draftValue, registerSave])
+```
+
+If the setting goes through a dedicated IPC channel (e.g. `ddcSetPollInterval`) rather than
+`setSettings`, call that instead of `setSettings` inside `registerSave`.
+
+**Never add a local Save/Apply button to a settings page.** The global button is the only save
+trigger.
+
+---
+
 ## Adding a New IPC Channel
 
 1. Add the channel name to `IPC_CHANNELS` in [shared/types.ts](src/shared/types.ts).
