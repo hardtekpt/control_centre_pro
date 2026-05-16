@@ -40,6 +40,14 @@ function VerticalFaderComponent({
     }, 50)
   }
 
+  function onWheel(e: React.WheelEvent): void {
+    if (disabled) return
+    e.preventDefault()
+    const newValue = Math.max(0, Math.min(1, displayValue - e.deltaY * 0.001))
+    setDragValue(newValue)
+    triggerChange(newValue)
+  }
+
   function onMouseDown(e: React.MouseEvent): void {
     if (disabled) return
     e.preventDefault()
@@ -83,6 +91,7 @@ function VerticalFaderComponent({
       className="relative w-full flex-1 cursor-ns-resize"
       style={{ minHeight: 180 }}
       onMouseDown={onMouseDown}
+      onWheel={onWheel}
     >
       {/* Track background */}
       <div
