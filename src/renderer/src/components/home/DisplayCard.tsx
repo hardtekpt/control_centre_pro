@@ -11,15 +11,16 @@ const INPUT_NAME_MAP: Record<string, string> = {
   '0x02': 'VGA 2',
   '0x03': 'DVI 1',
   '0x04': 'DVI 2',
-  '0x0F': 'DisplayPort 1',
+  '0x0f': 'DisplayPort 1',
   '0x10': 'DisplayPort 2',
   '0x11': 'HDMI 1',
   '0x12': 'HDMI 2',
-  '0x1B': 'USB-C',
+  '0x1b': 'USB-C',
 }
 
 function getInputName(inputHex: string): string {
-  return INPUT_NAME_MAP[inputHex] || inputHex
+  const key = inputHex.toLowerCase()
+  return INPUT_NAME_MAP[key] || inputHex
 }
 
 export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {

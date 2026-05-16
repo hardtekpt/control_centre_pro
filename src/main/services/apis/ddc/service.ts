@@ -8,17 +8,17 @@ try {
   // @hensm/ddcci not available (not installed or platform-specific)
 }
 
-// Common input source hex codes to friendly names
+// Common input source hex codes to friendly names (keys are lowercase)
 const INPUT_NAME_MAP: Record<string, string> = {
   '0x01': 'VGA 1',
   '0x02': 'VGA 2',
   '0x03': 'DVI 1',
   '0x04': 'DVI 2',
-  '0x0F': 'DisplayPort 1',
+  '0x0f': 'DisplayPort 1',
   '0x10': 'DisplayPort 2',
   '0x11': 'HDMI 1',
   '0x12': 'HDMI 2',
-  '0x1B': 'USB-C',
+  '0x1b': 'USB-C',
 }
 
 export class DdcService {
@@ -139,24 +139,20 @@ export class DdcService {
         const inputData = ddcci._getVCP(devicePath, 0x60)
         if (Array.isArray(inputData) && inputData.length >= 1) {
           const currentInput = inputData[0]
-          const inputHex = '0x' + currentInput.toString(16).padStart(2, '0')
+          const inputHex = '0x' + currentInput.toString(16).padStart(2, '0').toLowerCase()
           monitor.input_source = inputHex
           monitor.supports.push('input_source')
 
-          // Try to discover available inputs from the monitor's capabilities
-          try {
-            // For now, we'll just list common inputs that might be available
-            // A more sophisticated approach would query the monitor's capabilities
-            monitor.available_inputs = ['0x01', '0x03', '0x0F', '0x11', '0x12'].filter(
-              (inp) => INPUT_NAME_MAP[inp]
-            )
-          } catch {
-            // If we can't discover inputs, at least include the current one
-            monitor.available_inputs = [inputHex]
-          }
+          // List common inputs, always including the current one
+          const commonInputs = ['0x01', '0x02', '0x03', '0x04', '0x0f', '0x10', '0x11', '0x12', '0x1b']
+          monitor.available_inputs = Array.from(new Set([
+            inputHex, // Always include the current input
+            ...commonInputs.filter((inp) => INPUT_NAME_MAP[inp.toUpperCase()])
+          ])).sort()
         }
-      } catch {
-        // input not supported or read failed
+      } catch (err) {
+        // input not supported or read failed - but don't fail the whole refresh
+        this.log('warn', `Could not read input for monitor ${monitorId}: ${err instanceof Error ? err.message : String(err)}`)
       }
 
       monitors.push(monitor)
@@ -208,20 +204,22 @@ export class DdcService {
     try {
       // Parse hex string (e.g., "0x11" -> 17)
       const inputCode = parseInt(inputValue, 16)
-      if (isNaN(inputCode)) {
+      if (isNaN(inputCode) || inputCode < 0 || inputCode > 255) {
         this.log('error', `Invalid input value: ${inputValue}`)
         return
       }
 
       ddcci._setVCP(devicePath, 0x60, inputCode)
+      this.log('info', `Set monitor ${monitorId} input to ${inputValue}`)
 
+      // Update cached state immediately (optimistic)
       const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
       if (monitor) {
-        monitor.input_source = inputValue
+        monitor.input_source = inputValue.toLowerCase()
         this.notifyStateChanged()
       }
     } catch (err) {
-      this.log('error', `Failed to set input source: ${err instanceof Error ? err.message : String(err)}`)
+      this.log('error', `Failed to set input source to ${inputValue}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
