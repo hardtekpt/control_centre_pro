@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
-    "@hensm/ddcci": "^1.0.0",
+    "@hensm/ddcci": "*",
     "electron-updater": "^6.1.7"
   },
   "build": {
