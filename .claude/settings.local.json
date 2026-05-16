@@ -30,7 +30,21 @@
       "Bash(cd '/c/Users/ffvd/Documents/control_centre_pro' && grep -n \"w-1.5 h-1.5 rounded-full\" src/renderer/src/components/gg-sonar/*.tsx src/renderer/src/pages/*.tsx)",
       "Read(//c/c/Users/ffvd/Documents/control_centre_pro/src/renderer/src/components/**)",
       "Bash(npx tsc *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npm info *)",
+      "Bash(npm search *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Keywords:', d.get\\('keywords',[]\\)\\); print\\('Readme excerpt:', d.get\\('readme',''\\)[:2000]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('README:', d.get\\('readme','N/A'\\)[:3000]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('README excerpt:', d.get\\('readme',''\\)[:4000]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Keywords:', d.get\\('keywords',[]\\)\\); print\\('README:', d.get\\('readme','N/A'\\)[:5000]\\)\")",
+      "Bash(npm pack *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('GH Repo:', d.get\\('repository',{}\\)\\); print\\('Keywords:', d.get\\('keywords',[]\\)\\); print\\('Version history:', list\\(d.get\\('versions',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Keywords:', d.get\\('keywords',[]\\)\\); print\\('Repo:', d.get\\('repository',{}\\)\\); print\\('README:', d.get\\('readme','N/A'\\)[:5000]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Keywords:', d.get\\('keywords',[]\\)\\); print\\('Repo:', d.get\\('repository',{}\\)\\); print\\('README:', d.get\\('readme','N/A'\\)[:3000]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Published:', d.get\\('time',{}\\).get\\('modified','?'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Repo:', d.get\\('repository',{}\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Engines:', d.get\\('engines',{}\\)\\)\")",
+      "Bash(npm install *)"
     ]
   }
 }
