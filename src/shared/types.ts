@@ -99,6 +99,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /** Top-level views the app can show */
 export type AppView =
   | 'home'
+  | 'arctis'
   | 'gg-sonar'
   | 'shortcuts'
   | 'notifications'

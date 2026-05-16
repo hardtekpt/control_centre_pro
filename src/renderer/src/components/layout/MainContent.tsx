@@ -1,5 +1,6 @@
 import { useAppStore } from '../../stores/appStore'
 import { Home } from '../../pages/Home'
+import { Arctis } from '../../pages/Arctis'
 import { GGSonar } from '../../pages/GGSonar'
 import { Shortcuts } from '../../pages/Shortcuts'
 import { Notifications } from '../../pages/Notifications'
@@ -27,6 +28,7 @@ export function MainContent(): JSX.Element {
       {/* Inner card that mirrors the floating sidebar card height */}
       <div className="h-full">
         {currentView === 'home' && <Home />}
+        {currentView === 'arctis' && <Arctis />}
         {currentView === 'gg-sonar' && <GGSonar />}
         {currentView === 'shortcuts' && <Shortcuts />}
         {currentView === 'notifications' && <Notifications />}
