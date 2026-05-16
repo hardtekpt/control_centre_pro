@@ -685,31 +685,6 @@ const AUDIO_OUTPUT_OPTIONS: Option<ArctisState['audioOutput']>[] = [
   { value: 'STREAM', label: 'Stream' },
 ]
 
-const HOMESCREEN_OPTIONS: Option<ArctisState['homescreenMode']>[] = [
-  { value: 'DETAILED', label: 'Detailed' },
-  { value: 'SIMPLE', label: 'Simple' },
-]
-
-const TIMEOUT_OPTIONS: Option<TimeoutStep>[] = [
-  { value: 'OFF',         label: 'Off' },
-  { value: 'ONE_MIN',     label: '1m' },
-  { value: 'FIVE_MIN',    label: '5m' },
-  { value: 'TEN_MIN',     label: '10m' },
-  { value: 'FIFTEEN_MIN', label: '15m' },
-  { value: 'THIRTY_MIN',  label: '30m' },
-  { value: 'SIXTY_MIN',   label: '60m' },
-]
-
-const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
-  OFF: 'Off',
-  ONE_MIN: '1 min',
-  FIVE_MIN: '5 min',
-  TEN_MIN: '10 min',
-  FIFTEEN_MIN: '15 min',
-  THIRTY_MIN: '30 min',
-  SIXTY_MIN: '60 min',
-}
-
 // ─── HeadsetCard ──────────────────────────────────────────────────────────────
 
 export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisState; expandByDefault?: boolean }): JSX.Element {
@@ -943,51 +918,6 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
           )}
         </GridPanel>
       </div>
-
-      {/* ── Base Station ── */}
-      <Section
-        title="Base Station"
-        expandByDefault={expandByDefault}
-        summary={`OLED ${state.oledBrightness} · Dim-Screen ${TIMEOUT_LABELS[state.dimTimeout]} · Homescreen ${state.homescreenMode === 'DETAILED' ? 'Detailed' : 'Simple'} · Mic-LED ${state.micLedBrightness} · Auto-Off ${TIMEOUT_LABELS[state.autoOffTimeout]}`}
-      >
-        <ControlRow label="OLED Brightness">
-          <Slider
-            value={state.oledBrightness}
-            min={1}
-            max={10}
-            onChange={(v) => cmd('setOledBrightness', v, { oledBrightness: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Dim Screen">
-          <OptionGroup
-            value={state.dimTimeout}
-            options={TIMEOUT_OPTIONS}
-            onChange={(v) => cmd('setDimTimeout', v, { dimTimeout: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Homescreen">
-          <OptionGroup
-            value={state.homescreenMode}
-            options={HOMESCREEN_OPTIONS}
-            onChange={(v) => cmd('setHomeScreenMode', v, { homescreenMode: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Mic LED">
-          <Slider
-            value={state.micLedBrightness}
-            min={1}
-            max={10}
-            onChange={(v) => cmd('setMicLedBrightness', v, { micLedBrightness: v })}
-          />
-        </ControlRow>
-        <ControlRow label="Auto Off">
-          <OptionGroup
-            value={state.autoOffTimeout}
-            options={TIMEOUT_OPTIONS}
-            onChange={(v) => cmd('setAutoOffTimeout', v, { autoOffTimeout: v })}
-          />
-        </ControlRow>
-      </Section>
 
     </div>
   )
