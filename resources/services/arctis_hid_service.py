@@ -248,6 +248,10 @@ def _handle_cmd(cmd: str, value) -> None:
         elif cmd == "setUsbInput":
             h.set_usb_input(UsbInput[str(value)])
 
+        elif cmd == "factoryReset":
+            h.factory_reset()
+            log("info", "Factory reset initiated")
+
         else:
             log("warn", f"Unknown command: {cmd}")
 

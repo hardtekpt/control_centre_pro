@@ -156,6 +156,13 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
     window.api.arctisCmd(cmdName, value).catch(console.error)
   }
 
+  function handleFactoryReset(): void {
+    const confirmed = confirm('Reset headset and base station to factory defaults?\n\nAll custom settings will be lost.')
+    if (confirmed) {
+      window.api.arctisCmd('factoryReset').catch(console.error)
+    }
+  }
+
   return (
     <div
       className="rounded-lg px-4 py-3 flex flex-col"
@@ -203,6 +210,36 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
           />
         </ControlRow>
       </Section>
+      <div
+        style={{
+          marginTop: '16px',
+          paddingTop: '12px',
+          borderTop: '1px solid var(--color-border)',
+        }}
+      >
+        <button
+          onClick={handleFactoryReset}
+          className="text-xs px-3 py-1.5 rounded transition-colors"
+          style={{
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-text-secondary)',
+            border: '1px solid var(--color-border)',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            const target = e.currentTarget as HTMLButtonElement
+            target.style.background = 'var(--color-border)'
+            target.style.color = 'var(--color-text-primary)'
+          }}
+          onMouseLeave={(e) => {
+            const target = e.currentTarget as HTMLButtonElement
+            target.style.background = 'var(--color-surface-raised)'
+            target.style.color = 'var(--color-text-secondary)'
+          }}
+        >
+          Factory Reset
+        </button>
+      </div>
     </div>
   )
 }
