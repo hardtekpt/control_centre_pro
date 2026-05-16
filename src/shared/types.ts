@@ -58,6 +58,7 @@ export const IPC_CHANNELS = {
   PRESET_SWITCHER_SET_RULES: 'presetSwitcher:setRules', // renderer → main invoke
   PRESET_SWITCHER_GET_ENABLED: 'presetSwitcher:getEnabled', // renderer → main invoke
   PRESET_SWITCHER_SET_ENABLED: 'presetSwitcher:setEnabled', // renderer → main invoke
+  PRESET_SWITCHER_ENABLED_CHANGE: 'presetSwitcher:enabledChange', // main → renderer push
 
   // Shell utilities
   SHELL_OPEN_EXTERNAL: 'shell:openExternal', // renderer → main invoke

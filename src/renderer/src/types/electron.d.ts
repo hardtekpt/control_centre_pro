@@ -66,6 +66,7 @@ declare global {
     setPresetSwitcherRules: (rules: PresetSwitcherRule[]) => Promise<void>
     getPresetSwitcherEnabled: () => Promise<boolean>
     setPresetSwitcherEnabled: (enabled: boolean) => Promise<void>
+    onPresetSwitcherEnabledChange: (callback: (enabled: boolean) => void) => () => void
 
     // Shell utilities
     openExternal: (url: string) => Promise<void>

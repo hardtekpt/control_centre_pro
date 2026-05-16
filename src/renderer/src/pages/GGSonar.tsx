@@ -145,6 +145,12 @@ export function GGSonar(): JSX.Element {
     window.api.getPresetSwitcherEnabled().then(setPresetSwitcherEnabled).catch(console.error)
   }, [setSonarState])
 
+  // Subscribe to preset switcher enabled changes
+  useEffect(() => {
+    const cleanup = window.api.onPresetSwitcherEnabledChange(setPresetSwitcherEnabled)
+    return cleanup
+  }, [])
+
   function handleRetry(): void {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
   }

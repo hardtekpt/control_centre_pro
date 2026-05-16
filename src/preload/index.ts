@@ -166,6 +166,12 @@ const api = {
   setPresetSwitcherEnabled: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.PRESET_SWITCHER_SET_ENABLED, enabled),
 
+  onPresetSwitcherEnabledChange: (callback: (enabled: boolean) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)
+    ipcRenderer.on(IPC_CHANNELS.PRESET_SWITCHER_ENABLED_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.PRESET_SWITCHER_ENABLED_CHANGE, handler)
+  },
+
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
 

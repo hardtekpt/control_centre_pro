@@ -339,6 +339,7 @@ function registerIpcHandlers(): void {
       data.enabled = enabled
       writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
       activeWindowMonitor?.setEnabled(enabled)
+      mainWindow?.webContents.send(IPC_CHANNELS.PRESET_SWITCHER_ENABLED_CHANGE, enabled)
     } catch (err) {
       console.error('[setEnabled] error:', err)
       throw err
