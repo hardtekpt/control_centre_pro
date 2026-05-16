@@ -57,68 +57,6 @@ export function DDCSettings(): JSX.Element {
         DDC Display Control
       </h1>
 
-      {monitors.length > 0 ? (
-        <>
-          <div className="space-y-4 mb-6">
-            <div>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text-primary)' }}>
-                Connected Monitors
-              </h2>
-              <div className="space-y-2">
-                {monitors.map((monitor) => (
-                  <div
-                    key={monitor.monitor_id}
-                    className="p-3 rounded-lg"
-                    style={{
-                      background: 'var(--color-surface)',
-                      border: '1px solid var(--color-border)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                          {monitor.name}
-                        </p>
-                        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                          Monitor {monitor.monitor_id}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                        Brightness: {monitor.brightness}%
-                      </span>
-                    </div>
-                    {monitor.supports.length > 0 && (
-                      <div className="flex gap-1 flex-wrap mt-2">
-                        {monitor.supports.map((feature) => (
-                          <span
-                            key={feature}
-                            className="text-xs px-2 py-0.5 rounded"
-                            style={{
-                              background: 'var(--color-surface-raised)',
-                              color: 'var(--color-text-secondary)',
-                            }}
-                          >
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="p-4 rounded-lg mb-6" style={{ background: 'var(--color-surface)' }}>
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            No DDC-capable monitors detected. Make sure your displays support DDC/CI protocol.
-          </p>
-        </div>
-      )}
-
       <div className="flex gap-3 mb-8">
         <button
           onClick={handleRefresh}
@@ -135,6 +73,108 @@ export function DDCSettings(): JSX.Element {
           {isRefreshing ? 'Refreshing...' : 'Refresh Monitors'}
         </button>
       </div>
+
+      {monitors.length > 0 ? (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text-primary)' }}>
+            Connected Monitors
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+            {monitors.map((monitor) => (
+              <div
+                key={monitor.monitor_id}
+                className="p-4 rounded-lg"
+                style={{
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                <div className="mb-3">
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                    {monitor.name}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                    Monitor {monitor.monitor_id}
+                  </p>
+                </div>
+
+                {monitor.supports.length > 0 && (
+                  <div className="space-y-2">
+                    {monitor.supports.includes('brightness') && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Brightness</span>
+                        <span
+                          className="px-2 py-0.5 rounded"
+                          style={{
+                            background: 'var(--color-surface-raised)',
+                            color: 'var(--color-text-primary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {monitor.brightness}%
+                        </span>
+                      </div>
+                    )}
+                    {monitor.supports.includes('contrast') && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Contrast</span>
+                        <span
+                          className="px-2 py-0.5 rounded"
+                          style={{
+                            background: 'var(--color-surface-raised)',
+                            color: 'var(--color-text-primary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {monitor.contrast}%
+                        </span>
+                      </div>
+                    )}
+                    {monitor.supports.includes('input_source') && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Input</span>
+                        <span
+                          className="px-2 py-0.5 rounded"
+                          style={{
+                            background: 'var(--color-surface-raised)',
+                            color: 'var(--color-text-primary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {monitor.input_source || '—'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {monitor.supports.length > 0 && (
+                  <div className="flex gap-1 flex-wrap mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                    {monitor.supports.map((feature) => (
+                      <span
+                        key={feature}
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{
+                          background: 'var(--color-surface-raised)',
+                          color: 'var(--color-text-secondary)',
+                        }}
+                      >
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 rounded-lg mb-8" style={{ background: 'var(--color-surface)' }}>
+          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            No DDC-capable monitors detected. Make sure your displays support DDC/CI protocol.
+          </p>
+        </div>
+      )}
 
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
@@ -159,6 +199,26 @@ export function DDCSettings(): JSX.Element {
             }}
           />
           <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>seconds</span>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+          Raw Monitor Data
+        </h2>
+        <div
+          className="p-3 rounded-lg font-mono text-xs overflow-auto"
+          style={{
+            background: 'var(--color-code-bg)',
+            color: 'var(--color-text-primary)',
+            border: '1px solid var(--color-border)',
+            maxHeight: '300px',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            lineHeight: '1.5',
+          }}
+        >
+          {monitors.length > 0 ? JSON.stringify(monitors, null, 2) : 'No monitor data available'}
         </div>
       </div>
 
