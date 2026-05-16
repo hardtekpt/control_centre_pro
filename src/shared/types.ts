@@ -50,6 +50,8 @@ export const IPC_CHANNELS = {
   SONAR_SET_MODE: 'sonar:setMode',          // renderer → main invoke
   SONAR_GET_POLLING_CONFIG: 'sonar:getPollingConfig', // renderer → main invoke
   SONAR_SET_POLLING_CONFIG: 'sonar:setPollingConfig', // renderer → main invoke
+  SONAR_SET_REDIRECTION: 'sonar:setRedirection', // renderer → main invoke (channel, deviceId)
+  SONAR_ROUTE_PROCESS: 'sonar:routeProcess',     // renderer → main invoke (sessionId, targetDeviceId)
 
   // Preset Switcher — auto-switch presets by active app
   ACTIVE_WINDOW_CHANGE: 'activeWindow:change',          // main → renderer push
@@ -307,6 +309,15 @@ export interface SonarChatMix {
   state: string
 }
 
+/** A Windows audio output device available for channel redirection */
+export interface SonarAudioDevice {
+  id: string    // Windows device GUID
+  name: string  // Friendly display name
+}
+
+/** Maps Sonar channel role ('game', 'chatRender', etc.) → Windows device GUID */
+export type SonarRedirections = Record<string, string>
+
 export interface SonarState {
   available: boolean
   mode: SonarMode
@@ -315,6 +326,8 @@ export interface SonarState {
   configs: SonarConfig[]
   routing: SonarDeviceRoute[]
   chatMix: SonarChatMix | null
+  audioDevices: SonarAudioDevice[]       // available Windows playback devices
+  redirections: SonarRedirections        // channel role → Windows device id
 }
 
 export interface SonarPollingConfig {

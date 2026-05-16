@@ -382,6 +382,69 @@ media
 aux
 ```
 
+### 8. `GET /audioDevices`
+
+Returns the list of Windows audio output (render) devices available for channel redirection.
+Exact response shape inferred — not yet captured in logs:
+
+```json
+[
+  {
+    "id": "{windows-device-guid}",
+    "name": "Speakers (SteelSeries Arctis Nova Pro Wireless)"
+  }
+]
+```
+
+Fields that have been observed or are strongly expected:
+- `id` — Windows device GUID (used in redirection writes)
+- `name` — Friendly display name
+
+Some implementations also return `isDefault: boolean`.
+
+### 9. `GET /classicRedirections`
+
+Returns the current playback device assigned to each classic-mode channel.
+Exact response shape inferred — not yet captured in logs:
+
+```json
+{
+  "game":        { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" },
+  "chatRender":  { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" },
+  "chatCapture": { "deviceId": "{guid}", "deviceName": "Microphone (Arctis Nova Pro)" },
+  "media":       { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" },
+  "aux":         { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" }
+}
+```
+
+May also be an array with a `role` field per entry — handle defensively.
+
+### 10. `PUT /classicRedirections/{channel}`
+
+Assigns a Windows audio device to a classic-mode channel.
+Channel values: `game`, `chatRender`, `chatCapture`, `media`, `aux`.
+Request body (inferred):
+
+```json
+{ "deviceId": "{windows-device-guid}" }
+```
+
+### 11. `PUT /AudioDeviceRouting/{sessionId}`
+
+Routes an audio session (running process) to a different Sonar virtual channel device.
+`sessionId` comes from `audioSessions[i].id` in the `GET /AudioDeviceRouting` response.
+Request body (inferred):
+
+```json
+{ "deviceId": "{sonar-virtual-device-guid}" }
+```
+
+The `deviceId` here is the `deviceId` field from the route entry in `GET /AudioDeviceRouting`
+(i.e. the virtual Sonar device for the target channel, not a Windows physical device GUID).
+
+> **Note:** The write shapes for endpoints 8–11 are inferred from API conventions and the wiki.
+> They have not been validated against live logs. Update this file once confirmed.
+
 ## Practical Minimal API
 
 ```http
@@ -391,8 +454,12 @@ GET  /volumeSettings/streamer
 GET  /chatMix
 GET  /AudioDeviceRouting
 GET  /configs
+GET  /audioDevices
+GET  /classicRedirections
 
 PUT  /volumeSettings/classic/{channel}/Volume/{value}
 PUT  /volumeSettings/classic/{channel}/Mute/{true|false}
 PUT  /configs/{presetId}/select
+PUT  /classicRedirections/{channel}          body: { "deviceId": "{guid}" }
+PUT  /AudioDeviceRouting/{sessionId}         body: { "deviceId": "{sonar-virtual-device-guid}" }
 ```

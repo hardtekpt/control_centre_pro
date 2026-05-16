@@ -88,6 +88,18 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
     window.api.sonarSelectPreset(presetId).catch(console.error)
   }
 
+  function handleDeviceSelect(channel: SonarChannel, deviceId: string): void {
+    if (channel === 'master') return
+    window.api.sonarSetRedirection(channel as SonarDeviceChannel, deviceId).catch(console.error)
+  }
+
+  function handleProcessDrop(targetChannel: SonarChannel, sessionId: string): void {
+    // Look up the Sonar virtual device ID for the target channel from routing data
+    const targetRoute = sonarState.routing.find((r) => r.role === targetChannel)
+    if (!targetRoute) return
+    window.api.sonarRouteProcess(sessionId, targetRoute.deviceId).catch(console.error)
+  }
+
   return (
     <div className="flex overflow-x-auto gap-3 items-stretch">
       {CHANNEL_DEFS.filter(({ channel }) => visibleChannels.has(channel)).map(({ channel, label }) => {
@@ -104,9 +116,13 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
             presets={presetsByChannel[channel] ?? []}
             activePresetId={activePresetIds[channel]}
             routedSessions={sessionsByRole[channel] ?? []}
+            audioDevices={sonarState.audioDevices}
+            currentDeviceId={sonarState.redirections[channel]}
             onVolume={handleVolume}
             onMute={handleMute}
             onPresetSelect={handlePresetSelect}
+            onDeviceSelect={handleDeviceSelect}
+            onProcessDrop={(sessionId, _sourceRole) => handleProcessDrop(channel, sessionId)}
           />
         )
       })}

@@ -11,6 +11,8 @@ import type {
   SonarChannelVolume,
   SonarConfig,
   SonarPollingConfig,
+  SonarAudioDevice,
+  SonarRedirections,
 } from '../../shared/types'
 
 // ─── SonarService ─────────────────────────────────────────────────────────────
@@ -48,6 +50,8 @@ export class SonarService {
     configs: [],
     routing: [],
     chatMix: null,
+    audioDevices: [],
+    redirections: {},
   }
 
   setWindow(window: BrowserWindow): void {
@@ -148,6 +152,41 @@ export class SonarService {
     }
   }
 
+  async setRedirection(channel: SonarDeviceChannel, deviceId: string): Promise<void> {
+    if (!this.baseUrl) return
+    await this.httpPutJson(
+      `${this.baseUrl}/classicRedirections/${channel}`,
+      JSON.stringify({ deviceId }),
+    )
+    this.state = {
+      ...this.state,
+      redirections: { ...this.state.redirections, [channel]: deviceId },
+    }
+    this.push()
+  }
+
+  async routeProcess(sessionId: string, targetDeviceId: string): Promise<void> {
+    if (!this.baseUrl) return
+    await this.httpPutJson(
+      `${this.baseUrl}/AudioDeviceRouting/${sessionId}`,
+      JSON.stringify({ deviceId: targetDeviceId }),
+    )
+    // Optimistic: move the session from its current route to the target route
+    const session = this.state.routing.flatMap((r) => r.audioSessions).find((s) => s.id === sessionId)
+    if (session) {
+      this.state = {
+        ...this.state,
+        routing: this.state.routing.map((r) => {
+          if (r.deviceId === targetDeviceId) {
+            return { ...r, audioSessions: [...r.audioSessions, session] }
+          }
+          return { ...r, audioSessions: r.audioSessions.filter((s) => s.id !== sessionId) }
+        }),
+      }
+    }
+    this.push()
+  }
+
   // ── Polling ─────────────────────────────────────────────────────────────────
 
   private async pollFast(): Promise<void> {
@@ -194,16 +233,17 @@ export class SonarService {
   private async pollSlow(): Promise<void> {
     if (!this.baseUrl) return
     try {
-      const [configsRaw, selectedRaw, routingRaw] = await Promise.all([
+      const [configsRaw, selectedRaw, routingRaw, audioDevicesRaw, redirectionsRaw] = await Promise.all([
         this.httpGet(`${this.baseUrl}/configs`),
         this.httpGet(`${this.baseUrl}/configs/selected`),
         this.httpGet(`${this.baseUrl}/AudioDeviceRouting`).catch(() => '[]'),
+        this.httpGet(`${this.baseUrl}/audioDevices`).catch(() => '[]'),
+        this.httpGet(`${this.baseUrl}/classicRedirections`).catch(() => '{}'),
       ])
       const allConfigs = JSON.parse(configsRaw) as SonarConfig[]
       const selectedConfigs = JSON.parse(selectedRaw) as SonarConfig[]
       const selectedIds = new Set(selectedConfigs.map((c) => c.id))
 
-      // Mark each config as selected or not
       const markedConfigs = allConfigs.map((c) => ({
         ...c,
         isSelected: selectedIds.has(c.id),
@@ -213,10 +253,54 @@ export class SonarService {
         ...this.state,
         configs: markedConfigs,
         routing: JSON.parse(routingRaw),
+        audioDevices: this.parseAudioDevices(audioDevicesRaw),
+        redirections: this.parseRedirections(redirectionsRaw),
       }
       this.push()
     } catch {
       // non-fatal — keep cached values
+    }
+  }
+
+  private parseAudioDevices(raw: string): SonarAudioDevice[] {
+    try {
+      const data = JSON.parse(raw)
+      if (!Array.isArray(data)) return this.state.audioDevices
+      return data
+        .map((d: Record<string, unknown>) => ({
+          id: String(d.id ?? d.deviceId ?? ''),
+          name: String(d.name ?? d.friendlyName ?? d.deviceName ?? 'Unknown'),
+        }))
+        .filter((d) => d.id.length > 0)
+    } catch {
+      return this.state.audioDevices
+    }
+  }
+
+  private parseRedirections(raw: string): SonarRedirections {
+    try {
+      const data = JSON.parse(raw)
+      const result: SonarRedirections = {}
+      if (Array.isArray(data)) {
+        for (const entry of data as Record<string, unknown>[]) {
+          const role = String(entry.role ?? '')
+          const deviceId = String(entry.deviceId ?? '')
+          if (role && deviceId) result[role] = deviceId
+        }
+      } else if (data && typeof data === 'object') {
+        for (const [role, val] of Object.entries(data as Record<string, unknown>)) {
+          if (typeof val === 'string') {
+            result[role] = val
+          } else if (val && typeof val === 'object') {
+            const v = val as Record<string, unknown>
+            const deviceId = String(v.deviceId ?? '')
+            if (deviceId) result[role] = deviceId
+          }
+        }
+      }
+      return result
+    } catch {
+      return this.state.redirections
     }
   }
 

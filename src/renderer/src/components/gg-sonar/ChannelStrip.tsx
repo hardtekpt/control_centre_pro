@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect, useMemo, useCallback, memo } from 'react'
+import { useRef, useState, useEffect, useCallback, memo } from 'react'
 import ReactDOM from 'react-dom'
-import type { SonarChannel, SonarConfig, SonarAudioSession, SonarStreamerMix, SonarMode } from '@shared/types'
+import type { SonarChannel, SonarConfig, SonarAudioSession, SonarStreamerMix, SonarMode, SonarAudioDevice } from '@shared/types'
 import { useSonarStore } from '../../stores/sonarStore'
 
 // ─── Vertical fader ───────────────────────────────────────────────────────────
@@ -206,9 +206,29 @@ function MicMutedIcon(): JSX.Element {
   )
 }
 
-// ─── Routed apps list ─────────────────────────────────────────────────────────
+// ─── Drag handle icon ─────────────────────────────────────────────────────────
 
-function RoutedApps({ sessions }: { sessions: SonarAudioSession[] }): JSX.Element {
+function DragHandleIcon(): JSX.Element {
+  return (
+    <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor">
+      <circle cx="2" cy="2" r="1.2" />
+      <circle cx="6" cy="2" r="1.2" />
+      <circle cx="2" cy="6" r="1.2" />
+      <circle cx="6" cy="6" r="1.2" />
+      <circle cx="2" cy="10" r="1.2" />
+      <circle cx="6" cy="10" r="1.2" />
+    </svg>
+  )
+}
+
+// ─── Routed apps list (draggable) ─────────────────────────────────────────────
+
+interface RoutedAppsProps {
+  sessions: SonarAudioSession[]
+  channelRole: string
+}
+
+function RoutedApps({ sessions, channelRole }: RoutedAppsProps): JSX.Element {
   const active = sessions.filter((s) => s.state === 'active')
   if (active.length === 0) {
     return (
@@ -218,7 +238,26 @@ function RoutedApps({ sessions }: { sessions: SonarAudioSession[] }): JSX.Elemen
   return (
     <>
       {active.map((s) => (
-        <div key={s.id} className="flex items-center gap-1.5 mb-1 min-w-0">
+        <div
+          key={s.id}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move'
+            e.dataTransfer.setData(
+              'application/sonar-session',
+              JSON.stringify({ sessionId: s.id, sourceRole: channelRole }),
+            )
+          }}
+          className="flex items-center gap-1.5 mb-1 min-w-0 rounded cursor-grab"
+          style={{
+            padding: '2px 4px',
+            userSelect: 'none',
+          }}
+          title={`${s.displayName || s.processName} — drag to move to another channel`}
+        >
+          <span style={{ color: 'var(--color-text-secondary)', flexShrink: 0, opacity: 0.5 }}>
+            <DragHandleIcon />
+          </span>
           <div
             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
             style={{ background: '#5a9a5a' }}
@@ -226,13 +265,123 @@ function RoutedApps({ sessions }: { sessions: SonarAudioSession[] }): JSX.Elemen
           <span
             className="text-xs truncate"
             style={{ color: 'var(--color-text-secondary)' }}
-            title={s.displayName || s.processName}
           >
             {s.displayName || s.processName}
           </span>
         </div>
       ))}
     </>
+  )
+}
+
+// ─── Device selector (chip + floating menu) ───────────────────────────────────
+
+function DeviceSelector({
+  audioDevices,
+  currentDeviceId,
+  channel,
+  onSelect,
+}: {
+  audioDevices: SonarAudioDevice[]
+  currentDeviceId?: string
+  channel: SonarChannel
+  onSelect: (channel: SonarChannel, deviceId: string) => void
+}): JSX.Element | null {
+  const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+
+  const currentDevice = audioDevices.find((d) => d.id === currentDeviceId)
+
+  function toggle(): void {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left })
+    }
+    setOpen((o) => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onMouseDown(e: MouseEvent): void {
+      const t = e.target as Node
+      if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  if (audioDevices.length === 0) return null
+
+  return (
+    <div className="px-3 pb-2 flex-shrink-0">
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        className="w-full flex items-center gap-1 rounded px-1.5 py-1 text-xs"
+        title={currentDevice?.name ?? 'Select output device'}
+        style={{
+          background: 'var(--color-surface-raised)',
+          border: '1px solid var(--color-border)',
+          color: 'var(--color-text-secondary)',
+          cursor: 'pointer',
+          minWidth: 0,
+        }}
+      >
+        <span className="truncate flex-1 text-left" style={{ fontSize: 10 }}>
+          {currentDevice ? currentDevice.name : 'Default'}
+        </span>
+        <ChevronIcon open={open} />
+      </button>
+      {open && pos && ReactDOM.createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            zIndex: 9999,
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            overflow: 'hidden',
+            minWidth: 200,
+            maxWidth: 320,
+            maxHeight: 220,
+            overflowY: 'auto',
+          }}
+        >
+          {audioDevices.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => { onSelect(channel, d.id); setOpen(false) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs"
+              style={{
+                background: d.id === currentDeviceId ? 'var(--color-surface-raised)' : 'transparent',
+                color: d.id === currentDeviceId ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                border: 'none',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ width: 12, color: 'var(--color-accent)', flexShrink: 0 }}>
+                {d.id === currentDeviceId ? '✓' : ''}
+              </span>
+              <span className="truncate">{d.name}</span>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
   )
 }
 
@@ -378,9 +527,13 @@ export interface ChannelStripProps {
   presets: SonarConfig[]
   activePresetId?: string
   routedSessions: SonarAudioSession[]
+  audioDevices: SonarAudioDevice[]
+  currentDeviceId?: string
   onVolume: (channel: SonarChannel, value: number) => void
   onMute: (channel: SonarChannel) => void
   onPresetSelect: (channel: SonarChannel, presetId: string) => void
+  onDeviceSelect: (channel: SonarChannel, deviceId: string) => void
+  onProcessDrop: (sessionId: string, sourceRole: string) => void
 }
 
 function ChannelStripComponent({
@@ -393,25 +546,67 @@ function ChannelStripComponent({
   presets,
   activePresetId,
   routedSessions,
+  audioDevices,
+  currentDeviceId,
   onVolume,
   onMute,
   onPresetSelect,
+  onDeviceSelect,
+  onProcessDrop,
 }: ChannelStripProps): JSX.Element {
   const isMicChannel = channel === 'chatCapture'
+  const [isDragOver, setIsDragOver] = useState(false)
 
-  // Memoize callbacks so React.memo comparison works correctly
   const handleVolume = useCallback((v: number) => onVolume(channel, v), [channel, onVolume])
   const handleMute = useCallback(() => onMute(channel), [channel, onMute])
   const handlePresetSelect = useCallback((id: string) => onPresetSelect(channel, id), [channel, onPresetSelect])
+  const handleDeviceSelect = useCallback((ch: SonarChannel, deviceId: string) => onDeviceSelect(ch, deviceId), [onDeviceSelect])
+
+  function handleDragOver(e: React.DragEvent): void {
+    if (e.dataTransfer.types.includes('application/sonar-session')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      setIsDragOver(true)
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent): void {
+    // Only clear when leaving the outer card, not a child element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent): void {
+    e.preventDefault()
+    setIsDragOver(false)
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/sonar-session')) as {
+        sessionId: string
+        sourceRole: string
+      }
+      if (data.sourceRole !== channel) {
+        onProcessDrop(data.sessionId, data.sourceRole)
+      }
+    } catch {
+      // malformed drag data — ignore
+    }
+  }
 
   return (
     <div
       className="flex flex-col rounded-lg flex-shrink-0"
+      onDragOver={channel !== 'master' ? handleDragOver : undefined}
+      onDragLeave={channel !== 'master' ? handleDragLeave : undefined}
+      onDrop={channel !== 'master' ? handleDrop : undefined}
       style={{
         width: 130,
         minHeight: 420,
         background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
+        border: isDragOver
+          ? '1px solid var(--color-accent)'
+          : '1px solid var(--color-border)',
+        transition: 'border-color 100ms ease',
       }}
     >
       {/* Channel label */}
@@ -426,6 +621,16 @@ function ChannelStripComponent({
           {label}
         </span>
       </div>
+
+      {/* Playback device selector — hidden for master */}
+      {channel !== 'master' && (
+        <DeviceSelector
+          audioDevices={audioDevices}
+          currentDeviceId={currentDeviceId}
+          channel={channel}
+          onSelect={handleDeviceSelect}
+        />
+      )}
 
       {/* Fader zone */}
       <div className="flex flex-col items-center px-3 pt-2 pb-1 flex-1 min-h-0">
@@ -467,7 +672,7 @@ function ChannelStripComponent({
         </button>
       </div>
 
-      {/* Preset selector (chip + floating menu) — hidden for channels with no favorites */}
+      {/* Preset selector — hidden for channels with no favorites */}
       <div className="px-3 pt-1 flex-shrink-0">
         <PresetSelector
           presets={presets}
@@ -476,15 +681,19 @@ function ChannelStripComponent({
         />
       </div>
 
-      {/* Routed apps — skipped for master which never has session routing */}
+      {/* Routed apps — draggable; skipped for master */}
       {channel !== 'master' && (
         <>
           <div className="mx-3 flex-shrink-0" style={{ height: 1, background: 'var(--color-border)' }} />
           <div
             className="px-3 py-2 overflow-y-auto flex-shrink-0"
-            style={{ maxHeight: 96 }}
+            style={{
+              maxHeight: 96,
+              background: isDragOver ? 'var(--color-surface-raised)' : undefined,
+              transition: 'background 100ms ease',
+            }}
           >
-            <RoutedApps sessions={routedSessions} />
+            <RoutedApps sessions={routedSessions} channelRole={channel} />
           </div>
         </>
       )}

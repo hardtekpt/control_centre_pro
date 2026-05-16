@@ -1,6 +1,6 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode, SonarPollingConfig,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
 } from '../../../shared/types'
 
@@ -57,6 +57,8 @@ declare global {
     sonarSetMode: (mode: SonarMode) => Promise<void>
     sonarGetPollingConfig: () => Promise<SonarPollingConfig>
     sonarSetPollingConfig: (config: SonarPollingConfig) => Promise<void>
+    sonarSetRedirection: (channel: SonarDeviceChannel, deviceId: string) => Promise<void>
+    sonarRouteProcess: (sessionId: string, targetDeviceId: string) => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
 
     // Preset Switcher
