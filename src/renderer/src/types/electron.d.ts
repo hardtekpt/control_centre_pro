@@ -81,6 +81,8 @@ declare global {
     ddcSetBrightness: (monitorId: number, value: number) => Promise<void>
     ddcSetInputSource: (monitorId: number, inputValue: string) => Promise<void>
     onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void) => () => void
+    ddcGetPollInterval: () => Promise<number>
+    ddcSetPollInterval: (seconds: number) => Promise<void>
     }
   }
 }

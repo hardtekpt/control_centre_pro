@@ -203,6 +203,12 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.DDC_UPDATE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.DDC_UPDATE, handler)
   },
+
+  ddcGetPollInterval: (): Promise<number> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_GET_POLL_INTERVAL),
+
+  ddcSetPollInterval: (seconds: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_POLL_INTERVAL, seconds),
 }
 
 contextBridge.exposeInMainWorld('api', api)

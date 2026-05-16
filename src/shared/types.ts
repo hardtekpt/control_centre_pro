@@ -69,6 +69,8 @@ export const IPC_CHANNELS = {
   DDC_SET_BRIGHTNESS: 'ddc:setBrightness',   // renderer → main invoke
   DDC_SET_INPUT_SOURCE: 'ddc:setInputSource', // renderer → main invoke
   DDC_UPDATE: 'ddc:update',                  // main → renderer push
+  DDC_GET_POLL_INTERVAL: 'ddc:getPollInterval', // renderer → main invoke
+  DDC_SET_POLL_INTERVAL: 'ddc:setPollInterval', // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -81,6 +83,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
   sidebarWidth: number
   sidebarCollapsed: boolean
+  ddcPollIntervalSeconds: number
 }
 
 /** Defaults applied when no saved settings exist */
@@ -88,6 +91,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   sidebarWidth: 240,
   sidebarCollapsed: false,
+  ddcPollIntervalSeconds: 60,
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ let ddcCache: DdcMonitor[] = []
 let ddcCacheTs = 0
 let ddcInFlight = false
 let ddcPollTimer: NodeJS.Timeout | null = null
+let ddcPollIntervalSec = 60
 interface DDCBrightnessJob {
   monitorId: number
   value: number
@@ -230,12 +231,12 @@ function flushDdcQueue(): void {
   })
 }
 
-function startDdcPolling(): void {
-  if (ddcPollTimer) return
-  const pollIntervalMs = 60_000 // 60 seconds (configurable in settings)
+function startDdcPolling(intervalMs?: number): void {
+  stopDdcPolling()
+  const ms = intervalMs ?? (ddcPollIntervalSec * 1000)
   ddcPollTimer = setInterval(() => {
     refreshDdcMonitors().catch(console.error)
-  }, pollIntervalMs)
+  }, ms)
 }
 
 function stopDdcPolling(): void {
@@ -460,6 +461,17 @@ function registerIpcHandlers(): void {
     // Refresh to confirm the change
     await refreshDdcMonitors()
   })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_GET_POLL_INTERVAL, () => ddcPollIntervalSec)
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_POLL_INTERVAL, (_, seconds: number) => {
+    const clamped = Math.max(10, Math.min(3600, Math.round(seconds)))
+    ddcPollIntervalSec = clamped
+    startDdcPolling()
+    const settings = loadAppSettings()
+    settings.ddcPollIntervalSeconds = clamped
+    writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -536,6 +548,17 @@ app.whenReady().then(() => {
     console.error('[app init] failed to load preset switcher rules:', err)
   }
   activeWindowMonitor.start()
+
+  // Restore persisted DDC poll interval before starting services
+  try {
+    const settingsPath = join(app.getPath('userData'), 'settings.json')
+    if (existsSync(settingsPath)) {
+      const saved = JSON.parse(readFileSync(settingsPath, 'utf-8')) as Partial<AppSettings>
+      if (typeof saved.ddcPollIntervalSeconds === 'number') {
+        ddcPollIntervalSec = Math.max(10, Math.min(3600, saved.ddcPollIntervalSeconds))
+      }
+    }
+  } catch { /* use default */ }
 
   serviceManager.startAll()  // starts Python services + GG Sonar native service
 

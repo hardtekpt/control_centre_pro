@@ -7,9 +7,20 @@ export function DDCSettings(): JSX.Element {
   const [monitors, setMonitors] = useState<DdcMonitor[]>(ddcMonitors)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  const [savedInterval, setSavedInterval] = useState<number | null>(null)
+  const [draftInterval, setDraftInterval] = useState('')
+  const [isSavingInterval, setIsSavingInterval] = useState(false)
+
   useEffect(() => {
     setMonitors(ddcMonitors)
   }, [ddcMonitors])
+
+  useEffect(() => {
+    window.api.ddcGetPollInterval().then((sec) => {
+      setSavedInterval(sec)
+      setDraftInterval(sec.toString())
+    }).catch(console.error)
+  }, [])
 
   const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true)
@@ -19,6 +30,22 @@ export function DDCSettings(): JSX.Element {
       console.error('Failed to refresh monitors:', err)
     } finally {
       setIsRefreshing(false)
+    }
+  }
+
+  const intervalDirty = savedInterval !== null && draftInterval !== savedInterval.toString()
+
+  const handleSaveInterval = async (): Promise<void> => {
+    const parsed = parseInt(draftInterval, 10)
+    if (isNaN(parsed) || parsed < 10 || parsed > 3600) return
+    setIsSavingInterval(true)
+    try {
+      await window.api.ddcSetPollInterval(parsed)
+      setSavedInterval(parsed)
+    } catch (err) {
+      console.error('Failed to set poll interval:', err)
+    } finally {
+      setIsSavingInterval(false)
     }
   }
 
@@ -90,7 +117,7 @@ export function DDCSettings(): JSX.Element {
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 mb-8">
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
@@ -107,7 +134,51 @@ export function DDCSettings(): JSX.Element {
         </button>
       </div>
 
-      <div className="mt-6 p-4 rounded-lg" style={{ background: 'var(--color-surface)' }}>
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
+          Refresh Interval
+        </h2>
+        <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+          How often the app polls displays for changes in the background (10–3600 seconds).
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              type="number"
+              min={10}
+              max={3600}
+              value={draftInterval}
+              onChange={(e) => setDraftInterval(e.target.value)}
+              className="text-sm px-3 py-1.5 rounded w-28"
+              style={{
+                background: 'var(--color-surface-raised)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+                outline: 'none',
+              }}
+            />
+          </div>
+          <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>seconds</span>
+          {intervalDirty && (
+            <button
+              onClick={handleSaveInterval}
+              disabled={isSavingInterval}
+              className="text-sm px-4 py-1.5 rounded font-medium"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                cursor: isSavingInterval ? 'default' : 'pointer',
+                opacity: isSavingInterval ? 0.6 : 1,
+              }}
+            >
+              {isSavingInterval ? 'Saving...' : 'Save'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 rounded-lg" style={{ background: 'var(--color-surface)' }}>
         <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
           DDC/CI (Display Data Channel/Command Interface) allows software control of display brightness and other features. Not all monitors support this protocol.
         </p>
