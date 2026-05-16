@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { DdcMonitor } from '@shared/types'
 
@@ -36,9 +36,10 @@ function MonitorIcon(): JSX.Element {
 export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
+  const [confirmedBrightness, setConfirmedBrightness] = useState(monitor.brightness)
   const lockedUntilRef = useRef(0)
 
-  const displayBrightness = draftBrightness ?? monitor.brightness
+  const displayBrightness = draftBrightness ?? confirmedBrightness
   const supportsBrightness = monitor.supports.includes('brightness')
   const supportsInput = monitor.supports.includes('input_source')
 
@@ -49,19 +50,17 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
   const handleBrightnessRelease = (): void => {
     if (draftBrightness === null) return
     lockedUntilRef.current = Date.now() + 1200
+    setConfirmedBrightness(draftBrightness)
     setDraftBrightness(null)
     window.api.ddcSetBrightness(monitor.monitor_id, draftBrightness).catch(console.error)
   }
 
-  const handleDdcUpdate = (monitors: DdcMonitor[]): void => {
+  useEffect(() => {
     const now = Date.now()
-    if (now < lockedUntilRef.current) {
-      return
+    if (now >= lockedUntilRef.current) {
+      setConfirmedBrightness(monitor.brightness)
     }
-    setDdcMonitors(monitors)
-  }
-
-  const _unused = handleDdcUpdate
+  }, [monitor.brightness])
 
   return (
     <div
