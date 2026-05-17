@@ -171,7 +171,29 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
           value={monitor.input_source}
           onChange={(e) => {
             if (e.currentTarget.value) {
-              window.api.ddcSetInputSource(monitor.monitor_id, e.currentTarget.value).catch(console.error)
+              const inputHex = e.currentTarget.value
+              window.api.ddcSetInputSource(monitor.monitor_id, inputHex).catch(console.error)
+
+              // Emit notification if enabled
+              window.api.getSettings().then((settings) => {
+                const notifCfg = settings.notifications?.display?.inputSourceChange
+                if (notifCfg?.enabled) {
+                  const inputName = getInputName(inputHex)
+                  const ttl = settings.notifications?.durationMs ?? 2400
+                  if (notifCfg.shape === 'circle') {
+                    window.api.notifPush({ kind: 'circle', key: 'display-input', iconId: 'monitor', ttl })
+                  } else {
+                    window.api.notifPush({
+                      kind: 'rect',
+                      key: 'display-input',
+                      iconId: 'monitor',
+                      title: monitor.name,
+                      subtitle: `Input: ${inputName}`,
+                      ttl,
+                    })
+                  }
+                }
+              }).catch(console.error)
             }
           }}
           className="w-full text-xs p-1.5 rounded"

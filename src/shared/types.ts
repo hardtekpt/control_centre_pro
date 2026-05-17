@@ -164,9 +164,14 @@ export interface SonarNotificationSettings {
   presetChange: NotifSimple
 }
 
+export interface DisplayNotificationSettings {
+  inputSourceChange: NotifSimple
+}
+
 export interface NotificationSettings {
   headset: HeadsetNotificationSettings
   sonar: SonarNotificationSettings
+  display: DisplayNotificationSettings
   durationMs: number  // how long notifications display; default 2400ms
 }
 
@@ -186,6 +191,10 @@ const DEFAULT_HEADSET_NOTIFICATIONS: HeadsetNotificationSettings = {
 
 const DEFAULT_SONAR_NOTIFICATIONS: SonarNotificationSettings = {
   presetChange: { enabled: true, shape: 'rect' },
+}
+
+const DEFAULT_DISPLAY_NOTIFICATIONS: DisplayNotificationSettings = {
+  inputSourceChange: { enabled: true, shape: 'rect' },
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -212,6 +221,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifications: {
     headset: DEFAULT_HEADSET_NOTIFICATIONS,
     sonar: DEFAULT_SONAR_NOTIFICATIONS,
+    display: DEFAULT_DISPLAY_NOTIFICATIONS,
     durationMs: 2400,
   },
 }

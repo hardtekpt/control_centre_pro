@@ -3,6 +3,7 @@ import { useServiceStore } from '../stores/serviceStore'
 import type {
   HeadsetNotificationSettings,
   SonarNotificationSettings,
+  DisplayNotificationSettings,
   NotifSimple,
   NotifValue,
   NotifBatteryLow,
@@ -36,6 +37,18 @@ async function saveSonarSettings(sonar: SonarNotificationSettings): Promise<void
   useServiceStore.getState().setSettings({
     ...current,
     notifications: { ...current.notifications, sonar },
+  })
+}
+
+async function saveDisplaySettings(display: DisplayNotificationSettings): Promise<void> {
+  const current = await window.api.getSettings()
+  await window.api.setSettings({
+    ...current,
+    notifications: { ...current.notifications, display },
+  })
+  useServiceStore.getState().setSettings({
+    ...current,
+    notifications: { ...current.notifications, display },
   })
 }
 
@@ -384,6 +397,9 @@ export function Notifications(): JSX.Element {
   const [sonar, setSonarRaw] = useState<SonarNotificationSettings>(
     settings.notifications?.sonar ?? DEFAULT_SETTINGS.notifications.sonar
   )
+  const [display, setDisplayRaw] = useState<DisplayNotificationSettings>(
+    settings.notifications?.display ?? DEFAULT_SETTINGS.notifications.display
+  )
 
   // Sync if store settings change (e.g. on initial load)
   useEffect(() => {
@@ -398,6 +414,12 @@ export function Notifications(): JSX.Element {
     }
   }, [settings.notifications?.sonar])
 
+  useEffect(() => {
+    if (settings.notifications?.display) {
+      setDisplayRaw(settings.notifications.display)
+    }
+  }, [settings.notifications?.display])
+
   const setHeadset = useCallback((next: HeadsetNotificationSettings): void => {
     setHeadsetRaw(next)
     saveHeadsetSettings(next).catch(console.error)
@@ -406,6 +428,11 @@ export function Notifications(): JSX.Element {
   const setSonar = useCallback((next: SonarNotificationSettings): void => {
     setSonarRaw(next)
     saveSonarSettings(next).catch(console.error)
+  }, [])
+
+  const setDisplay = useCallback((next: DisplayNotificationSettings): void => {
+    setDisplayRaw(next)
+    saveDisplaySettings(next).catch(console.error)
   }, [])
 
   // ── Preview helpers — route through overlay window via IPC ──────────────────
@@ -524,6 +551,15 @@ export function Notifications(): JSX.Element {
       window.api.notifPush({ kind: 'circle', key: 'preview-sonar-preset', iconId: 'sonar', ttl: 2400 })
     } else {
       window.api.notifPush({ kind: 'rect', key: 'preview-sonar-preset', iconId: 'sonar', title: 'GG Sonar', subtitle: 'Preset: Balanced', ttl: 2400 })
+    }
+  }
+
+  const previewDisplayInputChange = (): void => {
+    const cfg = display.inputSourceChange
+    if (cfg.shape === 'circle') {
+      window.api.notifPush({ kind: 'circle', key: 'preview-display-input', iconId: 'monitor', ttl: 2400 })
+    } else {
+      window.api.notifPush({ kind: 'rect', key: 'preview-display-input', iconId: 'monitor', title: 'Display', subtitle: 'Input: HDMI 1', ttl: 2400 })
     }
   }
 
@@ -695,6 +731,33 @@ export function Notifications(): JSX.Element {
               value={sonar.presetChange}
               onChange={(v) => setSonar({ ...sonar, presetChange: v })}
               onPreview={previewSonarPresetChange}
+            />
+          </Section>
+        </div>
+      </div>
+
+      {/* Display section */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="2" y1="17" x2="22" y2="17" />
+            </svg>
+          </div>
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Display</span>
+        </div>
+
+        {/* Grid layout for sections */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '0.75rem' }}>
+          {/* Input source */}
+          <Section title="Input">
+            <SimpleRow
+              label="Input source changed"
+              description="Display switched to a different input (HDMI, DisplayPort, etc.)"
+              value={display.inputSourceChange}
+              onChange={(v) => setDisplay({ ...display, inputSourceChange: v })}
+              onPreview={previewDisplayInputChange}
             />
           </Section>
         </div>
