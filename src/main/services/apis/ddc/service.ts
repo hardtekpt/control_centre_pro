@@ -458,180 +458,26 @@ export class DdcService {
     return this.devicePaths.get(monitorId) ?? null
   }
 
-  async setPrimaryMonitor(monitorId: number, _nircmdPath: string): Promise<void> {
+  async setPrimaryMonitor(monitorId: number, nircmdPath: string): Promise<void> {
     const gdiName = this.gdiDeviceNames.get(monitorId)
     if (!gdiName) {
       throw new Error(`No GDI device name cached for monitor ${monitorId} — refresh first`)
     }
 
-    const psScript = `
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-using System.Collections.Generic;
-
-public struct POINTL { public int x; public int y; }
-public struct RECTL { public int left; public int top; public int right; public int bottom; }
-
-[StructLayout(LayoutKind.Sequential)]
-public struct LUID { public uint Low; public int High; }
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DISPLAYCONFIG_PATH_SOURCE_INFO {
-    public LUID adapterId;
-    public uint id;
-    public uint modeInfoIdx;
-    public uint statusFlags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DISPLAYCONFIG_PATH_TARGET_INFO {
-    public LUID adapterId;
-    public uint id;
-    public uint modeInfoIdx;
-    public uint outputTech;
-    public uint rotation;
-    public uint scaling;
-    public RECTL refreshRate;
-    public uint scanLineOrdering;
-    public int targetAvailable;
-    public uint statusFlags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DISPLAYCONFIG_PATH_INFO {
-    public DISPLAYCONFIG_PATH_SOURCE_INFO sourceInfo;
-    public DISPLAYCONFIG_PATH_TARGET_INFO targetInfo;
-    public uint flags;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DISPLAYCONFIG_SOURCE_MODE {
-    public uint width;
-    public uint height;
-    public uint pixelFormat;
-    public POINTL position;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public struct DISPLAYCONFIG_TARGET_MODE {
-    public RECTL targetVideoSignalInfo;
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public struct DISPLAYCONFIG_MODE_INFO {
-    [FieldOffset(0)] public LUID adapterId;
-    [FieldOffset(8)] public uint id;
-    [FieldOffset(12)] public uint modeInfoType;
-    [FieldOffset(16)] public DISPLAYCONFIG_SOURCE_MODE sourceMode;
-    [FieldOffset(16)] public DISPLAYCONFIG_TARGET_MODE targetMode;
-}
-
-public static class DC {
-    const uint QDC_ONLY_ACTIVE_PATHS = 2;
-    const uint SDC_APPLY = 0x00000002;
-
-    [DllImport("user32.dll")]
-    static extern int GetDisplayConfigBufferSizes(uint flags, out uint pNumPathArrayElements, out uint pNumModeInfoArrayElements);
-
-    [DllImport("user32.dll")]
-    static extern int QueryDisplayConfig(uint flags, ref uint pNumPathArrayElements, [In, Out] DISPLAYCONFIG_PATH_INFO[] pPathInfoArray, ref uint pNumModeInfoArrayElements, [In, Out] DISPLAYCONFIG_MODE_INFO[] pModeInfoArray, IntPtr pCurrentTopologyId);
-
-    [DllImport("user32.dll")]
-    static extern int SetDisplayConfig(uint uNumPathArrayElements, [In] DISPLAYCONFIG_PATH_INFO[] pPathInfoArray, uint uNumModeInfoArrayElements, [In] DISPLAYCONFIG_MODE_INFO[] pModeInfoArray, uint Flags);
-
-    [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")]
-    static extern int GetSourceName(ref DISPLAYCONFIG_SOURCE_DEVICE_NAME pDeviceName);
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct DISPLAYCONFIG_SOURCE_DEVICE_NAME {
-        [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.U4, SizeConst = 16)]
-        public uint[] header;
-        [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.U1, SizeConst = 32)]
-        public byte[] sourceName;
-    }
-
-    public static void SetPrimaryDisplay(string targetGdiName) {
-        uint pathCount, modeCount;
-        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out pathCount, out modeCount);
-
-        var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
-        var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
-
-        if (QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref pathCount, paths, ref modeCount, modes, IntPtr.Zero) != 0) {
-            throw new Exception("QueryDisplayConfig failed");
-        }
-
-        // Find the target display
-        int targetPathIdx = -1;
-        for (int i = 0; i < pathCount; i++) {
-            var sourceName = new DISPLAYCONFIG_SOURCE_DEVICE_NAME();
-            sourceName.header = new uint[4];
-            sourceName.header[0] = 0;
-            sourceName.header[1] = (uint)Marshal.SizeOf(sourceName);
-            sourceName.header[2] = 2;  // DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME
-            sourceName.header[3] = 0;
-
-            var adapterId = paths[i].sourceInfo.adapterId;
-            var sourceId = paths[i].sourceInfo.id;
-            var dataCompact = new uint[2];
-            dataCompact[0] = adapterId.Low;
-            dataCompact[1] = (uint)adapterId.High;
-            Array.Copy(BitConverter.GetBytes(dataCompact[0]), 0, sourceName.header, 0, 4);
-            Array.Copy(BitConverter.GetBytes(dataCompact[1]), 0, sourceName.header, 4, 4);
-
-            var gdiNameBytes = System.Text.Encoding.Unicode.GetBytes(targetGdiName);
-            if (sourceName.sourceName.Length >= gdiNameBytes.Length &&
-                new string(System.Text.Encoding.Unicode.GetChars(sourceName.sourceName)).TrimEnd('\\0').Contains(targetGdiName.Replace("\\\\\\\.", ""))) {
-                targetPathIdx = i;
-                break;
-            }
-        }
-
-        if (targetPathIdx == -1) {
-            throw new Exception("Target display not found");
-        }
-
-        // Move target to first position
-        var tempPath = paths[targetPathIdx];
-        for (int i = targetPathIdx; i > 0; i--) {
-            paths[i] = paths[i - 1];
-        }
-        paths[0] = tempPath;
-
-        // Apply configuration
-        int result = SetDisplayConfig(pathCount, paths, modeCount, modes, SDC_APPLY);
-        if (result != 0) {
-            throw new Exception("SetDisplayConfig failed with code " + result);
-        }
-    }
-}
-'@
-[DC]::SetPrimaryDisplay("${gdiName}")
-Write-Host "Success"
-`
-
+    // Use nircmd to set primary display
     try {
-      const tmpFile = join(tmpdir(), `set-primary-${process.pid}.ps1`)
-      writeFileSync(tmpFile, '﻿' + psScript, 'utf8')
+      this.log('info', `Attempting to set primary monitor to ${monitorId} using: ${nircmdPath} setprimarydisplay ${gdiName}`)
 
-      const result = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tmpFile], {
-        encoding: 'utf8',
-        timeout: 10000,
+      const result = spawnSync(nircmdPath, ['setprimarydisplay', gdiName], {
+        timeout: 5000,
       })
-
-      try {
-        unlinkSync(tmpFile)
-      } catch {
-        // ignore
-      }
 
       if (result.error) {
         throw result.error
       }
 
-      if (result.status !== 0 || result.stderr?.includes('Exception')) {
-        throw new Error(`Failed: ${result.stderr || result.stdout}`)
+      if (result.status !== 0) {
+        throw new Error(`nircmd exited with status ${result.status}`)
       }
 
       this.log('info', `Set primary monitor to ${monitorId} (${gdiName})`)
