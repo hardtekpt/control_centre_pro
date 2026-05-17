@@ -1,3 +1,7 @@
+import { spawnSync } from 'child_process'
+import { writeFileSync, unlinkSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
 import type { DdcMonitor } from '../../../../shared/types'
 
 let ddcci: any = null
@@ -6,6 +10,101 @@ try {
   ddcci = require('@hensm/ddcci')
 } catch {
   // @hensm/ddcci not available (not installed or platform-specific)
+}
+
+// Uses QueryDisplayConfig (works in non-interactive sessions) to map DDC device paths
+// to their GDI device name, then checks Screen.PrimaryScreen to set is_primary.
+const QUERY_DISPLAY_CONFIG_PS = `
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
+public static class DC {
+    const uint QDC_ONLY_ACTIVE_PATHS = 2;
+    [StructLayout(LayoutKind.Sequential)]
+    struct LUID { public uint Low; public int High; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PATH_SOURCE { public LUID adapterId; public uint id; public uint modeInfoIdx; public uint statusFlags; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PATH_TARGET {
+        public LUID adapterId; public uint id; public uint modeInfoIdx; public uint outputTech;
+        public uint rotation; public uint scaling; public uint refreshNum; public uint refreshDen;
+        public uint scanLine; public int targetAvailable; public uint statusFlags;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PATH_INFO { public PATH_SOURCE sourceInfo; public PATH_TARGET targetInfo; public uint flags; }
+    [StructLayout(LayoutKind.Explicit, Size=64)]
+    struct MODE_INFO { }
+    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+    struct TARGET_NAME {
+        public uint type; public uint size; public LUID adapterId; public uint id;
+        public uint nameFlags; public uint outputTech; public ushort edidMfgId; public ushort edidProdId;
+        public uint connectorInstance;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=64)]  public string friendlyName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string devicePath;
+    }
+    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+    struct SOURCE_NAME {
+        public uint type; public uint size; public LUID adapterId; public uint id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string viewGdiDeviceName;
+    }
+    [DllImport("user32.dll")] static extern int GetDisplayConfigBufferSizes(uint flags, out uint np, out uint nm);
+    [DllImport("user32.dll")] static extern int QueryDisplayConfig(uint flags, ref uint np, [In,Out] PATH_INFO[] paths, ref uint nm, [In,Out] MODE_INFO[] modes, IntPtr tid);
+    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetTargetName(ref TARGET_NAME req);
+    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetSourceName(ref SOURCE_NAME req);
+    public struct Entry { public string DevicePath; public string GdiDeviceName; }
+    public static Entry[] GetMonitorMap() {
+        uint np, nm;
+        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
+        var paths = new PATH_INFO[np]; var modes = new MODE_INFO[nm];
+        QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
+        var result = new List<Entry>();
+        for (uint i = 0; i < np; i++) {
+            var tgt = new TARGET_NAME { type=2, adapterId=paths[i].targetInfo.adapterId, id=paths[i].targetInfo.id };
+            tgt.size = (uint)Marshal.SizeOf(tgt); GetTargetName(ref tgt);
+            var src = new SOURCE_NAME { type=1, adapterId=paths[i].sourceInfo.adapterId, id=paths[i].sourceInfo.id };
+            src.size = (uint)Marshal.SizeOf(src); GetSourceName(ref src);
+            result.Add(new Entry { DevicePath=tgt.devicePath, GdiDeviceName=src.viewGdiDeviceName });
+        }
+        return result.ToArray();
+    }
+}
+'@
+Add-Type -AssemblyName System.Windows.Forms
+$primary = ([System.Windows.Forms.Screen]::PrimaryScreen).DeviceName
+$out = @()
+foreach ($m in [DC]::GetMonitorMap()) {
+    $out += [PSCustomObject]@{ DevicePath=$m.DevicePath; IsPrimary=($m.GdiDeviceName -eq $primary) }
+}
+$out | ConvertTo-Json -Compress
+`
+
+function normPath(p: string): string {
+  return p.toLowerCase().replace(/\\/g, '').replace(/\?/g, '')
+}
+
+function queryPrimaryDevicePath(): string | null {
+  const tmpFile = join(tmpdir(), `ddc-primary-${process.pid}.ps1`)
+  try {
+    writeFileSync(tmpFile, '﻿' + QUERY_DISPLAY_CONFIG_PS, 'utf8')
+    const res = spawnSync('powershell', ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tmpFile], {
+      encoding: 'utf8',
+      timeout: 10000,
+    })
+    if (!res.stdout?.trim()) return null
+    const rows = JSON.parse(res.stdout.trim())
+    const entries: Array<{ DevicePath: string; IsPrimary: boolean }> = Array.isArray(rows) ? rows : [rows]
+    const primary = entries.find((e) => e.IsPrimary)
+    return primary?.DevicePath ?? null
+  } catch {
+    return null
+  } finally {
+    try {
+      unlinkSync(tmpFile)
+    } catch {
+      // ignore
+    }
+  }
 }
 
 // Common input source hex codes to friendly names (keys are lowercase)
@@ -90,6 +189,9 @@ export class DdcService {
       return []
     }
 
+    const primaryRaw = queryPrimaryDevicePath()
+    const primaryNorm = primaryRaw ? normPath(primaryRaw) : null
+
     const monitors: DdcMonitor[] = []
     this.devicePaths.clear()
 
@@ -105,6 +207,7 @@ export class DdcService {
       const monitor: DdcMonitor = {
         monitor_id: monitorId,
         name: modelName,
+        is_primary: primaryNorm !== null && normPath(devicePath) === primaryNorm,
         brightness: 0,
         contrast: 0,
         input_source: '',

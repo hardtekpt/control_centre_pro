@@ -361,6 +361,7 @@ export interface PresetSwitcherRule {
 export interface DdcMonitor {
   monitor_id: number      // 1-based index
   name: string            // Human-readable monitor name
+  is_primary: boolean     // True if this is the Windows primary display
   brightness: number      // 0–100 %
   contrast: number        // 0–100 %
   input_source: string    // Current input: hex string (e.g. "0x11") or empty if unsupported

@@ -73,6 +73,18 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
         <h3 className="text-sm font-semibold flex-1" style={{ color: 'var(--color-text-primary)' }}>
           {monitor.name}
         </h3>
+        {monitor.is_primary && (
+          <span
+            className="text-xs px-1.5 py-0.5 rounded mono"
+            style={{
+              background: 'var(--color-surface-raised)',
+              color: 'var(--color-text-secondary)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            Primary
+          </span>
+        )}
       </div>
 
       {/* Brightness Control */}
