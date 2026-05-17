@@ -9,7 +9,7 @@ import type {
   NotifValueShape,
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
-import { IconHeadset, IconPlay } from '../components/notifications/icons'
+import { IconHeadset } from '../components/notifications/icons'
 import { createElement } from 'react'
 
 // ── Save helper ───────────────────────────────────────────────────────────────
@@ -181,7 +181,32 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
   return (
     <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{label}</div>
+        <button
+          onClick={onPreview}
+          disabled={!value.enabled}
+          className="text-sm font-medium text-left transition-colors"
+          style={{
+            color: value.enabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: value.enabled ? 'pointer' : 'default',
+            padding: 0,
+            textDecoration: 'underline',
+            textDecorationColor: 'transparent',
+            textDecorationThickness: '1px',
+            textUnderlineOffset: '3px',
+          }}
+          onMouseEnter={(e) => {
+            if (value.enabled) {
+              e.currentTarget.style.textDecorationColor = 'var(--color-text-primary)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textDecorationColor = 'transparent';
+          }}
+        >
+          {label}
+        </button>
         {description && (
           <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{description}</div>
         )}
@@ -192,26 +217,6 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
         disabled={!value.enabled}
         onChange={(shape) => onChange({ ...value, shape })}
       />
-      <button
-        onClick={onPreview}
-        className="flex items-center justify-center rounded flex-shrink-0 transition-colors"
-        style={{
-          width: 32,
-          height: 32,
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text-secondary)',
-          cursor: 'pointer',
-          opacity: value.enabled ? 1 : 0.4,
-          pointerEvents: value.enabled ? 'auto' : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        title="Preview notification"
-      >
-        <IconPlay size={16} />
-      </button>
       <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
   )
@@ -234,7 +239,32 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
   return (
     <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{label}</div>
+        <button
+          onClick={onPreview}
+          disabled={!value.enabled}
+          className="text-sm font-medium text-left transition-colors"
+          style={{
+            color: value.enabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: value.enabled ? 'pointer' : 'default',
+            padding: 0,
+            textDecoration: 'underline',
+            textDecorationColor: 'transparent',
+            textDecorationThickness: '1px',
+            textUnderlineOffset: '3px',
+          }}
+          onMouseEnter={(e) => {
+            if (value.enabled) {
+              e.currentTarget.style.textDecorationColor = 'var(--color-text-primary)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textDecorationColor = 'transparent';
+          }}
+        >
+          {label}
+        </button>
         {description && (
           <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{description}</div>
         )}
@@ -245,26 +275,6 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
         disabled={!value.enabled}
         onChange={(shape) => onChange({ ...value, shape })}
       />
-      <button
-        onClick={onPreview}
-        className="flex items-center justify-center rounded flex-shrink-0 transition-colors"
-        style={{
-          width: 32,
-          height: 32,
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text-secondary)',
-          cursor: 'pointer',
-          opacity: value.enabled ? 1 : 0.4,
-          pointerEvents: value.enabled ? 'auto' : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        title="Preview notification"
-      >
-        <IconPlay size={16} />
-      </button>
       <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
   )
@@ -285,7 +295,32 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
   return (
     <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Low battery</div>
+        <button
+          onClick={onPreview}
+          disabled={!value.enabled}
+          className="text-sm font-medium text-left transition-colors"
+          style={{
+            color: value.enabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: value.enabled ? 'pointer' : 'default',
+            padding: 0,
+            textDecoration: 'underline',
+            textDecorationColor: 'transparent',
+            textDecorationThickness: '1px',
+            textUnderlineOffset: '3px',
+          }}
+          onMouseEnter={(e) => {
+            if (value.enabled) {
+              e.currentTarget.style.textDecorationColor = 'var(--color-text-primary)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textDecorationColor = 'transparent';
+          }}
+        >
+          Low battery
+        </button>
         <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>Notify when headset battery drops below threshold</div>
       </div>
       <ThresholdInput
@@ -299,26 +334,6 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
         disabled={!value.enabled}
         onChange={(shape) => onChange({ ...value, shape })}
       />
-      <button
-        onClick={onPreview}
-        className="flex items-center justify-center rounded flex-shrink-0 transition-colors"
-        style={{
-          width: 32,
-          height: 32,
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text-secondary)',
-          cursor: 'pointer',
-          opacity: value.enabled ? 1 : 0.4,
-          pointerEvents: value.enabled ? 'auto' : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        title="Preview notification"
-      >
-        <IconPlay size={16} />
-      </button>
       <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
   )
@@ -490,7 +505,7 @@ export function Notifications(): JSX.Element {
           </h1>
         </div>
         <p className="text-sm pl-11" style={{ color: 'var(--color-text-secondary)' }}>
-          Configure notifications for connected devices. Click the play icon to preview any shape.
+          Configure notifications for connected devices. Click any notification title to preview.
         </p>
       </div>
 
