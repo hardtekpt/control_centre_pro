@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
+import { useServiceStore } from '../../stores/serviceStore'
 import { ChannelStrip } from './ChannelStrip'
 import type {
   SonarState,
@@ -88,26 +89,25 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
     window.api.sonarSelectPreset(presetId).catch(console.error)
 
     // Emit notification if enabled
-    window.api.getSettings().then((settings) => {
-      const notifCfg = settings.notifications?.sonar?.presetChange
-      if (notifCfg?.enabled) {
-        const preset = sonarState.configs.find((c) => c.id === presetId)
-        const presetName = preset?.name ?? 'Preset'
-        const ttl = settings.notifications?.durationMs ?? 2400
-        if (notifCfg.shape === 'circle') {
-          window.api.notifPush({ kind: 'circle', key: 'sonar-preset', iconId: 'sonar', ttl })
-        } else {
-          window.api.notifPush({
-            kind: 'rect',
-            key: 'sonar-preset',
-            iconId: 'sonar',
-            title: 'GG Sonar',
-            subtitle: `Preset: ${presetName}`,
-            ttl,
-          })
-        }
+    const settings = useServiceStore.getState().settings
+    const notifCfg = settings.notifications?.sonar?.presetChange
+    if (notifCfg?.enabled) {
+      const preset = sonarState.configs.find((c) => c.id === presetId)
+      const presetName = preset?.name ?? 'Preset'
+      const ttl = settings.notifications?.durationMs ?? 2400
+      if (notifCfg.shape === 'circle') {
+        window.api.notifPush({ kind: 'circle', key: 'sonar-preset', iconId: 'sonar', ttl })
+      } else {
+        window.api.notifPush({
+          kind: 'rect',
+          key: 'sonar-preset',
+          iconId: 'sonar',
+          title: 'GG Sonar',
+          subtitle: `Preset: ${presetName}`,
+          ttl,
+        })
       }
-    }).catch(console.error)
+    }
   }
 
   function handleDeviceSelect(channel: SonarChannel, deviceId: string): void {
