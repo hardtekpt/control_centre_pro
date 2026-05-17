@@ -10,6 +10,7 @@ import {
   IconMic, IconMicOff,
   IconAnc, IconTransparency,
   IconVolume, IconChatMix, IconSidetone,
+  IconSonar, IconMonitor,
 } from './components/notifications/icons'
 import type { SerializedNotification } from '@shared/types'
 import './styles/globals.css'
@@ -34,6 +35,8 @@ const ICON_MAP: Record<string, IconComp> = {
   'volume':           IconVolume,
   'chatmix':          IconChatMix,
   'sidetone':         IconSidetone,
+  'sonar':            IconSonar,
+  'monitor':          IconMonitor,
 }
 
 function deserialize(spec: SerializedNotification): NotificationInput | null {
