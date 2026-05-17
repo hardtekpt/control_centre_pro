@@ -285,12 +285,19 @@ export class DdcService {
       return []
     }
 
-    // Sort devicePaths to ensure stable monitor IDs across refreshes
-    devicePaths.sort()
-
     const primaryRaw = queryPrimaryDevicePath()
     const primaryNorm = primaryRaw ? normPath(primaryRaw) : null
     const gdiMap = queryDeviceMap()
+
+    // Sort devicePaths by GDI device name number (DISPLAY1, DISPLAY2, etc.)
+    // so monitor IDs match the Windows device numbers
+    devicePaths.sort((a, b) => {
+      const gdiA = gdiMap.get(normPath(a)) || ''
+      const gdiB = gdiMap.get(normPath(b)) || ''
+      const numA = parseInt(gdiA.replace(/\D/g, '')) || 999
+      const numB = parseInt(gdiB.replace(/\D/g, '')) || 999
+      return numA - numB
+    })
 
     const monitors: DdcMonitor[] = []
     const newDevicePaths = new Map<number, string>()
