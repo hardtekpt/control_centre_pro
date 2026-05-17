@@ -18,6 +18,7 @@ function NotifItem({ item, onDismiss }: NotifItemProps): JSX.Element {
   const [phase, setPhase] = useState<Phase>('enter')
 
   // enter → shown on next frame; start TTL timer
+  // Runs on mount and whenever the item changes (including dedupe content updates, which resets TTL)
   useEffect(() => {
     const frame = requestAnimationFrame(() => setPhase('shown'))
     const ttl = item.ttl ?? 2400
@@ -29,9 +30,7 @@ function NotifItem({ item, onDismiss }: NotifItemProps): JSX.Element {
       cancelAnimationFrame(frame)
       if (timer !== undefined) clearTimeout(timer)
     }
-    // Run only on mount and when the item is replaced in-place (id changes)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id])
+  }, [item])
 
   // exit → call dismiss after animation completes
   useEffect(() => {

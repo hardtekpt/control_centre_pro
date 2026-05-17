@@ -70,14 +70,15 @@ export const useNotificationStore = create<NotificationStoreState>((set) => ({
   items: [],
 
   push: (n) => {
-    const id = _nextId++
+    let id = _nextId++
     set((s) => {
       let next = s.items
 
-      // Dedupe: replace existing notification with same key in place, reset TTL
+      // Dedupe: replace existing notification with same key in place, keep same id to reset TTL
       if (n.key) {
         const ix = next.findIndex((i) => i.key === n.key)
         if (ix >= 0) {
+          id = next[ix].id  // Reuse existing id so TTL timer resets
           next = [...next]
           next[ix] = { ...n, id } as Notification
           return { items: next }
