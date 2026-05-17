@@ -320,24 +320,20 @@ function DeviceSelector({
   if (audioDevices.length === 0) return null
 
   return (
-    <div className="px-3 pb-2 flex-shrink-0">
+    <>
       <button
         ref={btnRef}
         onClick={toggle}
-        className="w-full flex items-center gap-1 rounded px-1.5 py-1 text-xs"
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs w-full min-w-0"
         title={currentDevice?.name ?? 'No device assigned'}
         style={{
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
+          background: 'transparent',
+          border: 'none',
           color: currentDevice ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
           cursor: 'pointer',
-          minWidth: 0,
         }}
       >
-        <span className="truncate flex-1 text-left" style={{ fontSize: 10 }}>
-          {currentDevice?.name ?? '—'}
-        </span>
-        <ChevronIcon open={open} />
+        <span className="truncate flex-1 text-left">{currentDevice?.name ?? '—'}</span>
       </button>
       {open && pos && ReactDOM.createPortal(
         <div
@@ -379,7 +375,7 @@ function DeviceSelector({
         </div>,
         document.body,
       )}
-    </div>
+    </>
   )
 }
 
@@ -607,28 +603,30 @@ function ChannelStripComponent({
         transition: 'border-color 100ms ease',
       }}
     >
-      {/* Channel label */}
+      {/* Channel label + device selector */}
       <div
-        className="flex-shrink-0 px-3 pt-3 pb-2 text-center"
+        className="flex-shrink-0 px-3 pt-3 pb-2"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
-        <span
-          className="text-xs font-semibold tracking-widest uppercase"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          {label}
-        </span>
+        <div className="text-center">
+          <span
+            className="text-xs font-semibold tracking-widest uppercase"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            {label}
+          </span>
+        </div>
+        {channel !== 'master' && (
+          <div className="mt-1.5">
+            <DeviceSelector
+              audioDevices={audioDevices}
+              currentDevice={currentDevice}
+              channel={channel}
+              onSelect={handleDeviceSelect}
+            />
+          </div>
+        )}
       </div>
-
-      {/* Playback device selector — hidden for master */}
-      {channel !== 'master' && (
-        <DeviceSelector
-          audioDevices={audioDevices}
-          currentDevice={currentDevice}
-          channel={channel}
-          onSelect={handleDeviceSelect}
-        />
-      )}
 
       {/* Fader zone */}
       <div className="flex flex-col items-center px-3 pt-2 pb-1 flex-1 min-h-0">
