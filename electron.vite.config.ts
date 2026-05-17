@@ -9,7 +9,18 @@ export default defineConfig({
       alias: {
         '@shared': resolve('src/shared')
       }
-    }
+    },
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/main/index.ts'),
+          ddcWorker: resolve('src/main/services/apis/ddc/ddcWorker.ts'),
+        },
+        output: {
+          entryFileNames: '[name].js',
+        },
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

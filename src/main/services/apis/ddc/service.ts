@@ -1,207 +1,7 @@
-import { spawnSync } from 'child_process'
-import { writeFileSync, unlinkSync } from 'fs'
+import { Worker } from 'worker_threads'
 import { join } from 'path'
-import { tmpdir } from 'os'
 import type { DdcMonitor } from '../../../../shared/types'
 
-let ddcci: any = null
-try {
-  // eslint-disable-next-line import/no-unresolved
-  ddcci = require('@hensm/ddcci')
-} catch {
-  // @hensm/ddcci not available (not installed or platform-specific)
-}
-
-// Uses QueryDisplayConfig (works in non-interactive sessions) to map DDC device paths
-// to their GDI device name, then checks Screen.PrimaryScreen to set is_primary.
-const QUERY_DISPLAY_CONFIG_PS = `
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-using System.Collections.Generic;
-public static class DC {
-    const uint QDC_ONLY_ACTIVE_PATHS = 2;
-    [StructLayout(LayoutKind.Sequential)]
-    struct LUID { public uint Low; public int High; }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PATH_SOURCE { public LUID adapterId; public uint id; public uint modeInfoIdx; public uint statusFlags; }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PATH_TARGET {
-        public LUID adapterId; public uint id; public uint modeInfoIdx; public uint outputTech;
-        public uint rotation; public uint scaling; public uint refreshNum; public uint refreshDen;
-        public uint scanLine; public int targetAvailable; public uint statusFlags;
-    }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PATH_INFO { public PATH_SOURCE sourceInfo; public PATH_TARGET targetInfo; public uint flags; }
-    [StructLayout(LayoutKind.Explicit, Size=64)]
-    struct MODE_INFO { }
-    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-    struct TARGET_NAME {
-        public uint type; public uint size; public LUID adapterId; public uint id;
-        public uint nameFlags; public uint outputTech; public ushort edidMfgId; public ushort edidProdId;
-        public uint connectorInstance;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=64)]  public string friendlyName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string devicePath;
-    }
-    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-    struct SOURCE_NAME {
-        public uint type; public uint size; public LUID adapterId; public uint id;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string viewGdiDeviceName;
-    }
-    [DllImport("user32.dll")] static extern int GetDisplayConfigBufferSizes(uint flags, out uint np, out uint nm);
-    [DllImport("user32.dll")] static extern int QueryDisplayConfig(uint flags, ref uint np, [In,Out] PATH_INFO[] paths, ref uint nm, [In,Out] MODE_INFO[] modes, IntPtr tid);
-    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetTargetName(ref TARGET_NAME req);
-    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetSourceName(ref SOURCE_NAME req);
-    public struct Entry { public string DevicePath; public string GdiDeviceName; }
-    public static Entry[] GetMonitorMap() {
-        uint np, nm;
-        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
-        var paths = new PATH_INFO[np]; var modes = new MODE_INFO[nm];
-        QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
-        var result = new List<Entry>();
-        for (uint i = 0; i < np; i++) {
-            var tgt = new TARGET_NAME { type=2, adapterId=paths[i].targetInfo.adapterId, id=paths[i].targetInfo.id };
-            tgt.size = (uint)Marshal.SizeOf(tgt); GetTargetName(ref tgt);
-            var src = new SOURCE_NAME { type=1, adapterId=paths[i].sourceInfo.adapterId, id=paths[i].sourceInfo.id };
-            src.size = (uint)Marshal.SizeOf(src); GetSourceName(ref src);
-            result.Add(new Entry { DevicePath=tgt.devicePath, GdiDeviceName=src.viewGdiDeviceName });
-        }
-        return result.ToArray();
-    }
-}
-'@
-Add-Type -AssemblyName System.Windows.Forms
-$primary = ([System.Windows.Forms.Screen]::PrimaryScreen).DeviceName
-$out = @()
-foreach ($m in [DC]::GetMonitorMap()) {
-    $out += [PSCustomObject]@{ DevicePath=$m.DevicePath; IsPrimary=($m.GdiDeviceName -eq $primary) }
-}
-$out | ConvertTo-Json -Compress
-`
-
-function normPath(p: string): string {
-  return p.toLowerCase().replace(/\\/g, '').replace(/\?/g, '')
-}
-
-function queryPrimaryDevicePath(): string | null {
-  const tmpFile = join(tmpdir(), `ddc-primary-${process.pid}.ps1`)
-  try {
-    writeFileSync(tmpFile, '﻿' + QUERY_DISPLAY_CONFIG_PS, 'utf8')
-    const res = spawnSync('powershell', ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tmpFile], {
-      encoding: 'utf8',
-      timeout: 10000,
-    })
-    if (!res.stdout?.trim()) return null
-    const rows = JSON.parse(res.stdout.trim())
-    const entries: Array<{ DevicePath: string; IsPrimary: boolean }> = Array.isArray(rows) ? rows : [rows]
-    const primary = entries.find((e) => e.IsPrimary)
-    return primary?.DevicePath ?? null
-  } catch {
-    return null
-  } finally {
-    try {
-      unlinkSync(tmpFile)
-    } catch {
-      // ignore
-    }
-  }
-}
-
-// Enhanced query that returns both DDC path and GDI device name
-const QUERY_DISPLAY_WITH_GDI_PS = `
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-using System.Collections.Generic;
-public static class DC {
-    const uint QDC_ONLY_ACTIVE_PATHS = 2;
-    [StructLayout(LayoutKind.Sequential)]
-    struct LUID { public uint Low; public int High; }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PATH_SOURCE { public LUID adapterId; public uint id; public uint modeInfoIdx; public uint statusFlags; }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PATH_TARGET {
-        public LUID adapterId; public uint id; public uint modeInfoIdx; public uint outputTech;
-        public uint rotation; public uint scaling; public uint refreshNum; public uint refreshDen;
-        public uint scanLine; public int targetAvailable; public uint statusFlags;
-    }
-    [StructLayout(LayoutKind.Sequential)]
-    struct PATH_INFO { public PATH_SOURCE sourceInfo; public PATH_TARGET targetInfo; public uint flags; }
-    [StructLayout(LayoutKind.Explicit, Size=64)]
-    struct MODE_INFO { }
-    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-    struct TARGET_NAME {
-        public uint type; public uint size; public LUID adapterId; public uint id;
-        public uint nameFlags; public uint outputTech; public ushort edidMfgId; public ushort edidProdId;
-        public uint connectorInstance;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=64)]  public string friendlyName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string devicePath;
-    }
-    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-    struct SOURCE_NAME {
-        public uint type; public uint size; public LUID adapterId; public uint id;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string viewGdiDeviceName;
-    }
-    [DllImport("user32.dll")] static extern int GetDisplayConfigBufferSizes(uint flags, out uint np, out uint nm);
-    [DllImport("user32.dll")] static extern int QueryDisplayConfig(uint flags, ref uint np, [In,Out] PATH_INFO[] paths, ref uint nm, [In,Out] MODE_INFO[] modes, IntPtr tid);
-    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetTargetName(ref TARGET_NAME req);
-    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetSourceName(ref SOURCE_NAME req);
-    public struct Entry { public string DevicePath; public string GdiDeviceName; }
-    public static Entry[] GetMonitorMap() {
-        uint np, nm;
-        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
-        var paths = new PATH_INFO[np]; var modes = new MODE_INFO[nm];
-        QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
-        var result = new List<Entry>();
-        for (uint i = 0; i < np; i++) {
-            var tgt = new TARGET_NAME { type=2, adapterId=paths[i].targetInfo.adapterId, id=paths[i].targetInfo.id };
-            tgt.size = (uint)Marshal.SizeOf(tgt); GetTargetName(ref tgt);
-            var src = new SOURCE_NAME { type=1, adapterId=paths[i].sourceInfo.adapterId, id=paths[i].sourceInfo.id };
-            src.size = (uint)Marshal.SizeOf(src); GetSourceName(ref src);
-            result.Add(new Entry { DevicePath=tgt.devicePath, GdiDeviceName=src.viewGdiDeviceName });
-        }
-        return result.ToArray();
-    }
-}
-'@
-$out = @()
-foreach ($m in [DC]::GetMonitorMap()) {
-    $out += [PSCustomObject]@{ DevicePath=$m.DevicePath; GdiDeviceName=$m.GdiDeviceName }
-}
-$out | ConvertTo-Json -Compress
-`
-
-function queryDeviceMap(): Map<string, string> {
-  const tmpFile = join(tmpdir(), `ddc-device-map-${process.pid}.ps1`)
-  const map = new Map<string, string>() // normalized DDC path → GDI device name
-  try {
-    writeFileSync(tmpFile, '﻿' + QUERY_DISPLAY_WITH_GDI_PS, 'utf8')
-    const res = spawnSync('powershell', ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tmpFile], {
-      encoding: 'utf8',
-      timeout: 10000,
-    })
-    if (!res.stdout?.trim()) return map
-    const rows = JSON.parse(res.stdout.trim())
-    const entries: Array<{ DevicePath: string; GdiDeviceName: string }> = Array.isArray(rows) ? rows : [rows]
-
-    for (const entry of entries) {
-      if (entry.DevicePath && entry.GdiDeviceName) {
-        map.set(normPath(entry.DevicePath), entry.GdiDeviceName)
-      }
-    }
-  } catch {
-    // ignore
-  } finally {
-    try {
-      unlinkSync(tmpFile)
-    } catch {
-      // ignore
-    }
-  }
-  return map
-}
-
-// Common input source hex codes to friendly names (keys are lowercase)
 const INPUT_NAME_MAP: Record<string, string> = {
   '0x01': 'VGA 1',
   '0x02': 'VGA 2',
@@ -214,16 +14,24 @@ const INPUT_NAME_MAP: Record<string, string> = {
   '0x1b': 'USB-C',
 }
 
+type WorkerOutMsg =
+  | { type: 'refreshDone'; id: number; monitors: DdcMonitor[]; devicePaths: Array<[number, string]> }
+  | { type: 'setPrimaryDone'; id: number; monitors: DdcMonitor[]; devicePaths: Array<[number, string]> }
+  | { type: 'error'; id: number; message: string }
+  | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string }
+
 export class DdcService {
-  private devicePaths = new Map<number, string>() // monitorId → device path
-  private gdiDeviceNames = new Map<number, string>() // monitorId → GDI device name (e.g., \\.\DISPLAY1)
-  private gdiDeviceNamesByPath = new Map<string, string>() // normalized device path → GDI device name (persistent cache)
+  private worker: Worker | null = null
+  private devicePaths = new Map<number, string>()
   private cachedMonitors: DdcMonitor[] = []
   private cacheTimestamp = 0
-  private available = ddcci !== null
+  private available = false
   private running = false
   private logEmitter: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangedCallback: ((monitors: DdcMonitor[]) => void) | null = null
+
+  private pendingCallbacks = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>()
+  private nextId = 1
 
   setLogEmitter(emitter: (level: 'info' | 'warn' | 'error', msg: string) => void): void {
     this.logEmitter = emitter
@@ -234,15 +42,11 @@ export class DdcService {
   }
 
   private log(level: 'info' | 'warn' | 'error', message: string): void {
-    if (this.logEmitter) {
-      this.logEmitter(level, message)
-    }
+    this.logEmitter?.(level, message)
   }
 
   private notifyStateChanged(): void {
-    if (this.stateChangedCallback) {
-      this.stateChangedCallback(this.cachedMonitors)
-    }
+    this.stateChangedCallback?.(this.cachedMonitors)
   }
 
   isAvailable(): boolean {
@@ -250,16 +54,56 @@ export class DdcService {
   }
 
   start(): void {
-    if (!this.available) {
-      this.log('warn', '@hensm/ddcci module not available — DDC control disabled')
-      return
-    }
+    if (this.worker) return
+
+    const workerPath = join(__dirname, 'ddcWorker.js')
+    this.worker = new Worker(workerPath)
+    this.available = true
     this.running = true
+
+    this.worker.on('message', (msg: WorkerOutMsg) => {
+      if (msg.type === 'log') {
+        this.log(msg.level, msg.message)
+        return
+      }
+
+      const pending = this.pendingCallbacks.get(msg.id)
+      if (!pending) return
+      this.pendingCallbacks.delete(msg.id)
+
+      if (msg.type === 'error') {
+        pending.reject(new Error(msg.message))
+        return
+      }
+
+      // refreshDone or setPrimaryDone — update local state then resolve
+      this.devicePaths = new Map(msg.devicePaths)
+      this.cachedMonitors = msg.monitors
+      this.cacheTimestamp = Date.now()
+      this.notifyStateChanged()
+      pending.resolve(msg.monitors)
+    })
+
+    this.worker.on('error', (err) => {
+      this.log('error', `DDC worker error: ${err.message}`)
+      // Reject all in-flight requests
+      for (const [, cb] of this.pendingCallbacks) cb.reject(err)
+      this.pendingCallbacks.clear()
+    })
+
+    this.worker.on('exit', (code) => {
+      if (code !== 0) this.log('warn', `DDC worker exited with code ${code}`)
+      this.worker = null
+      this.available = false
+    })
+
     this.log('info', 'DDC display control service started')
   }
 
   stop(): void {
     this.running = false
+    this.worker?.terminate()
+    this.worker = null
     this.log('info', 'DDC display control service stopped')
   }
 
@@ -268,185 +112,57 @@ export class DdcService {
   }
 
   async refreshMonitors(): Promise<DdcMonitor[]> {
-    if (!this.available || !this.running) return []
+    if (!this.available || !this.running || !this.worker) return []
 
-    let devicePaths: string[]
-    try {
-      devicePaths = ddcci.getMonitorList()
-    } catch (err) {
-      this.log('error', `Failed to enumerate monitors: ${err instanceof Error ? err.message : String(err)}`)
-      return this.cachedMonitors
-    }
-
-    if (!Array.isArray(devicePaths) || devicePaths.length === 0) {
-      this.log('info', 'No DDC-capable monitors found')
-      this.cachedMonitors = []
-      this.cacheTimestamp = Date.now()
-      return []
-    }
-
-    const primaryRaw = queryPrimaryDevicePath()
-    const primaryNorm = primaryRaw ? normPath(primaryRaw) : null
-    const gdiMap = queryDeviceMap()
-
-    // Sort devicePaths by GDI device name number (DISPLAY1, DISPLAY2, etc.)
-    // so monitor IDs match the Windows device numbers
-    devicePaths.sort((a, b) => {
-      const gdiA = gdiMap.get(normPath(a)) || ''
-      const gdiB = gdiMap.get(normPath(b)) || ''
-      const numA = parseInt(gdiA.replace(/\D/g, '')) || 999
-      const numB = parseInt(gdiB.replace(/\D/g, '')) || 999
-      return numA - numB
+    const id = this.nextId++
+    return new Promise<DdcMonitor[]>((resolve, reject) => {
+      this.pendingCallbacks.set(id, { resolve, reject })
+      this.worker!.postMessage({ type: 'refresh', id })
     })
-
-    const monitors: DdcMonitor[] = []
-    const newDevicePaths = new Map<number, string>()
-    const newGdiDeviceNames = new Map<number, string>()
-
-    for (let i = 0; i < devicePaths.length; i++) {
-      const devicePath = devicePaths[i]
-      const normDevicePath = normPath(devicePath)
-      const monitorId = i + 1
-
-      newDevicePaths.set(monitorId, devicePath)
-
-      // Try current query first, then fall back to persistent path-based cache
-      let gdiName = gdiMap.get(normDevicePath)
-      if (!gdiName) {
-        gdiName = this.gdiDeviceNamesByPath.get(normDevicePath)
-      }
-
-      if (gdiName) {
-        newGdiDeviceNames.set(monitorId, gdiName)
-        this.gdiDeviceNamesByPath.set(normDevicePath, gdiName) // Update persistent cache
-      }
-
-      const parts = devicePath.split('#')
-      const modelName = parts.length > 1 ? parts[1] : `Monitor ${monitorId}`
-
-      const monitor: DdcMonitor = {
-        monitor_id: monitorId,
-        name: modelName,
-        is_primary: primaryNorm !== null && normPath(devicePath) === primaryNorm,
-        brightness: 0,
-        contrast: 0,
-        input_source: '',
-        available_inputs: [],
-        supports: [],
-      }
-
-      // Read brightness
-      try {
-        const brt = ddcci.getBrightness(devicePath)
-        if (typeof brt === 'number') {
-          monitor.brightness = Math.max(0, Math.min(100, Math.round(brt)))
-          monitor.supports.push('brightness')
-        }
-      } catch {
-        // brightness not supported or read failed
-      }
-
-      // Read contrast
-      try {
-        const con = ddcci.getContrast(devicePath)
-        if (typeof con === 'number') {
-          monitor.contrast = Math.max(0, Math.min(100, Math.round(con)))
-          monitor.supports.push('contrast')
-        }
-      } catch {
-        // contrast not supported or read failed
-      }
-
-      // Read input source (VCP code 0x60)
-      try {
-        const inputData = ddcci._getVCP(devicePath, 0x60)
-        if (Array.isArray(inputData) && inputData.length >= 1) {
-          const currentInput = inputData[0]
-          const inputHex = '0x' + currentInput.toString(16).padStart(2, '0').toLowerCase()
-          monitor.input_source = inputHex
-          monitor.supports.push('input_source')
-
-          // List common inputs, always including the current one
-          const commonInputs = ['0x01', '0x02', '0x03', '0x04', '0x0f', '0x10', '0x11', '0x12', '0x1b']
-          monitor.available_inputs = Array.from(new Set([
-            inputHex, // Always include the current input
-            ...commonInputs.filter((inp) => INPUT_NAME_MAP[inp.toLowerCase()])
-          ])).sort()
-        }
-      } catch (err) {
-        // input not supported or read failed - but don't fail the whole refresh
-        this.log('warn', `Could not read input for monitor ${monitorId}: ${err instanceof Error ? err.message : String(err)}`)
-      }
-
-      monitors.push(monitor)
-    }
-
-    // Update cached maps
-    this.devicePaths = newDevicePaths
-    this.gdiDeviceNames = newGdiDeviceNames
-
-    if (monitors.length > 0) {
-      this.log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
-    }
-
-    this.cachedMonitors = monitors
-    this.cacheTimestamp = Date.now()
-    this.notifyStateChanged()
-
-    return monitors
   }
 
   setBrightness(monitorId: number, value: number): void {
-    if (!this.available || !this.running) return
+    if (!this.available || !this.running || !this.worker) return
 
     const devicePath = this.devicePaths.get(monitorId)
     if (!devicePath) {
-      this.log('warn', `No device path found for monitor ${monitorId}`)
+      this.log('warn', `No device path for monitor ${monitorId}`)
       return
     }
 
-    try {
-      const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
-      ddcci.setBrightness(devicePath, normalizedValue)
+    const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
+    this.worker.postMessage({ type: 'setBrightness', devicePath, value: normalizedValue })
 
-      const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
-      if (monitor) {
-        monitor.brightness = normalizedValue
-        this.notifyStateChanged()
-      }
-    } catch (err) {
-      this.log('error', `Failed to set brightness: ${err instanceof Error ? err.message : String(err)}`)
+    // Optimistic cache update
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    if (monitor) {
+      monitor.brightness = normalizedValue
+      this.notifyStateChanged()
     }
   }
 
   setInputSource(monitorId: number, inputValue: string): void {
-    if (!this.available || !this.running) return
+    if (!this.available || !this.running || !this.worker) return
 
     const devicePath = this.devicePaths.get(monitorId)
     if (!devicePath) {
-      this.log('warn', `No device path found for monitor ${monitorId}`)
+      this.log('warn', `No device path for monitor ${monitorId}`)
       return
     }
 
-    try {
-      // Parse hex string (e.g., "0x11" -> 17)
-      const inputCode = parseInt(inputValue, 16)
-      if (isNaN(inputCode) || inputCode < 0 || inputCode > 255) {
-        this.log('error', `Invalid input value: ${inputValue}`)
-        return
-      }
+    const vcpCode = parseInt(inputValue, 16)
+    if (isNaN(vcpCode) || vcpCode < 0 || vcpCode > 255) {
+      this.log('error', `Invalid input value: ${inputValue}`)
+      return
+    }
 
-      ddcci._setVCP(devicePath, 0x60, inputCode)
-      this.log('info', `Set monitor ${monitorId} input to ${inputValue}`)
+    this.worker.postMessage({ type: 'setInputSource', devicePath, vcpCode })
 
-      // Update cached state immediately (optimistic)
-      const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
-      if (monitor) {
-        monitor.input_source = inputValue.toLowerCase()
-        this.notifyStateChanged()
-      }
-    } catch (err) {
-      this.log('error', `Failed to set input source to ${inputValue}: ${err instanceof Error ? err.message : String(err)}`)
+    // Optimistic cache update
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    if (monitor) {
+      monitor.input_source = inputValue.toLowerCase()
+      this.notifyStateChanged()
     }
   }
 
@@ -459,28 +175,12 @@ export class DdcService {
   }
 
   async setPrimaryMonitor(monitorId: number, multiMonitorToolPath: string): Promise<void> {
-    try {
-      this.log('info', `Setting primary monitor to ${monitorId} via MultiMonitorTool /SetPrimary ${monitorId}`)
+    if (!this.available || !this.running || !this.worker) return
 
-      const result = spawnSync(multiMonitorToolPath, ['/SetPrimary', String(monitorId)], {
-        timeout: 5000,
-      })
-
-      if (result.error) {
-        throw result.error
-      }
-
-      if (result.status !== 0) {
-        throw new Error(`MultiMonitorTool exited with status ${result.status}`)
-      }
-
-      this.log('info', `Set primary monitor to ${monitorId}`)
-
-      // Re-query to update is_primary flags on all monitors
-      await this.refreshMonitors()
-    } catch (err) {
-      this.log('error', `Failed to set primary monitor: ${err instanceof Error ? err.message : String(err)}`)
-      throw err
-    }
+    const id = this.nextId++
+    await new Promise<DdcMonitor[]>((resolve, reject) => {
+      this.pendingCallbacks.set(id, { resolve, reject })
+      this.worker!.postMessage({ type: 'setPrimary', id, monitorId, multiMonitorToolPath })
+    })
   }
 }
