@@ -101,7 +101,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
   }
 
   return (
-    <div className="flex overflow-x-auto gap-3 items-stretch">
+    <div className="flex overflow-x-auto gap-3 items-start">
       {CHANNEL_DEFS.filter(({ channel }) => visibleChannels.has(channel)).map(({ channel, label }) => {
         const { volume, muted } = getVolume(channel)
         return (

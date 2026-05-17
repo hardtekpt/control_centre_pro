@@ -595,7 +595,6 @@ function ChannelStripComponent({
       onDrop={channel !== 'master' ? handleDrop : undefined}
       style={{
         width: 130,
-        minHeight: 420,
         background: 'var(--color-surface)',
         border: isDragOver
           ? '1px solid var(--color-accent)'
@@ -689,9 +688,8 @@ function ChannelStripComponent({
         <>
           <div className="mx-3 flex-shrink-0" style={{ height: 1, background: 'var(--color-border)' }} />
           <div
-            className="px-3 py-2 overflow-y-auto flex-shrink-0"
+            className="px-3 py-2 overflow-y-auto flex-1"
             style={{
-              maxHeight: 96,
               background: isDragOver ? 'var(--color-surface-raised)' : undefined,
               transition: 'background 100ms ease',
             }}
