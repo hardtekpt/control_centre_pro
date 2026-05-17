@@ -39,6 +39,5 @@ export const useServiceStore = create<ServiceState>((set) => ({
       arctisState: s.arctisState ? { ...s.arctisState, ...patch } : null,
     })),
 
-  setDdcMonitors: (monitors) =>
-    set({ ddcMonitors: [...monitors].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)) }),
+  setDdcMonitors: (monitors) => set({ ddcMonitors: monitors }),
 }))

@@ -1,4 +1,3 @@
-import { execSync } from 'child_process'
 import type { DdcMonitor } from '../../../../shared/types'
 
 let ddcci: any = null
@@ -22,63 +21,12 @@ const INPUT_NAME_MAP: Record<string, string> = {
   '0x1b': 'USB-C',
 }
 
-// PowerShell script that emits prefixed diagnostic lines so we can trace
-// exactly what EnumDisplayDevices returns even when EDD_GET_DEVICE_INTERFACE_NAME
-// doesn't populate DeviceID (which happens on some driver configurations).
-// Outputs:
-//   ADAPTER:<GDI name>   – e.g. ADAPTER:\\.\DISPLAY1
-//   PATH:<device path>   – e.g. PATH:\\?\DISPLAY#...  (may be empty)
-//   DEVID:<raw DeviceID> – e.g. DEVID:MONITOR\DELA0BC\{...}  (without EDD flag)
-const PS_PRIMARY_MONITOR_SCRIPT = [
-  '$ProgressPreference = "SilentlyContinue"',
-  'Add-Type -TypeDefinition @"',
-  'using System;',
-  'using System.Runtime.InteropServices;',
-  'public class Win32Display {',
-  '    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]',
-  '    public struct DISPLAY_DEVICE {',
-  '        [MarshalAs(UnmanagedType.U4)] public int cb;',
-  '        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string DeviceName;',
-  '        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string DeviceString;',
-  '        [MarshalAs(UnmanagedType.U4)] public uint StateFlags;',
-  '        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string DeviceID;',
-  '        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string DeviceKey;',
-  '    }',
-  '    [DllImport("user32.dll", CharSet=CharSet.Auto)]',
-  '    public static extern bool EnumDisplayDevices(string lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);',
-  '}',
-  '"@',
-  '$i = 0',
-  'while ($true) {',
-  '    $a = New-Object Win32Display+DISPLAY_DEVICE',
-  '    $a.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($a)',
-  '    if (-not [Win32Display]::EnumDisplayDevices($null, $i, [ref]$a, 0)) { break }',
-  '    if ($a.StateFlags -band 4) {',
-  '        Write-Output "ADAPTER:$($a.DeviceName)"',
-  '        $m = New-Object Win32Display+DISPLAY_DEVICE',
-  '        $m.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($m)',
-  '        [Win32Display]::EnumDisplayDevices($a.DeviceName, 0, [ref]$m, 1) | Out-Null',
-  '        Write-Output "PATH:$($m.DeviceID)"',
-  '        $m2 = New-Object Win32Display+DISPLAY_DEVICE',
-  '        $m2.cb = [System.Runtime.InteropServices.Marshal]::SizeOf($m2)',
-  '        [Win32Display]::EnumDisplayDevices($a.DeviceName, 0, [ref]$m2, 0) | Out-Null',
-  '        Write-Output "DEVID:$($m2.DeviceID)"',
-  '        break',
-  '    }',
-  '    $i++',
-  '}',
-].join('\r\n')
-
 export class DdcService {
   private devicePaths = new Map<number, string>() // monitorId → device path
   private cachedMonitors: DdcMonitor[] = []
   private cacheTimestamp = 0
   private available = ddcci !== null
   private running = false
-  // Exact device interface path (from EDD_GET_DEVICE_INTERFACE_NAME) — preferred
-  private primaryDevicePath: string | null = null
-  // Model ID fallback (e.g. "aoc2402") used when EDD_GET_DEVICE_INTERFACE_NAME is empty
-  private primaryModelId: string | null = null
   private logEmitter: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangedCallback: ((monitors: DdcMonitor[]) => void) | null = null
 
@@ -106,49 +54,6 @@ export class DdcService {
     return this.available && this.running
   }
 
-  private async detectPrimaryDevicePath(): Promise<void> {
-    try {
-      const encoded = Buffer.from(PS_PRIMARY_MONITOR_SCRIPT, 'utf16le').toString('base64')
-      const result = execSync(
-        `powershell -NoProfile -OutputFormat Text -EncodedCommand ${encoded}`,
-        { encoding: 'utf-8', timeout: 15000, windowsHide: true },
-      )
-
-      const lines = result.split('\n').map((l) => l.trim()).filter(Boolean)
-      const get = (prefix: string): string =>
-        lines.find((l) => l.startsWith(prefix))?.slice(prefix.length) ?? ''
-
-      const adapter = get('ADAPTER:')
-      const path    = get('PATH:')
-      const devId   = get('DEVID:')
-
-      this.log('info', `DDC primary adapter: ${adapter || '(none found)'}`)
-      this.log('info', `DDC primary PATH (EDD_GET_DEVICE_INTERFACE_NAME): ${path || '(empty)'}`)
-      this.log('info', `DDC primary DEVID (raw): ${devId || '(empty)'}`)
-
-      this.primaryDevicePath = path.toLowerCase() || null
-
-      if (!this.primaryDevicePath && devId) {
-        // EDD_GET_DEVICE_INTERFACE_NAME returned nothing — extract model from raw DEVID
-        // DEVID format: MONITOR\<ModelID>\{ClassGUID}\instance  OR  MONITOR\<ModelID>\{ClassGUID}
-        const parts = devId.split('\\')
-        // parts[0] = "MONITOR", parts[1] = model ID
-        const model = parts.length >= 2 ? parts[1].toLowerCase() : null
-        this.primaryModelId = model
-        if (model) {
-          this.log('info', `DDC primary model ID fallback: ${model}`)
-        } else {
-          this.log('warn', 'Could not extract model ID from DEVID — primary badge will not appear')
-        }
-      } else if (!this.primaryDevicePath) {
-        this.log('warn', 'Primary monitor device interface path is empty and no DEVID — primary badge will not appear')
-      }
-    } catch (err) {
-      this.log('warn', `Primary monitor detection failed: ${err instanceof Error ? err.message : String(err)}`)
-      this.primaryDevicePath = null
-    }
-  }
-
   start(): void {
     if (!this.available) {
       this.log('warn', '@hensm/ddcci module not available — DDC control disabled')
@@ -156,7 +61,6 @@ export class DdcService {
     }
     this.running = true
     this.log('info', 'DDC display control service started')
-    this.detectPrimaryDevicePath().catch(console.error)
   }
 
   stop(): void {
@@ -258,17 +162,6 @@ export class DdcService {
       this.log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
       this.devicePaths.forEach((p, id) => this.log('info', `  ddcci[${id}]: ${p}`))
     }
-
-    // Mark which monitor is the OS primary display (two strategies)
-    monitors.forEach((m) => {
-      const devicePath = this.devicePaths.get(m.monitor_id)?.toLowerCase()
-      const byPath = Boolean(devicePath && this.primaryDevicePath && devicePath === this.primaryDevicePath)
-      const byModel = Boolean(!byPath && devicePath && this.primaryModelId && devicePath.includes(`#${this.primaryModelId}#`))
-      m.is_primary = byPath || byModel
-      if (m.is_primary) {
-        this.log('info', `Primary monitor: ${m.name} (monitor ${m.monitor_id}, matched by ${byPath ? 'path' : 'model ID'})`)
-      }
-    })
 
     this.cachedMonitors = monitors
     this.cacheTimestamp = Date.now()
