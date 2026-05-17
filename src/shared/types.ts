@@ -80,6 +80,72 @@ export const IPC_CHANNELS = {
 /** Union of all valid IPC channel strings */
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
 
+// ─── Notification Settings ────────────────────────────────────────────────────
+
+/** Shape variants available for simple state-change notifications */
+export type NotifSimpleShape = 'circle' | 'rect'
+
+/** Shape variants available for value-based notifications */
+export type NotifValueShape = 'volume' | 'ring'
+
+/** Toggle + shape for a simple (icon/title) notification */
+export interface NotifSimple {
+  enabled: boolean
+  shape: NotifSimpleShape
+}
+
+/** Toggle + shape for a value-driven (volume/ring) notification */
+export interface NotifValue {
+  enabled: boolean
+  shape: NotifValueShape
+}
+
+/** Low battery notification — includes configurable threshold */
+export interface NotifBatteryLow {
+  enabled: boolean
+  shape: 'ring' | 'rect'
+  threshold: number   // 0–100; fire notification when headset drops below this %
+}
+
+export interface HeadsetNotificationSettings {
+  // Connectivity
+  powerOnOff: NotifSimple       // headset powered on / off
+  wireless: NotifSimple         // 2.4 GHz link connected / disconnected
+  bluetooth: NotifSimple        // BT device connected / disconnected
+  // Battery
+  batteryLow: NotifBatteryLow
+  batteryCharging: NotifSimple  // headset battery increasing (charging detected)
+  batteryDock: NotifSimple      // dock inserted / removed (batteryDock 0↔>0)
+  // ANC
+  ancMode: NotifSimple
+  // Mic
+  micMute: NotifSimple
+  // Volume
+  volume: NotifValue
+  // ChatMix
+  chatmix: NotifValue
+  // Sidetone
+  sidetone: NotifSimple
+}
+
+export interface NotificationSettings {
+  headset: HeadsetNotificationSettings
+}
+
+const DEFAULT_HEADSET_NOTIFICATIONS: HeadsetNotificationSettings = {
+  powerOnOff:      { enabled: true,  shape: 'rect'   },
+  wireless:        { enabled: true,  shape: 'rect'   },
+  bluetooth:       { enabled: true,  shape: 'rect'   },
+  batteryLow:      { enabled: true,  shape: 'ring',  threshold: 20 },
+  batteryCharging: { enabled: false, shape: 'circle' },
+  batteryDock:     { enabled: false, shape: 'circle' },
+  ancMode:         { enabled: true,  shape: 'rect'   },
+  micMute:         { enabled: true,  shape: 'circle' },
+  volume:          { enabled: true,  shape: 'volume' },
+  chatmix:         { enabled: true,  shape: 'volume' },
+  sidetone:        { enabled: true,  shape: 'rect'   },
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 /** App-wide settings persisted to disk */
@@ -90,6 +156,7 @@ export interface AppSettings {
   ddcPollIntervalSeconds: number
   ddcSyncBrightness: boolean
   minimizeToTray: boolean
+  notifications: NotificationSettings
 }
 
 /** Defaults applied when no saved settings exist */
@@ -100,6 +167,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ddcPollIntervalSeconds: 60,
   ddcSyncBrightness: false,
   minimizeToTray: true,
+  notifications: {
+    headset: DEFAULT_HEADSET_NOTIFICATIONS,
+  },
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────

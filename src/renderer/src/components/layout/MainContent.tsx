@@ -4,6 +4,7 @@ import { Arctis } from '../../pages/Arctis'
 import { GGSonar } from '../../pages/GGSonar'
 import { Shortcuts } from '../../pages/Shortcuts'
 import { Notifications } from '../../pages/Notifications'
+import { NotificationStack } from '../notifications/NotificationStack'
 
 const FLOAT_GAP = 6 // matches Sidebar's SIDEBAR_FLOAT_GAP
 
@@ -33,6 +34,7 @@ export function MainContent(): JSX.Element {
         {currentView === 'shortcuts' && <Shortcuts />}
         {currentView === 'notifications' && <Notifications />}
       </div>
+      <NotificationStack />
     </main>
   )
 }

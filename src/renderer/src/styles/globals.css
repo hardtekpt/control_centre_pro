@@ -18,6 +18,12 @@
   --color-nav-active:      #D0D0D0;
   --color-nav-text:        #686868;
   --color-code-bg:         #E5E5E5;
+
+  /* Notification surface tokens */
+  --notif-bg:     rgba(245, 245, 245, 0.86);
+  --notif-border: rgba(20, 20, 20, 0.10);
+  --notif-shadow: 0 8px 28px rgba(0, 0, 0, 0.10),
+                  0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
 [data-theme="dark"] {
@@ -34,6 +40,12 @@
   --color-nav-active:      #141414;
   --color-nav-text:        #ABABAB;
   --color-code-bg:         #252525;
+
+  /* Notification surface tokens */
+  --notif-bg:     rgba(40, 40, 40, 0.86);
+  --notif-border: rgba(255, 255, 255, 0.08);
+  --notif-shadow: 0 10px 32px rgba(0, 0, 0, 0.55),
+                  0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 /* ── Reset & base ─────────────────────────────────────────────────────────── */

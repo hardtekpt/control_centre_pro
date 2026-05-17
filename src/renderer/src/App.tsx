@@ -5,6 +5,7 @@ import { useSonarStore } from './stores/sonarStore'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 import { FloatingSidebar } from './components/layout/FloatingSidebar'
+import { notifyArctisConnected, notifyArctisDisconnected, notifyArctisEvent, seedArctisTrackingState } from './lib/notifyFromEvent'
 import type { ArctisState } from '@shared/types'
 
 /**
@@ -114,14 +115,22 @@ export default function App(): JSX.Element {
     window.api.arctisGetState().then((state) => {
       if (state) {
         setArctisConnected(state)
+        seedArctisTrackingState(state)
         // Trigger a fresh full read so the UI always shows live values on open/reload
         window.api.arctisCmd('refresh', null).catch(console.error)
       }
     })
     const cleanups = [
-      window.api.onArctisConnected(setArctisConnected),
-      window.api.onArctisDisconnected(setArctisDisconnected),
+      window.api.onArctisConnected((state) => {
+        setArctisConnected(state)
+        notifyArctisConnected(state)
+      }),
+      window.api.onArctisDisconnected(() => {
+        setArctisDisconnected()
+        notifyArctisDisconnected()
+      }),
       window.api.onArctisEvent((eventName, data) => {
+        notifyArctisEvent(eventName, data)
         // Each event carries only the fields it owns — updateArctisState merges them in
         switch (eventName) {
           // ── Status ────────────────────────────────────────────────────────
