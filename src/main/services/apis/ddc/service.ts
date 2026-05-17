@@ -114,7 +114,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 public static class DC {
-    const uint QDC_ONLY_ACTIVE_PATHS = 2;
+    const uint QDC_ALL_PATHS = 1;
     [StructLayout(LayoutKind.Sequential)]
     struct LUID { public uint Low; public int High; }
     [StructLayout(LayoutKind.Sequential)]
@@ -149,9 +149,9 @@ public static class DC {
     public struct Entry { public string DevicePath; public string GdiDeviceName; }
     public static Entry[] GetMonitorMap() {
         uint np, nm;
-        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
+        GetDisplayConfigBufferSizes(QDC_ALL_PATHS, out np, out nm);
         var paths = new PATH_INFO[np]; var modes = new MODE_INFO[nm];
-        QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
+        QueryDisplayConfig(QDC_ALL_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
         var result = new List<Entry>();
         for (uint i = 0; i < np; i++) {
             var tgt = new TARGET_NAME { type=2, adapterId=paths[i].targetInfo.adapterId, id=paths[i].targetInfo.id };
