@@ -51,7 +51,10 @@ export type Notification =
   | RingNotification
   | GlyphNotification
 
-export type NotificationInput = Omit<Notification, 'id'>
+// Distributive omit — applies Omit to each union member individually,
+// preserving all variant-specific fields (icon, title, glyph, value, …)
+type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
+export type NotificationInput = DistributiveOmit<Notification, 'id'>
 
 interface NotificationStoreState {
   items: Notification[]

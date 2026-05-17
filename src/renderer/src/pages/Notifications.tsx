@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
-import { useNotificationStore } from '../stores/notificationStore'
 import type {
   HeadsetNotificationSettings,
   NotifSimple,
@@ -10,12 +9,7 @@ import type {
   NotifValueShape,
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
-import {
-  IconHeadset, IconMic, IconMicOff, IconAnc, IconTransparency,
-  IconBattery, IconBatteryLow, IconBatteryCharging,
-  IconVolume, IconWireless, IconBluetooth, IconLink, IconUnlink,
-  IconChatMix, IconSidetone,
-} from '../components/notifications/icons'
+import { IconHeadset } from '../components/notifications/icons'
 import { createElement } from 'react'
 
 // ── Save helper ───────────────────────────────────────────────────────────────
@@ -335,7 +329,6 @@ function Section({ title, children }: { title: string; children: ReactNode }): J
 
 export function Notifications(): JSX.Element {
   const settings = useServiceStore((s) => s.settings)
-  const push = useNotificationStore((s) => s.push)
 
   const [headset, setHeadsetRaw] = useState<HeadsetNotificationSettings>(
     settings.notifications?.headset ?? DEFAULT_SETTINGS.notifications.headset
@@ -353,113 +346,113 @@ export function Notifications(): JSX.Element {
     saveHeadsetSettings(next).catch(console.error)
   }, [])
 
-  // ── Preview helpers ─────────────────────────────────────────────────────────
+  // ── Preview helpers — route through overlay window via IPC ──────────────────
 
   const previewPowerOn = (): void => {
     const cfg = headset.powerOnOff
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-power', icon: createElement(IconLink, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-power', iconId: 'link', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-power', icon: createElement(IconLink, { size: 20 }), title: 'Arctis Nova Pro', subtitle: 'Connected · ready', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-power', iconId: 'link', title: 'Arctis Nova Pro', subtitle: 'Connected · ready', ttl: 2400 })
     }
   }
 
   const previewPowerOff = (): void => {
     const cfg = headset.powerOnOff
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-power', icon: createElement(IconUnlink, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-power', iconId: 'unlink', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-power', icon: createElement(IconUnlink, { size: 20 }), title: 'Arctis Nova Pro', subtitle: 'Disconnected', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-power', iconId: 'unlink', title: 'Arctis Nova Pro', subtitle: 'Disconnected', ttl: 2400 })
     }
   }
 
   const previewWireless = (): void => {
     const cfg = headset.wireless
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-wireless', icon: createElement(IconWireless, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-wireless', iconId: 'wireless', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-wireless', icon: createElement(IconWireless, { size: 20 }), title: 'Wireless connected', subtitle: '2.4 GHz link active', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-wireless', iconId: 'wireless', title: 'Wireless connected', subtitle: '2.4 GHz link active', ttl: 2400 })
     }
   }
 
   const previewBluetooth = (): void => {
     const cfg = headset.bluetooth
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-bt', icon: createElement(IconBluetooth, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-bt', iconId: 'bluetooth', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-bt', icon: createElement(IconBluetooth, { size: 20 }), title: 'Bluetooth connected', subtitle: 'BT device paired and active', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-bt', iconId: 'bluetooth', title: 'Bluetooth connected', subtitle: 'BT device paired and active', ttl: 2400 })
     }
   }
 
   const previewBatteryLow = (): void => {
     const cfg = headset.batteryLow
     if (cfg.shape === 'ring') {
-      push({ kind: 'ring', key: 'preview-battery-low', icon: createElement(IconBatteryLow, { size: 22 }), value: cfg.threshold - 1, ttl: 4000 })
+      window.api.notifPush({ kind: 'ring', key: 'preview-battery-low', iconId: 'battery-low', value: cfg.threshold - 1, ttl: 4000 })
     } else {
-      push({ kind: 'rect', key: 'preview-battery-low', icon: createElement(IconBatteryLow, { size: 20 }), title: 'Low battery', subtitle: `Headset at ${cfg.threshold - 1}%`, tail: `${cfg.threshold - 1}%`, ttl: 4000 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-battery-low', iconId: 'battery-low', title: 'Low battery', subtitle: `Headset at ${cfg.threshold - 1}%`, tail: `${cfg.threshold - 1}%`, ttl: 4000 })
     }
   }
 
   const previewCharging = (): void => {
     const cfg = headset.batteryCharging
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-charging', icon: createElement(IconBatteryCharging, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-charging', iconId: 'battery-charging', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-charging', icon: createElement(IconBatteryCharging, { size: 20 }), title: 'Charging', subtitle: 'Headset at 45%', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-charging', iconId: 'battery-charging', title: 'Charging', subtitle: 'Headset at 45%', ttl: 2400 })
     }
   }
 
   const previewDock = (): void => {
     const cfg = headset.batteryDock
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-dock', icon: createElement(IconBattery, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-dock', iconId: 'battery', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-dock', icon: createElement(IconBattery, { size: 20 }), title: 'Dock inserted', subtitle: 'Dock at 100%', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-dock', iconId: 'battery', title: 'Dock inserted', subtitle: 'Dock at 100%', ttl: 2400 })
     }
   }
 
   const previewAnc = (): void => {
     const cfg = headset.ancMode
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-anc', icon: createElement(IconAnc, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-anc', iconId: 'anc', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-anc', icon: createElement(IconAnc, { size: 20 }), title: 'Noise cancellation', subtitle: 'Active · ambient suppressed', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-anc', iconId: 'anc', title: 'Noise cancellation', subtitle: 'Active · ambient suppressed', ttl: 2400 })
     }
   }
 
   const previewMicMute = (): void => {
     const cfg = headset.micMute
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-mic', icon: createElement(IconMicOff, { size: 22 }), ttl: 1800 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-mic', iconId: 'mic-off', ttl: 1800 })
     } else {
-      push({ kind: 'rect', key: 'preview-mic', icon: createElement(IconMicOff, { size: 20 }), title: 'Mic muted', subtitle: 'Microphone is muted', ttl: 1800 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-mic', iconId: 'mic-off', title: 'Mic muted', subtitle: 'Microphone is muted', ttl: 1800 })
     }
   }
 
   const previewVolume = (): void => {
     const cfg = headset.volume
     if (cfg.shape === 'volume') {
-      push({ kind: 'volume', key: 'preview-vol', icon: createElement(IconVolume, { size: 20 }), label: 'Headset volume', value: 72, ttl: 1800 })
+      window.api.notifPush({ kind: 'volume', key: 'preview-vol', iconId: 'volume', label: 'Headset volume', value: 72, ttl: 1800 })
     } else {
-      push({ kind: 'ring', key: 'preview-vol', icon: createElement(IconVolume, { size: 22 }), value: 72, ttl: 1800 })
+      window.api.notifPush({ kind: 'ring', key: 'preview-vol', iconId: 'volume', value: 72, ttl: 1800 })
     }
   }
 
   const previewChatmix = (): void => {
     const cfg = headset.chatmix
     if (cfg.shape === 'volume') {
-      push({ kind: 'volume', key: 'preview-chatmix', icon: createElement(IconChatMix, { size: 20 }), label: 'ChatMix · Game', value: 65, ttl: 1800 })
+      window.api.notifPush({ kind: 'volume', key: 'preview-chatmix', iconId: 'chatmix', label: 'ChatMix · Game', value: 65, ttl: 1800 })
     } else {
-      push({ kind: 'ring', key: 'preview-chatmix', icon: createElement(IconChatMix, { size: 22 }), value: 65, ttl: 1800 })
+      window.api.notifPush({ kind: 'ring', key: 'preview-chatmix', iconId: 'chatmix', value: 65, ttl: 1800 })
     }
   }
 
   const previewSidetone = (): void => {
     const cfg = headset.sidetone
     if (cfg.shape === 'circle') {
-      push({ kind: 'circle', key: 'preview-sidetone', icon: createElement(IconSidetone, { size: 22 }), ttl: 2400 })
+      window.api.notifPush({ kind: 'circle', key: 'preview-sidetone', iconId: 'sidetone', ttl: 2400 })
     } else {
-      push({ kind: 'rect', key: 'preview-sidetone', icon: createElement(IconSidetone, { size: 20 }), title: 'Sidetone', subtitle: 'Medium', ttl: 2400 })
+      window.api.notifPush({ kind: 'rect', key: 'preview-sidetone', iconId: 'sidetone', title: 'Sidetone', subtitle: 'Medium', ttl: 2400 })
     }
   }
 
@@ -479,7 +472,7 @@ export function Notifications(): JSX.Element {
           </h1>
         </div>
         <p className="text-sm pl-11" style={{ color: 'var(--color-text-secondary)' }}>
-          Configure in-app notifications for connected devices. Click Preview to test any shape.
+          Configure notifications for connected devices. They appear as a floating overlay at the bottom of the screen. Click Preview to test any shape.
         </p>
       </div>
 

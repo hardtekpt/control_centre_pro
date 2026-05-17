@@ -68,6 +68,12 @@ export default function NotificationOverlay(): JSX.Element {
   const push = useNotificationStore((s) => s.push)
   const hadItemsRef = useRef(false)
 
+  // Overlay window must have a transparent body — globals.css sets a solid background
+  useEffect(() => {
+    document.body.style.background = 'transparent'
+    document.documentElement.style.background = 'transparent'
+  }, [])
+
   // Apply theme from persisted settings
   useEffect(() => {
     window.api.getSettings().then((settings) => {
