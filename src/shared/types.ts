@@ -71,6 +71,7 @@ export const IPC_CHANNELS = {
   DDC_GET_MONITORS: 'ddc:getMonitors',       // renderer → main invoke
   DDC_SET_BRIGHTNESS: 'ddc:setBrightness',   // renderer → main invoke
   DDC_SET_INPUT_SOURCE: 'ddc:setInputSource', // renderer → main invoke
+  DDC_SET_PRIMARY_MONITOR: 'ddc:setPrimaryMonitor', // renderer → main invoke
   DDC_UPDATE: 'ddc:update',                  // main → renderer push
   DDC_GET_POLL_INTERVAL: 'ddc:getPollInterval', // renderer → main invoke
   DDC_SET_POLL_INTERVAL: 'ddc:setPollInterval', // renderer → main invoke

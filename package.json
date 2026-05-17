@@ -23,7 +23,10 @@
     "win": {
       "icon": "resources/mission-control-terracotta-1024.png"
     },
-    "asarUnpack": ["**/node_modules/@hensm/ddcci/**", "**/node_modules/naudiodon2/**"]
+    "asarUnpack": ["**/node_modules/@hensm/ddcci/**", "**/node_modules/naudiodon2/**"],
+    "extraResources": [
+      { "from": "resources/nircmd", "to": "nircmd" }
+    ]
   },
   "devDependencies": {
     "@electron/rebuild": "^3.5.0",

@@ -6,6 +6,7 @@ interface DisplayCardProps {
   monitor: DdcMonitor
   syncBrightness?: boolean
   allMonitors?: DdcMonitor[]
+  onPrimaryChange?: () => void
 }
 
 const INPUT_NAME_MAP: Record<string, string> = {
@@ -83,7 +84,7 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
         <h3 className="text-sm font-semibold flex-1" style={{ color: 'var(--color-text-primary)' }}>
           {monitor.name}
         </h3>
-        {monitor.is_primary && (
+        {monitor.is_primary ? (
           <span
             className="text-xs px-1.5 py-0.5 rounded mono"
             style={{
@@ -94,6 +95,33 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
           >
             Primary
           </span>
+        ) : (
+          <button
+            onClick={(): void => {
+              window.api.ddcSetPrimaryMonitor(monitor.monitor_id)
+                .then(onPrimaryChange)
+                .catch(console.error)
+            }}
+            className="text-xs px-2 py-1 rounded mono"
+            title="Set as primary display"
+            style={{
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e): void => {
+              e.currentTarget.style.color = 'var(--color-text-primary)'
+              e.currentTarget.style.background = 'var(--color-surface-raised)'
+            }}
+            onMouseLeave={(e): void => {
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+              e.currentTarget.style.background = 'transparent'
+            }}
+          >
+            Set Primary
+          </button>
         )}
       </div>
 

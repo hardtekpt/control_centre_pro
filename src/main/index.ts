@@ -17,6 +17,11 @@ let sonarService: SonarService
 let ddcService: DdcService
 let activeWindowMonitor: ActiveWindowMonitor | null = null
 
+// Resolve nircmd.exe path for primary display switching
+const nircmdExePath = app.isPackaged
+  ? join(process.resourcesPath, 'nircmd', 'nircmd.exe')
+  : join(__dirname, '../../resources/nircmd/nircmd.exe')
+
 // ─── DDC Service State ────────────────────────────────────────────────────────
 let ddcCache: DdcMonitor[] = []
 let ddcCacheTs = 0
@@ -471,6 +476,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, (_, monitorId: number, inputValue: string) => {
     ddcService.setInputSource(monitorId, inputValue)
     // Don't refresh — let the next periodic poll update the UI to avoid flicker
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_PRIMARY_MONITOR, async (_, monitorId: number) => {
+    await ddcService.setPrimaryMonitor(monitorId, nircmdExePath)
+    await refreshDdcMonitors()
+    broadcastDdcMonitors()
   })
 
   ipcMain.handle(IPC_CHANNELS.DDC_GET_POLL_INTERVAL, () => ddcPollIntervalSec)

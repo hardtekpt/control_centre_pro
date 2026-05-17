@@ -107,6 +107,100 @@ function queryPrimaryDevicePath(): string | null {
   }
 }
 
+// Enhanced query that returns both DDC path and GDI device name
+const QUERY_DISPLAY_WITH_GDI_PS = `
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
+public static class DC {
+    const uint QDC_ONLY_ACTIVE_PATHS = 2;
+    [StructLayout(LayoutKind.Sequential)]
+    struct LUID { public uint Low; public int High; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PATH_SOURCE { public LUID adapterId; public uint id; public uint modeInfoIdx; public uint statusFlags; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PATH_TARGET {
+        public LUID adapterId; public uint id; public uint modeInfoIdx; public uint outputTech;
+        public uint rotation; public uint scaling; public uint refreshNum; public uint refreshDen;
+        public uint scanLine; public int targetAvailable; public uint statusFlags;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PATH_INFO { public PATH_SOURCE sourceInfo; public PATH_TARGET targetInfo; public uint flags; }
+    [StructLayout(LayoutKind.Explicit, Size=64)]
+    struct MODE_INFO { }
+    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+    struct TARGET_NAME {
+        public uint type; public uint size; public LUID adapterId; public uint id;
+        public uint nameFlags; public uint outputTech; public ushort edidMfgId; public ushort edidProdId;
+        public uint connectorInstance;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=64)]  public string friendlyName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=128)] public string devicePath;
+    }
+    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+    struct SOURCE_NAME {
+        public uint type; public uint size; public LUID adapterId; public uint id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string viewGdiDeviceName;
+    }
+    [DllImport("user32.dll")] static extern int GetDisplayConfigBufferSizes(uint flags, out uint np, out uint nm);
+    [DllImport("user32.dll")] static extern int QueryDisplayConfig(uint flags, ref uint np, [In,Out] PATH_INFO[] paths, ref uint nm, [In,Out] MODE_INFO[] modes, IntPtr tid);
+    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetTargetName(ref TARGET_NAME req);
+    [DllImport("user32.dll", EntryPoint="DisplayConfigGetDeviceInfo")] static extern int GetSourceName(ref SOURCE_NAME req);
+    public struct Entry { public string DevicePath; public string GdiDeviceName; }
+    public static Entry[] GetMonitorMap() {
+        uint np, nm;
+        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
+        var paths = new PATH_INFO[np]; var modes = new MODE_INFO[nm];
+        QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
+        var result = new List<Entry>();
+        for (uint i = 0; i < np; i++) {
+            var tgt = new TARGET_NAME { type=2, adapterId=paths[i].targetInfo.adapterId, id=paths[i].targetInfo.id };
+            tgt.size = (uint)Marshal.SizeOf(tgt); GetTargetName(ref tgt);
+            var src = new SOURCE_NAME { type=1, adapterId=paths[i].sourceInfo.adapterId, id=paths[i].sourceInfo.id };
+            src.size = (uint)Marshal.SizeOf(src); GetSourceName(ref src);
+            result.Add(new Entry { DevicePath=tgt.devicePath, GdiDeviceName=src.viewGdiDeviceName });
+        }
+        return result.ToArray();
+    }
+}
+'@
+$out = @()
+foreach ($m in [DC]::GetMonitorMap()) {
+    $out += [PSCustomObject]@{ DevicePath=$m.DevicePath; GdiDeviceName=$m.GdiDeviceName }
+}
+$out | ConvertTo-Json -Compress
+`
+
+function queryDeviceMap(): Map<string, string> {
+  const tmpFile = join(tmpdir(), `ddc-device-map-${process.pid}.ps1`)
+  const map = new Map<string, string>() // normalized DDC path → GDI device name
+  try {
+    writeFileSync(tmpFile, '﻿' + QUERY_DISPLAY_WITH_GDI_PS, 'utf8')
+    const res = spawnSync('powershell', ['-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tmpFile], {
+      encoding: 'utf8',
+      timeout: 10000,
+    })
+    if (!res.stdout?.trim()) return map
+    const rows = JSON.parse(res.stdout.trim())
+    const entries: Array<{ DevicePath: string; GdiDeviceName: string }> = Array.isArray(rows) ? rows : [rows]
+
+    for (const entry of entries) {
+      if (entry.DevicePath && entry.GdiDeviceName) {
+        map.set(normPath(entry.DevicePath), entry.GdiDeviceName)
+      }
+    }
+  } catch {
+    // ignore
+  } finally {
+    try {
+      unlinkSync(tmpFile)
+    } catch {
+      // ignore
+    }
+  }
+  return map
+}
+
 // Common input source hex codes to friendly names (keys are lowercase)
 const INPUT_NAME_MAP: Record<string, string> = {
   '0x01': 'VGA 1',
@@ -122,6 +216,7 @@ const INPUT_NAME_MAP: Record<string, string> = {
 
 export class DdcService {
   private devicePaths = new Map<number, string>() // monitorId → device path
+  private gdiDeviceNames = new Map<number, string>() // monitorId → GDI device name (e.g., \\.\DISPLAY1)
   private cachedMonitors: DdcMonitor[] = []
   private cacheTimestamp = 0
   private available = ddcci !== null
@@ -191,15 +286,21 @@ export class DdcService {
 
     const primaryRaw = queryPrimaryDevicePath()
     const primaryNorm = primaryRaw ? normPath(primaryRaw) : null
+    const gdiMap = queryDeviceMap()
 
     const monitors: DdcMonitor[] = []
     this.devicePaths.clear()
+    this.gdiDeviceNames.clear()
 
     for (let i = 0; i < devicePaths.length; i++) {
       const devicePath = devicePaths[i]
       const monitorId = i + 1
 
       this.devicePaths.set(monitorId, devicePath)
+      const gdiName = gdiMap.get(normPath(devicePath))
+      if (gdiName) {
+        this.gdiDeviceNames.set(monitorId, gdiName)
+      }
 
       const parts = devicePath.split('#')
       const modelName = parts.length > 1 ? parts[1] : `Monitor ${monitorId}`
@@ -333,5 +434,34 @@ export class DdcService {
 
   getDevicePath(monitorId: number): string | null {
     return this.devicePaths.get(monitorId) ?? null
+  }
+
+  async setPrimaryMonitor(monitorId: number, nircmdPath: string): Promise<void> {
+    const gdiName = this.gdiDeviceNames.get(monitorId)
+    if (!gdiName) {
+      throw new Error(`No GDI device name cached for monitor ${monitorId} — refresh first`)
+    }
+
+    try {
+      const result = spawnSync(nircmdPath, ['setprimarydisplay', gdiName], {
+        timeout: 5000,
+      })
+
+      if (result.error) {
+        throw result.error
+      }
+
+      if (result.status !== 0) {
+        throw new Error(`nircmd exited with status ${result.status}`)
+      }
+
+      this.log('info', `Set primary monitor to ${monitorId} (${gdiName})`)
+
+      // Re-query to update is_primary flags on all monitors
+      await this.refreshMonitors()
+    } catch (err) {
+      this.log('error', `Failed to set primary monitor: ${err instanceof Error ? err.message : String(err)}`)
+      throw err
+    }
   }
 }
