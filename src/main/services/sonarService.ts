@@ -15,6 +15,16 @@ import type {
   SonarRedirections,
 } from '../../shared/types'
 
+// Maps internal SonarDeviceChannel names to the 'ChannelDict' path keys used by
+// the classicRedirections write endpoint. chatRender → chat, chatCapture → mic.
+const CHANNEL_DICT_KEY: Record<string, string> = {
+  game: 'game',
+  chatRender: 'chat',
+  chatCapture: 'mic',
+  media: 'media',
+  aux: 'aux',
+}
+
 // ─── SonarService ─────────────────────────────────────────────────────────────
 
 /**
@@ -140,7 +150,9 @@ export class SonarService {
   async setMode(mode: SonarMode): Promise<void> {
     if (!this.baseUrl) return
     try {
-      await this.httpPutJson(`${this.baseUrl}/mode`, JSON.stringify(mode))
+      // API path key: 'classic' → 'classic', 'streamer' → 'stream'
+      const modeKey = mode === 'streamer' ? 'stream' : 'classic'
+      await this.httpPut(`${this.baseUrl}/mode/${modeKey}`)
       // Hold the mode for 4 s so the 1-second fast poll doesn't immediately
       // revert it if the API echoes back the old value before the change settles.
       this.pendingMode = mode
@@ -154,10 +166,10 @@ export class SonarService {
 
   async setRedirection(channel: SonarDeviceChannel, deviceId: string): Promise<void> {
     if (!this.baseUrl) return
-    await this.httpPutJson(
-      `${this.baseUrl}/classicRedirections/${channel}`,
-      JSON.stringify({ deviceId }),
-    )
+    // Correct path: PUT /classicRedirections/{channelDictKey}/deviceId/{deviceId}
+    // ChannelDict uses 'chat' for chatRender and 'mic' for chatCapture
+    const channelKey = CHANNEL_DICT_KEY[channel] ?? channel
+    await this.httpPut(`${this.baseUrl}/classicRedirections/${channelKey}/deviceId/${deviceId}`)
     // Optimistic update: resolve the full device from audioDevices so the dropdown
     // immediately shows the correct name without waiting for the next poll
     const device = this.state.audioDevices.find((d) => d.id === deviceId)
@@ -176,22 +188,24 @@ export class SonarService {
     this.push()
   }
 
-  async routeProcess(sessionId: string, targetDeviceId: string): Promise<void> {
+  async routeProcess(processId: number, targetChannel: string): Promise<void> {
     if (!this.baseUrl) return
-    await this.httpPutJson(
-      `${this.baseUrl}/AudioDeviceRouting/${sessionId}`,
-      JSON.stringify({ deviceId: targetDeviceId }),
-    )
+    const targetRoute = this.state.routing.find((r) => r.role === targetChannel)
+    if (!targetRoute) return
+    // Correct path: PUT /AudioDeviceRouting/{dataFlow}/{targetVirtualDeviceId}/{processId}
+    // dataFlow is 'capture' for the mic channel, 'render' for everything else
+    const dataFlow = targetChannel === 'chatCapture' ? 'capture' : 'render'
+    await this.httpPut(`${this.baseUrl}/AudioDeviceRouting/${dataFlow}/${targetRoute.deviceId}/${processId}`)
     // Optimistic: move the session from its current route to the target route
-    const session = this.state.routing.flatMap((r) => r.audioSessions).find((s) => s.id === sessionId)
+    const session = this.state.routing.flatMap((r) => r.audioSessions).find((s) => s.processId === processId)
     if (session) {
       this.state = {
         ...this.state,
         routing: this.state.routing.map((r) => {
-          if (r.deviceId === targetDeviceId) {
+          if (r.role === targetChannel) {
             return { ...r, audioSessions: [...r.audioSessions, session] }
           }
-          return { ...r, audioSessions: r.audioSessions.filter((s) => s.id !== sessionId) }
+          return { ...r, audioSessions: r.audioSessions.filter((s) => s.processId !== processId) }
         }),
       }
     }
@@ -250,14 +264,21 @@ export class SonarService {
   private async pollSlow(): Promise<void> {
     if (!this.baseUrl) return
     try {
-      const [configsRaw, routingRaw] = await Promise.all([
+      const [configsRaw, routingRaw, selectedRaw] = await Promise.all([
         this.httpGet(`${this.baseUrl}/configs`),
         this.httpGet(`${this.baseUrl}/AudioDeviceRouting`).catch(() => '[]'),
+        this.httpGet(`${this.baseUrl}/configs/selected`).catch(() => '[]'),
       ])
+
+      const allConfigs = JSON.parse(configsRaw) as SonarConfig[]
+      const selectedIds = new Set(
+        (JSON.parse(selectedRaw) as SonarConfig[]).map((c) => c.id)
+      )
+      const configs = allConfigs.map((c) => ({ ...c, isSelected: selectedIds.has(c.id) }))
 
       this.state = {
         ...this.state,
-        configs: JSON.parse(configsRaw) as SonarConfig[],
+        configs,
         routing: JSON.parse(routingRaw),
       }
 
@@ -351,8 +372,9 @@ export class SonarService {
         this.log('warn', `GG Sonar: /audioDevices is not an array (got ${typeof data})`)
         return this.state.audioDevices
       }
+      // role === 'none' identifies physical Windows audio devices vs Sonar virtual channels
       const parsed = (data as Record<string, unknown>[])
-        .filter((d) => !d.isVad)
+        .filter((d) => d.role === 'none')
         .map((d) => ({
           id: String(d.id ?? d.deviceId ?? ''),
           name: String(d.friendlyName ?? d.name ?? d.deviceName ?? 'Unknown'),

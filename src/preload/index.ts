@@ -139,8 +139,8 @@ const api = {
   sonarSetRedirection: (channel: SonarDeviceChannel, deviceId: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_SET_REDIRECTION, channel, deviceId),
 
-  sonarRouteProcess: (sessionId: string, targetDeviceId: string): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SONAR_ROUTE_PROCESS, sessionId, targetDeviceId),
+  sonarRouteProcess: (processId: number, targetChannel: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_ROUTE_PROCESS, processId, targetChannel),
 
   sonarRefreshDevices: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_REFRESH_DEVICES),

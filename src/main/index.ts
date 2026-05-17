@@ -337,8 +337,8 @@ function registerIpcHandlers(): void {
     sonarService.setRedirection(channel, deviceId)
   )
 
-  ipcMain.handle(IPC_CHANNELS.SONAR_ROUTE_PROCESS, (_, sessionId: string, targetDeviceId: string) =>
-    sonarService.routeProcess(sessionId, targetDeviceId)
+  ipcMain.handle(IPC_CHANNELS.SONAR_ROUTE_PROCESS, (_, processId: number, targetChannel: string) =>
+    sonarService.routeProcess(processId, targetChannel)
   )
 
   ipcMain.handle(IPC_CHANNELS.SONAR_REFRESH_DEVICES, () =>

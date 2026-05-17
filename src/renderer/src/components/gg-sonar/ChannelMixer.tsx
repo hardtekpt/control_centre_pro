@@ -93,11 +93,8 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
     window.api.sonarSetRedirection(channel as SonarDeviceChannel, deviceId).catch(console.error)
   }
 
-  function handleProcessDrop(targetChannel: SonarChannel, sessionId: string): void {
-    // Look up the Sonar virtual device ID for the target channel from routing data
-    const targetRoute = sonarState.routing.find((r) => r.role === targetChannel)
-    if (!targetRoute) return
-    window.api.sonarRouteProcess(sessionId, targetRoute.deviceId).catch(console.error)
+  function handleProcessDrop(targetChannel: SonarChannel, processId: number): void {
+    window.api.sonarRouteProcess(processId, targetChannel).catch(console.error)
   }
 
   return (
@@ -122,7 +119,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
             onMute={handleMute}
             onPresetSelect={handlePresetSelect}
             onDeviceSelect={handleDeviceSelect}
-            onProcessDrop={(sessionId, _sourceRole) => handleProcessDrop(channel, sessionId)}
+            onProcessDrop={(processId, _sourceRole) => handleProcessDrop(channel, processId)}
           />
         )
       })}

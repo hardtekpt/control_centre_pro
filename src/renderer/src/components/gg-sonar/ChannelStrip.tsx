@@ -245,7 +245,7 @@ function RoutedApps({ sessions, channelRole }: RoutedAppsProps): JSX.Element {
             e.dataTransfer.effectAllowed = 'move'
             e.dataTransfer.setData(
               'application/sonar-session',
-              JSON.stringify({ sessionId: s.id, sourceRole: channelRole }),
+              JSON.stringify({ processId: s.processId, sourceRole: channelRole }),
             )
           }}
           className="flex items-center gap-1.5 mb-1 min-w-0 rounded cursor-grab"
@@ -527,7 +527,7 @@ export interface ChannelStripProps {
   onMute: (channel: SonarChannel) => void
   onPresetSelect: (channel: SonarChannel, presetId: string) => void
   onDeviceSelect: (channel: SonarChannel, deviceId: string) => void
-  onProcessDrop: (sessionId: string, sourceRole: string) => void
+  onProcessDrop: (processId: number, sourceRole: string) => void
 }
 
 function ChannelStripComponent({
@@ -576,11 +576,11 @@ function ChannelStripComponent({
     setIsDragOver(false)
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/sonar-session')) as {
-        sessionId: string
+        processId: number
         sourceRole: string
       }
       if (data.sourceRole !== channel) {
-        onProcessDrop(data.sessionId, data.sourceRole)
+        onProcessDrop(data.processId, data.sourceRole)
       }
     } catch {
       // malformed drag data — ignore

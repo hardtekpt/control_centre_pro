@@ -1,6 +1,7 @@
 # GG Sonar REST API
 
 _Source of truth: [logs/sonar-api-scan-20260512-014948.json](/c:/Users/ffvd/Documents/arctis_centre/src/Apps/control-centre-full-app/logs/sonar-api-scan-20260512-014948.json)_
+_Endpoint shapes confirmed from: [SteelSeries-NET-API (DataNext27)](https://github.com/DataNext27/SteelSeries-NET-API)_
 
 ## Discovery
 
@@ -40,27 +41,66 @@ http://127.0.0.1:58748
 - Read chat mix state.
 - Read audio-device routing and routed audio sessions.
 - Read the full preset/config catalog.
+- Read currently selected config per channel.
+- Read available Windows audio devices.
+- Read classic and streamer channel redirections.
 
 ### Write
 
 - Set classic channel volume for `master`, `game`, `chatRender`, `chatCapture`, `media`, `aux`.
 - Set classic channel mute for `master`, `game`, `chatRender`, `chatCapture`, `media`, `aux`.
+- Set streamer channel volume and mute.
+- Set mode (`classic` / `stream`).
 - Select a Sonar config by preset/config id.
+- Assign a Windows audio device to a classic channel.
+- Assign a Windows audio device to a streamer channel/mix.
+- Route an audio process to a Sonar channel.
+- Set chat mix balance.
+- Toggle stream monitoring (audience monitoring).
+
+## Channel Name Maps
+
+Sonar uses different channel key strings depending on the endpoint context:
+
+| Channel | JSON / `devices` key | HTTP volume path key | ChannelDict (redirection path) |
+|---|---|---|---|
+| Master | `masters` | `Master` | `master` |
+| Game | `game` | `game` | `game` |
+| Chat (render) | `chatRender` | `chatRender` | `chat` |
+| Mic (capture) | `chatCapture` | `chatCapture` | `mic` |
+| Media | `media` | `media` | `media` |
+| Aux | `aux` | `aux` | `aux` |
 
 ## Endpoint Mapping
 
-| Feature | Method | Endpoint | Data returned or accepted | Description |
-|---|---|---|---|---|
-| Discover Sonar host | `GET` | `https://127.0.0.1:6327/subApps` | Returns `subApps.sonar.metadata.webServerAddress` | GG discovery endpoint used to resolve the local Sonar HTTP server. |
-| Read mode | `GET` | `/mode` or `/mode/` | Returns JSON string, observed: `"classic"` | Current Sonar operating mode. |
-| Read classic volume state | `GET` | `/volumeSettings/classic` or `/VolumeSettings/classic` | Returns `{ masters, devices }` | Classic per-channel volume and mute state. |
-| Read streamer volume state | `GET` | `/volumeSettings/streamer` or `/VolumeSettings/streamer` | Returns `{ masters, devices }` | Streamer mix state with `stream.streaming` and `stream.monitoring` branches. |
-| Read chat mix | `GET` | `/chatMix` | Returns `{ balance, state }` | Chat mix wheel/balance state. Observed `state: "finiteWheel"`. |
-| Read routing | `GET` | `/AudioDeviceRouting` or `/audioDeviceRouting` | Returns array of route entries | Device-role routing table with nested `audioSessions`. |
-| Read preset catalog | `GET` | `/configs` or `/Configs` | Returns array of config objects | Full Sonar preset/config catalog. |
-| Set classic channel volume | `PUT` | `/volumeSettings/classic/{channel}/Volume/{value}` or `/VolumeSettings/classic/{channel}/Volume/{value}` | Accepts `channel` and decimal `value` like `1` or `0.56`; returns updated `{ masters, devices }` payload | Sets classic volume for a channel. |
-| Set classic channel mute | `PUT` | `/volumeSettings/classic/{channel}/Mute/{true|false}` or `/VolumeSettings/classic/{channel}/Mute/{true|false}` | Accepts `channel` and `true`/`false`; returns updated `{ masters, devices }` payload | Sets classic mute state for a channel. |
-| Select preset/config | `PUT` | `/configs/{presetId}/select` or `/Configs/{presetId}/select` | Accepts preset/config id; returns the selected config object | Activates a Sonar config entry. |
+| Feature | Method | Endpoint | Notes |
+|---|---|---|---|
+| Discover Sonar host | `GET` | `https://127.0.0.1:6327/subApps` | GG discovery; returns `subApps.sonar.metadata.webServerAddress` |
+| Read mode | `GET` | `/mode` | Returns JSON string: `"classic"` or `"stream"` |
+| Read classic volumes | `GET` | `/volumeSettings/classic/` | Returns `{ masters, devices }` |
+| Read streamer volumes | `GET` | `/volumeSettings/streamer/` | Returns `{ masters, devices }` with streaming/monitoring branches |
+| Read chat mix | `GET` | `/chatMix` | Returns `{ balance, state }` |
+| Read routing | `GET` | `/AudioDeviceRouting` | Returns array of route entries with nested `audioSessions` |
+| Read all configs | `GET` | `/configs` | Returns array of config objects |
+| Read selected configs | `GET` | `/configs/selected` | Returns array of currently selected config per channel |
+| Read audio devices | `GET` | `/audioDevices` | Returns array; filter `role === "none"` for physical Windows devices |
+| Read classic redirections | `GET` | `/classicRedirections` | Returns **array** of `{ id, deviceId }` per channel |
+| Read streamer redirections | `GET` | `/streamRedirections` | Returns **array** of `{ streamRedirectionId, deviceId }` |
+| Read stream monitoring state | `GET` | `/streamRedirections/isStreamMonitoringEnabled` | Returns boolean |
+| **Set mode** | `PUT` | `/mode/{modeKey}` | `modeKey`: `classic` or `stream`. No body. |
+| **Set classic volume** | `PUT` | `/volumeSettings/classic/{channelHttpKey}/Volume/{value}` | `channelHttpKey` uses HTTP column above. No body. |
+| **Set classic mute** | `PUT` | `/volumeSettings/classic/{channelHttpKey}/Mute/{true\|false}` | No body. |
+| **Set streamer volume** | `PUT` | `/volumeSettings/streamer/{mix}/{channelHttpKey}/volume/{value}` | `mix`: `monitoring` or `streaming`. No body. |
+| **Set streamer mute** | `PUT` | `/volumeSettings/streamer/{mix}/{channelHttpKey}/isMuted/{true\|false}` | No body. |
+| **Select config** | `PUT` | `/configs/{configId}/select` | No body. Returns selected config object. |
+| **Set classic redirection** | `PUT` | `/classicRedirections/{channelDictKey}/deviceId/{deviceId}` | `channelDictKey` uses ChannelDict column above. No body. `deviceId` = Windows device GUID (braces URL-encoded). |
+| **Set streamer redirection (mic)** | `PUT` | `/streamRedirections/{channelDictKey}/deviceId/{deviceId}` | `channelDictKey` = `mic`. No body. |
+| **Set streamer redirection (mix)** | `PUT` | `/streamRedirections/{mix}/deviceId/{deviceId}` | `mix`: `monitoring` or `streaming`. No body. |
+| **Route process to channel** | `PUT` | `/AudioDeviceRouting/{dataFlow}/{targetVirtualDeviceId}/{processId}` | `dataFlow`: `render` (all channels) or `capture` (mic only). `targetVirtualDeviceId` = `deviceId` from the target route entry in `GET /AudioDeviceRouting`. `processId` = integer from session. No body. |
+| **Set chat mix balance** | `PUT` | `/chatMix?balance={value}` | Query param. No body. Value range: -1.0 to 1.0. |
+| **Toggle stream monitoring** | `PUT` | `/streamRedirections/isStreamMonitoringEnabled/{true\|false}` | No body. |
+
+> **All PUT endpoints use path parameters only — no JSON body.**
 
 ## Data Carried By Working Endpoints
 
@@ -71,6 +111,8 @@ Observed response:
 ```json
 "classic"
 ```
+
+Possible values: `"classic"`, `"stream"` (not `"streamer"`).
 
 ### 2. `/volumeSettings/classic`
 
@@ -182,9 +224,7 @@ Useful fields:
 - `masters.stream.monitoring.volume`
 - `masters.stream.monitoring.muted`
 - `devices.{channel}.stream.streaming.volume`
-- `devices.{channel}.stream.streaming.muted`
 - `devices.{channel}.stream.monitoring.volume`
-- `devices.{channel}.stream.monitoring.muted`
 
 Observed channels in the full payload:
 
@@ -222,7 +262,7 @@ Observed response shape:
     "dataFlow": "render",
     "audioSessions": [
       {
-        "id": "{session-id}",
+        "id": "{session-id-path}",
         "processName": "zen",
         "processId": 13832,
         "isSystemSound": false,
@@ -236,29 +276,11 @@ Observed response shape:
 ]
 ```
 
-Top-level route fields:
-
-- `deviceId`
-- `role`
-- `dataFlow`
-- `audioSessions`
-
-Nested `audioSessions` fields observed:
-
-- `id`
-- `processName`
-- `processId`
-- `isSystemSound`
-- `state`
-- `displayName`
-- `isRoutingErrorProne`
-- `routingErrorDetected`
-
-Observed route roles in the log include:
-
-- `none`
-- `media`
-- `game`
+Notes:
+- `deviceId` on the route entry is the Sonar **virtual** channel device GUID (used in process routing writes).
+- `audioSessions[i].processId` (integer) is used for the `PUT /AudioDeviceRouting` write.
+- `audioSessions[i].id` has the format `something|processPath` — not used for writes.
+- Observed route `role` values: `none`, `media`, `game`. `none` = unassigned.
 
 ### 6. `/configs`
 
@@ -296,170 +318,109 @@ Observed response shape:
 ]
 ```
 
-Top-level config fields:
+### 7. `/configs/selected`
 
-- `id`
-- `name`
-- `createdAt`
-- `updatedAt`
-- `virtualAudioDevice`
-- `data`
-- `schemaVersion`
-- `isPreset`
-- `defaultData`
-- `image`
-- `isFavorite`
-- `favoritePosition`
-- `releaseVersion`
+Returns the same array shape as `/configs`, but only includes the currently selected config per `virtualAudioDevice`. Use this to determine which config is active for each channel.
 
-Observed `virtualAudioDevice` values:
+### 8. `PUT /configs/{configId}/select`
 
-- `game`
-- `chatRender`
-- `chatCapture`
-- `media`
-- `aux`
+Returns the selected config object (same shape as a `/configs` item).
 
-Observed `data` / `defaultData` feature groups for output-style channels like `game`, `media`, `aux`:
+### 9. `/audioDevices`
 
-- `bassBoostState`
-- `trebleBoostState`
-- `voiceClarityState`
-- `smartVolume`
-- `generalGain`
-- `parametricEQ`
-- `virtualSurroundState`
-- `virtualSurroundChannels`
-- `reverbGainDB`
-- `formFactor`
-- `globalEnableState`
-
-Observed `data` / `defaultData` feature groups for voice-style channels like `chatRender`, `chatCapture`:
-
-- `noiseReductionState`
-- `volumeStabilizerState`
-- `noiseGateState`
-- `automaticNoiseGateState`
-- `parametricEQ`
-- `impactNoiseReductionState`
-- `noiseCancelingState`
-- `acousticEchoCancelingState`
-- `globalEnableState`
-
-### 7. `PUT /configs/{presetId}/select`
-
-Observed successful response:
-
-- returns the selected config object
-- object shape matches an item from `/configs`
-
-Returned fields:
-
-- `id`
-- `name`
-- `createdAt`
-- `updatedAt`
-- `virtualAudioDevice`
-- `data`
-- `schemaVersion`
-- `isPreset`
-- `defaultData`
-- `image`
-- `isFavorite`
-- `favoritePosition`
-- `releaseVersion`
-
-## Confirmed Channel Values For Classic Write Endpoints
-
-Use these exact channel path values:
-
-```text
-master
-game
-chatRender
-chatCapture
-media
-aux
-```
-
-### 8. `GET /audioDevices`
-
-Returns the list of Windows audio output (render) devices available for channel redirection.
-Exact response shape inferred — not yet captured in logs:
+Returns an array of Windows audio devices. Shape confirmed from C# source:
 
 ```json
 [
   {
     "id": "{windows-device-guid}",
-    "name": "Speakers (SteelSeries Arctis Nova Pro Wireless)"
+    "friendlyName": "Speakers (SteelSeries Arctis Nova Pro Wireless)",
+    "dataFlow": "render",
+    "role": "none"
   }
 ]
 ```
 
-Fields that have been observed or are strongly expected:
-- `id` — Windows device GUID (used in redirection writes)
-- `name` — Friendly display name
+Fields:
+- `id` — Windows device GUID (with braces)
+- `friendlyName` — display name
+- `dataFlow` — `"render"` (output) or `"capture"` (input)
+- `role` — `"none"` for physical Windows devices; other values for Sonar's own virtual channel devices
 
-Some implementations also return `isDefault: boolean`.
+**Filter**: use `role === "none"` to get physical Windows audio devices available for redirection.
 
-### 9. `GET /classicRedirections`
+### 10. `/classicRedirections`
 
-Returns the current playback device assigned to each classic-mode channel.
-Exact response shape inferred — not yet captured in logs:
+Returns an **array** (not an object). Shape confirmed from C# source:
 
 ```json
-{
-  "game":        { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" },
-  "chatRender":  { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" },
-  "chatCapture": { "deviceId": "{guid}", "deviceName": "Microphone (Arctis Nova Pro)" },
-  "media":       { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" },
-  "aux":         { "deviceId": "{guid}", "deviceName": "Speakers (Arctis Nova Pro)" }
-}
+[
+  { "id": "game",  "deviceId": "{windows-device-guid}" },
+  { "id": "chat",  "deviceId": "{windows-device-guid}" },
+  { "id": "media", "deviceId": "{windows-device-guid}" },
+  { "id": "aux",   "deviceId": "{windows-device-guid}" },
+  { "id": "mic",   "deviceId": "{windows-device-guid}" }
+]
 ```
 
-May also be an array with a `role` field per entry — handle defensively.
+- `id` uses the **ChannelDict** key (`chat` not `chatRender`, `mic` not `chatCapture`).
+- `deviceId` is the Windows physical device GUID.
 
-### 10. `PUT /classicRedirections/{channel}`
+### 11. `/streamRedirections`
+
+Returns an **array**. Shape confirmed from C# source:
+
+```json
+[
+  { "streamRedirectionId": "streaming",  "deviceId": "{windows-device-guid}" },
+  { "streamRedirectionId": "monitoring", "deviceId": "{windows-device-guid}" },
+  { "streamRedirectionId": "mic",        "deviceId": "{windows-device-guid}" }
+]
+```
+
+## Write Endpoint Detail
+
+### `PUT /classicRedirections/{channelDictKey}/deviceId/{deviceId}`
 
 Assigns a Windows audio device to a classic-mode channel.
-Channel values: `game`, `chatRender`, `chatCapture`, `media`, `aux`.
-Request body (inferred):
 
-```json
-{ "deviceId": "{windows-device-guid}" }
-```
+- `channelDictKey`: use the **ChannelDict** column (`game`, `chat`, `media`, `aux`, `mic`)
+- `deviceId`: the Windows device GUID from `/audioDevices[].id`
+- Device GUIDs (containing `{` and `}`) are URL-encoded automatically by the HTTP client (`{` → `%7B`, `}` → `%7D`)
+- **No request body.**
 
-### 11. `PUT /AudioDeviceRouting/{sessionId}`
+### `PUT /AudioDeviceRouting/{dataFlow}/{targetVirtualDeviceId}/{processId}`
 
-Routes an audio session (running process) to a different Sonar virtual channel device.
-`sessionId` comes from `audioSessions[i].id` in the `GET /AudioDeviceRouting` response.
-Request body (inferred):
+Routes a running audio process to a different Sonar virtual channel.
 
-```json
-{ "deviceId": "{sonar-virtual-device-guid}" }
-```
-
-The `deviceId` here is the `deviceId` field from the route entry in `GET /AudioDeviceRouting`
-(i.e. the virtual Sonar device for the target channel, not a Windows physical device GUID).
-
-> **Note:** The write shapes for endpoints 8–11 are inferred from API conventions and the wiki.
-> They have not been validated against live logs. Update this file once confirmed.
+- `dataFlow`: `render` for all channels except mic; `capture` for mic (`chatCapture`)
+- `targetVirtualDeviceId`: the `deviceId` from the target route entry in `GET /AudioDeviceRouting` — this is the Sonar **virtual** device GUID, not a Windows physical device GUID
+- `processId`: the integer `processId` from `audioSessions[i].processId` in `GET /AudioDeviceRouting`
+- **No request body.**
 
 ## Practical Minimal API
 
 ```http
 GET  /mode
-GET  /volumeSettings/classic
-GET  /volumeSettings/streamer
+GET  /volumeSettings/classic/
+GET  /volumeSettings/streamer/
 GET  /chatMix
 GET  /AudioDeviceRouting
 GET  /configs
+GET  /configs/selected
 GET  /audioDevices
 GET  /classicRedirections
+GET  /streamRedirections
 
-PUT  /volumeSettings/classic/{channel}/Volume/{value}
-PUT  /volumeSettings/classic/{channel}/Mute/{true|false}
-PUT  /configs/{presetId}/select
-PUT  /classicRedirections/{channel}          body: { "deviceId": "{guid}" }
-PUT  /AudioDeviceRouting/{sessionId}         body: { "deviceId": "{sonar-virtual-device-guid}" }
+PUT  /mode/{classic|stream}
+PUT  /volumeSettings/classic/{channelHttpKey}/Volume/{value}
+PUT  /volumeSettings/classic/{channelHttpKey}/Mute/{true|false}
+PUT  /volumeSettings/streamer/{mix}/{channelHttpKey}/volume/{value}
+PUT  /volumeSettings/streamer/{mix}/{channelHttpKey}/isMuted/{true|false}
+PUT  /configs/{configId}/select
+PUT  /classicRedirections/{channelDictKey}/deviceId/{deviceId}
+PUT  /streamRedirections/{channelDictKey|mix}/deviceId/{deviceId}
+PUT  /AudioDeviceRouting/{dataFlow}/{targetVirtualDeviceId}/{processId}
+PUT  /chatMix?balance={value}
+PUT  /streamRedirections/isStreamMonitoringEnabled/{true|false}
 ```
