@@ -29,6 +29,11 @@ function HomeSection({
 export function Home(): JSX.Element {
   const { arctisState, ddcMonitors } = useServiceStore()
 
+  const sortedMonitors = [...ddcMonitors].sort((a, b) => {
+    if (a.is_primary === b.is_primary) return 0
+    return a.is_primary ? -1 : 1
+  })
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {arctisState && (
@@ -45,7 +50,7 @@ export function Home(): JSX.Element {
               gap: '12px',
             }}
           >
-            {ddcMonitors.map((monitor) => (
+            {sortedMonitors.map((monitor) => (
               <DisplayCard key={monitor.monitor_id} monitor={monitor} />
             ))}
           </div>
