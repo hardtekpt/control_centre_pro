@@ -114,7 +114,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 public static class DC {
-    const uint QDC_ALL_PATHS = 1;
+    const uint QDC_ONLY_ACTIVE_PATHS = 2;
     [StructLayout(LayoutKind.Sequential)]
     struct LUID { public uint Low; public int High; }
     [StructLayout(LayoutKind.Sequential)]
@@ -149,9 +149,9 @@ public static class DC {
     public struct Entry { public string DevicePath; public string GdiDeviceName; }
     public static Entry[] GetMonitorMap() {
         uint np, nm;
-        GetDisplayConfigBufferSizes(QDC_ALL_PATHS, out np, out nm);
+        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
         var paths = new PATH_INFO[np]; var modes = new MODE_INFO[nm];
-        QueryDisplayConfig(QDC_ALL_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
+        QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
         var result = new List<Entry>();
         for (uint i = 0; i < np; i++) {
             var tgt = new TARGET_NAME { type=2, adapterId=paths[i].targetInfo.adapterId, id=paths[i].targetInfo.id };
@@ -292,17 +292,23 @@ export class DdcService {
     const gdiMap = queryDeviceMap()
 
     const monitors: DdcMonitor[] = []
-    this.devicePaths.clear()
-    this.gdiDeviceNames.clear()
+    const newDevicePaths = new Map<number, string>()
+    const newGdiDeviceNames = new Map<number, string>()
 
     for (let i = 0; i < devicePaths.length; i++) {
       const devicePath = devicePaths[i]
       const monitorId = i + 1
 
-      this.devicePaths.set(monitorId, devicePath)
+      newDevicePaths.set(monitorId, devicePath)
       const gdiName = gdiMap.get(normPath(devicePath))
       if (gdiName) {
-        this.gdiDeviceNames.set(monitorId, gdiName)
+        newGdiDeviceNames.set(monitorId, gdiName)
+      } else {
+        // Preserve cached GDI name if display is temporarily inactive
+        const cachedGdiName = this.gdiDeviceNames.get(monitorId)
+        if (cachedGdiName) {
+          newGdiDeviceNames.set(monitorId, cachedGdiName)
+        }
       }
 
       const parts = devicePath.split('#')
@@ -364,6 +370,10 @@ export class DdcService {
 
       monitors.push(monitor)
     }
+
+    // Update cached maps
+    this.devicePaths = newDevicePaths
+    this.gdiDeviceNames = newGdiDeviceNames
 
     if (monitors.length > 0) {
       this.log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
