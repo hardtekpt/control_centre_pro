@@ -6,7 +6,6 @@ interface DisplayCardProps {
   monitor: DdcMonitor
   syncBrightness?: boolean
   allMonitors?: DdcMonitor[]
-  onPrimaryChange?: () => void
 }
 
 const INPUT_NAME_MAP: Record<string, string> = {
@@ -98,9 +97,7 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
         ) : (
           <button
             onClick={(): void => {
-              window.api.ddcSetPrimaryMonitor(monitor.monitor_id)
-                .then(onPrimaryChange)
-                .catch(console.error)
+              window.api.ddcSetPrimaryMonitor(monitor.monitor_id).catch(console.error)
             }}
             className="text-xs px-2 py-1 rounded mono"
             title="Set as primary display"
