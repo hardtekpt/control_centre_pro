@@ -1,33 +1,41 @@
 import { useEffect, useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
-import type { DdcMonitor } from '@shared/types'
+import type { AppSettings, DdcMonitor } from '@shared/types'
 
 export function DDCSettings(): JSX.Element {
-  const { ddcMonitors } = useServiceStore()
+  const { ddcMonitors, setSettings: setStoreSettings } = useServiceStore()
   const [monitors, setMonitors] = useState<DdcMonitor[]>(ddcMonitors)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { setDirty, registerSave } = useSettingsForm()
 
   const [savedInterval, setSavedInterval] = useState<number | null>(null)
   const [draftInterval, setDraftInterval] = useState('')
+  const [savedSyncBrightness, setSavedSyncBrightness] = useState(false)
+  const [draftSyncBrightness, setDraftSyncBrightness] = useState(false)
 
   useEffect(() => {
     setMonitors(ddcMonitors)
   }, [ddcMonitors])
 
   useEffect(() => {
-    window.api.ddcGetPollInterval().then((sec) => {
+    Promise.all([
+      window.api.ddcGetPollInterval(),
+      window.api.getSettings()
+    ]).then(([sec, settings]) => {
       setSavedInterval(sec)
       setDraftInterval(sec.toString())
+      setSavedSyncBrightness(settings.ddcSyncBrightness)
+      setDraftSyncBrightness(settings.ddcSyncBrightness)
     }).catch(console.error)
   }, [])
 
   const intervalDirty = savedInterval !== null && draftInterval !== savedInterval.toString()
+  const syncBrightnessDirty = draftSyncBrightness !== savedSyncBrightness
 
   useEffect(() => {
-    setDirty(intervalDirty)
-  }, [intervalDirty, setDirty])
+    setDirty(intervalDirty || syncBrightnessDirty)
+  }, [intervalDirty, syncBrightnessDirty, setDirty])
 
   useEffect(() => {
     registerSave(async () => {
@@ -36,9 +44,17 @@ export function DDCSettings(): JSX.Element {
         await window.api.ddcSetPollInterval(parsed)
         setSavedInterval(parsed)
       }
+
+      if (draftSyncBrightness !== savedSyncBrightness) {
+        const current = await window.api.getSettings()
+        const updated = { ...current, ddcSyncBrightness: draftSyncBrightness }
+        await window.api.setSettings(updated)
+        setStoreSettings(updated)
+        setSavedSyncBrightness(draftSyncBrightness)
+      }
     })
     return () => registerSave(null)
-  }, [draftInterval, registerSave])
+  }, [draftInterval, draftSyncBrightness, savedSyncBrightness, registerSave, setStoreSettings])
 
   const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true)
@@ -200,6 +216,29 @@ export function DDCSettings(): JSX.Element {
           />
           <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>seconds</span>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
+          Sync Brightness
+        </h2>
+        <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+          When enabled, adjusting brightness on one monitor will sync to all connected monitors.
+        </p>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={draftSyncBrightness}
+            onChange={(e) => setDraftSyncBrightness(e.currentTarget.checked)}
+            className="w-4 h-4 rounded accent-current"
+            style={{
+              accentColor: 'var(--color-accent)',
+            }}
+          />
+          <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+            Sync brightness across all monitors
+          </span>
+        </label>
       </div>
 
       <div className="mb-8">

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { ServiceInfo, LogEntry, ArctisState, DdcMonitor } from '@shared/types'
+import type { ServiceInfo, LogEntry, ArctisState, DdcMonitor, AppSettings } from '@shared/types'
+import { DEFAULT_SETTINGS } from '@shared/types'
 
 const MAX_LOG_ENTRIES = 500
 
@@ -8,6 +9,7 @@ interface ServiceState {
   logs: LogEntry[]
   arctisState: ArctisState | null
   ddcMonitors: DdcMonitor[]
+  settings: AppSettings
 
   setServices: (services: ServiceInfo[]) => void
   addLog: (entry: LogEntry) => void
@@ -15,6 +17,7 @@ interface ServiceState {
   setArctisDisconnected: () => void
   updateArctisState: (patch: Partial<ArctisState>) => void
   setDdcMonitors: (monitors: DdcMonitor[]) => void
+  setSettings: (settings: AppSettings) => void
 }
 
 export const useServiceStore = create<ServiceState>((set) => ({
@@ -22,6 +25,7 @@ export const useServiceStore = create<ServiceState>((set) => ({
   logs: [],
   arctisState: null,
   ddcMonitors: [],
+  settings: DEFAULT_SETTINGS,
 
   setServices: (services) => set({ services }),
 
@@ -40,4 +44,6 @@ export const useServiceStore = create<ServiceState>((set) => ({
     })),
 
   setDdcMonitors: (monitors) => set({ ddcMonitors: monitors }),
+
+  setSettings: (settings) => set({ settings }),
 }))

@@ -4,6 +4,8 @@ import type { DdcMonitor } from '@shared/types'
 
 interface DisplayCardProps {
   monitor: DdcMonitor
+  syncBrightness?: boolean
+  allMonitors?: DdcMonitor[]
 }
 
 const INPUT_NAME_MAP: Record<string, string> = {
@@ -33,7 +35,7 @@ function MonitorIcon(): JSX.Element {
   )
 }
 
-export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
+export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
   const [confirmedBrightness, setConfirmedBrightness] = useState(monitor.brightness)
@@ -52,7 +54,15 @@ export function DisplayCard({ monitor }: DisplayCardProps): JSX.Element {
     lockedUntilRef.current = Date.now() + 1200
     setConfirmedBrightness(draftBrightness)
     setDraftBrightness(null)
+
     window.api.ddcSetBrightness(monitor.monitor_id, draftBrightness).catch(console.error)
+
+    if (syncBrightness && allMonitors) {
+      const otherMonitors = allMonitors.filter((m) => m.monitor_id !== monitor.monitor_id && m.supports.includes('brightness'))
+      otherMonitors.forEach((m) => {
+        window.api.ddcSetBrightness(m.monitor_id, draftBrightness).catch(console.error)
+      })
+    }
   }
 
   useEffect(() => {

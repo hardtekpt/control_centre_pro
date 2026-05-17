@@ -44,7 +44,26 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Published:', d.get\\('time',{}\\).get\\('modified','?'\\)\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Repo:', d.get\\('repository',{}\\)\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Description:', d.get\\('description',''\\)\\); print\\('Engines:', d.get\\('engines',{}\\)\\)\")",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "WebFetch(domain:github-wiki-see.page)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\" -Directory)",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(git clone *)",
+      "Bash(Get-ChildItem -Path \"C:/Users/ffvd/AppData/Local/Temp/steelseries-net-api\" -Recurse -Force)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\steelseries-net-api\" -Recurse -Force)",
+      "Bash(find \"c:/Users/ffvd/Documents/SteelSeries-NET-API\" -type f | sort)",
+      "Read(//c/Users/ffvd/Documents/SteelSeries-NET-API/**)",
+      "Bash(node -e \"const norm = s => s.toLowerCase\\(\\).replace\\(/[\\\\\\\\\\\\\\\\]/g, ''\\).replace\\(/[?]/g, ''\\); const ddcPath = String.raw\\\\`\\\\\\\\\\\\\\\\?\\\\DISPLAY#AOC2402#7^&baa82ed^&3^&UID260#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}\\\\`; console.log\\('norm:', norm\\(ddcPath\\)\\)\")",
+      "Bash(node test-ddc-mapping.js)",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -Command \"Write-Host 'PS works'\")",
+      "Bash(node -e ' *)",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-debug.ps1\")",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-prod.ps1\")",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-step.ps1\")",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-size.ps1\")",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-wmi.ps1\")",
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-reg.ps1\")"
     ]
   }
 }

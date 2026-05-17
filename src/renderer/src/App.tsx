@@ -18,7 +18,7 @@ export default function App(): JSX.Element {
     setMaximized, setView, setSettingsTab, toggleSidebar,
     setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
-  const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } =
+  const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings } =
     useServiceStore()
   const { setSonarState } = useSonarStore()
 
@@ -31,20 +31,23 @@ export default function App(): JSX.Element {
       setTheme(settings.theme)
       setSidebarWidth(settings.sidebarWidth)
       setSidebarCollapsed(settings.sidebarCollapsed)
+      setStoreSettings(settings)
       settingsLoadedRef.current = true
     }).catch(console.error)
-  }, [setTheme, setSidebarWidth, setSidebarCollapsed])
+  }, [setTheme, setSidebarWidth, setSidebarCollapsed, setStoreSettings])
 
   // Auto-save sidebar width and collapsed state (debounced)
   useEffect(() => {
     if (!settingsLoadedRef.current) return
     const timer = setTimeout(() => {
       window.api.getSettings().then((current) => {
-        window.api.setSettings({ ...current, sidebarWidth, sidebarCollapsed })
+        const updated = { ...current, sidebarWidth, sidebarCollapsed }
+        window.api.setSettings(updated)
+        setStoreSettings(updated)
       }).catch(console.error)
     }, 500)
     return () => clearTimeout(timer)
-  }, [sidebarWidth, sidebarCollapsed])
+  }, [sidebarWidth, sidebarCollapsed, setStoreSettings])
 
   // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {

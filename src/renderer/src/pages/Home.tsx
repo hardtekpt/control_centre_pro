@@ -27,7 +27,7 @@ function HomeSection({
 // ─── Home page ────────────────────────────────────────────────────────────────
 
 export function Home(): JSX.Element {
-  const { arctisState, ddcMonitors } = useServiceStore()
+  const { arctisState, ddcMonitors, settings } = useServiceStore()
 
   const sortedMonitors = [...ddcMonitors].sort((a, b) => {
     if (a.is_primary === b.is_primary) return 0
@@ -51,7 +51,12 @@ export function Home(): JSX.Element {
             }}
           >
             {sortedMonitors.map((monitor) => (
-              <DisplayCard key={monitor.monitor_id} monitor={monitor} />
+              <DisplayCard
+                key={monitor.monitor_id}
+                monitor={monitor}
+                syncBrightness={settings.ddcSyncBrightness}
+                allMonitors={ddcMonitors}
+              />
             ))}
           </div>
         </HomeSection>
