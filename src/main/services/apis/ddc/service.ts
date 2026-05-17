@@ -217,6 +217,7 @@ const INPUT_NAME_MAP: Record<string, string> = {
 export class DdcService {
   private devicePaths = new Map<number, string>() // monitorId → device path
   private gdiDeviceNames = new Map<number, string>() // monitorId → GDI device name (e.g., \\.\DISPLAY1)
+  private gdiDeviceNamesByPath = new Map<string, string>() // normalized device path → GDI device name (persistent cache)
   private cachedMonitors: DdcMonitor[] = []
   private cacheTimestamp = 0
   private available = ddcci !== null
@@ -297,18 +298,20 @@ export class DdcService {
 
     for (let i = 0; i < devicePaths.length; i++) {
       const devicePath = devicePaths[i]
+      const normDevicePath = normPath(devicePath)
       const monitorId = i + 1
 
       newDevicePaths.set(monitorId, devicePath)
-      const gdiName = gdiMap.get(normPath(devicePath))
+
+      // Try current query first, then fall back to persistent path-based cache
+      let gdiName = gdiMap.get(normDevicePath)
+      if (!gdiName) {
+        gdiName = this.gdiDeviceNamesByPath.get(normDevicePath)
+      }
+
       if (gdiName) {
         newGdiDeviceNames.set(monitorId, gdiName)
-      } else {
-        // Preserve cached GDI name if display is temporarily inactive
-        const cachedGdiName = this.gdiDeviceNames.get(monitorId)
-        if (cachedGdiName) {
-          newGdiDeviceNames.set(monitorId, cachedGdiName)
-        }
+        this.gdiDeviceNamesByPath.set(normDevicePath, gdiName) // Update persistent cache
       }
 
       const parts = devicePath.split('#')
