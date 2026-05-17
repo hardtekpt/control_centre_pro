@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor, SerializedNotification } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
@@ -12,6 +12,7 @@ import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 import { DdcService } from './services/apis/ddc/service'
 
 let mainWindow: BrowserWindow | null = null
+let notifWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let minimizeToTray = true
 let isQuitting = false
@@ -231,6 +232,48 @@ function createWindow(): void {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+// ─── Notification Overlay Window ─────────────────────────────────────────────
+
+/**
+ * Creates the transparent, always-on-top overlay window used for hardware notifications.
+ * The window is hidden at creation and shown only when a notification is pushed.
+ * It lives independently of the main window — notifications keep working when the app
+ * is minimised to the tray.
+ */
+function createNotifWindow(): void {
+  const { workArea } = screen.getPrimaryDisplay()
+  const width = 480
+  const height = 300
+
+  notifWindow = new BrowserWindow({
+    width,
+    height,
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + workArea.height - height),
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    show: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  notifWindow.setIgnoreMouseEvents(true, { forward: true })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    notifWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}?overlay=1`)
+  } else {
+    notifWindow.loadFile(join(__dirname, '../renderer/index.html'), { query: { overlay: '1' } })
   }
 }
 
@@ -538,6 +581,23 @@ function registerIpcHandlers(): void {
     settings.ddcPollIntervalSeconds = clamped
     writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
   })
+
+  // ── Notification overlay ───────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.NOTIF_PUSH, (_, spec: SerializedNotification) => {
+    if (!notifWindow || notifWindow.isDestroyed()) return
+    if (!notifWindow.isVisible()) notifWindow.show()
+    notifWindow.webContents.send(IPC_CHANNELS.NOTIF_RECEIVE, spec)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.NOTIF_SET_IGNORE_MOUSE, (_, ignore: boolean) => {
+    if (!notifWindow || notifWindow.isDestroyed()) return
+    notifWindow.setIgnoreMouseEvents(ignore, { forward: true })
+  })
+
+  ipcMain.handle(IPC_CHANNELS.NOTIF_ALL_DISMISSED, () => {
+    if (!notifWindow || notifWindow.isDestroyed()) return
+    notifWindow.hide()
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -631,6 +691,7 @@ app.whenReady().then(() => {
   } catch { /* use default */ }
 
   createTray()
+  createNotifWindow()
 
   serviceManager.startAll()  // starts Python services + GG Sonar native service
 
@@ -650,6 +711,8 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   tray?.destroy()
   tray = null
+  notifWindow?.destroy()
+  notifWindow = null
   activeWindowMonitor?.stop()
   serviceManager?.stopAll()
 })

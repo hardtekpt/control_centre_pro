@@ -1,33 +1,14 @@
-import type { FC, ReactNode } from 'react'
-import { createElement } from 'react'
-import type { ArctisState, HeadsetNotificationSettings } from '@shared/types'
-import { useNotificationStore } from '../stores/notificationStore'
+import type { ArctisState, HeadsetNotificationSettings, SerializedNotification } from '@shared/types'
 import { useServiceStore } from '../stores/serviceStore'
-import {
-  IconLink, IconUnlink,
-  IconWireless, IconBluetooth,
-  IconBattery, IconBatteryLow, IconBatteryCharging,
-  IconMic, IconMicOff,
-  IconAnc, IconTransparency,
-  IconVolume,
-  IconChatMix,
-  IconSidetone,
-} from '../components/notifications/icons'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-type IconComp = FC<{ size?: number }>
-
-function push(n: Parameters<ReturnType<typeof useNotificationStore.getState>['push']>[0]): void {
-  useNotificationStore.getState().push(n)
+function push(spec: Omit<SerializedNotification, never>): void {
+  window.api.notifPush(spec).catch(console.error)
 }
 
 function getSettings(): HeadsetNotificationSettings {
   return useServiceStore.getState().settings.notifications.headset
-}
-
-function icon(Component: IconComp, size = 20): ReactNode {
-  return createElement(Component, { size })
 }
 
 // ── Previous-state tracking (module-level) ────────────────────────────────────
@@ -62,18 +43,17 @@ export function notifyArctisConnected(state: ArctisState): void {
   const cfg = getSettings()
   if (cfg.powerOnOff.enabled) {
     if (cfg.powerOnOff.shape === 'circle') {
-      push({ kind: 'circle', key: 'arctis-power', icon: icon(IconLink), ttl: 2400 })
+      push({ kind: 'circle', key: 'arctis-power', iconId: 'link', ttl: 2400 })
     } else {
       push({
         kind: 'rect', key: 'arctis-power',
-        icon: icon(IconLink),
+        iconId: 'link',
         title: 'Arctis Nova Pro',
         subtitle: 'Connected · ready',
         ttl: 2400,
       })
     }
   }
-  // Seed initial state for change tracking
   _prevWirelessConnected = state.wirelessConnected
   _prevBtConnected = state.btConnected
   _prevBatteryHeadset = state.batteryHeadset
@@ -85,11 +65,11 @@ export function notifyArctisDisconnected(): void {
   const cfg = getSettings()
   if (cfg.powerOnOff.enabled) {
     if (cfg.powerOnOff.shape === 'circle') {
-      push({ kind: 'circle', key: 'arctis-power', icon: icon(IconUnlink), ttl: 2400 })
+      push({ kind: 'circle', key: 'arctis-power', iconId: 'unlink', ttl: 2400 })
     } else {
       push({
         kind: 'rect', key: 'arctis-power',
-        icon: icon(IconUnlink),
+        iconId: 'unlink',
         title: 'Arctis Nova Pro',
         subtitle: 'Disconnected',
         ttl: 2400,
@@ -109,19 +89,14 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
     case 'ConnectivityEvent': {
       const d = data as { btActive: boolean; btConnected: boolean; btPairing: boolean; wirelessConnected: boolean }
 
-      // Wireless connectivity change
       if (cfg.wireless.enabled && _prevWirelessConnected !== null && d.wirelessConnected !== _prevWirelessConnected) {
         const connected = d.wirelessConnected
         if (cfg.wireless.shape === 'circle') {
-          push({
-            kind: 'circle', key: 'arctis-wireless',
-            icon: icon(connected ? IconWireless : IconUnlink),
-            ttl: 2400,
-          })
+          push({ kind: 'circle', key: 'arctis-wireless', iconId: connected ? 'wireless' : 'unlink', ttl: 2400 })
         } else {
           push({
             kind: 'rect', key: 'arctis-wireless',
-            icon: icon(IconWireless),
+            iconId: 'wireless',
             title: connected ? 'Wireless connected' : 'Wireless disconnected',
             subtitle: connected ? '2.4 GHz link active' : '2.4 GHz link lost',
             ttl: 2400,
@@ -130,19 +105,14 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       }
       _prevWirelessConnected = d.wirelessConnected
 
-      // Bluetooth connectivity change
       if (cfg.bluetooth.enabled && _prevBtConnected !== null && d.btConnected !== _prevBtConnected) {
         const connected = d.btConnected
         if (cfg.bluetooth.shape === 'circle') {
-          push({
-            kind: 'circle', key: 'arctis-bt',
-            icon: icon(connected ? IconBluetooth : IconUnlink),
-            ttl: 2400,
-          })
+          push({ kind: 'circle', key: 'arctis-bt', iconId: connected ? 'bluetooth' : 'unlink', ttl: 2400 })
         } else {
           push({
             kind: 'rect', key: 'arctis-bt',
-            icon: icon(IconBluetooth),
+            iconId: 'bluetooth',
             title: connected ? 'Bluetooth connected' : 'Bluetooth disconnected',
             subtitle: connected ? 'BT device paired and active' : 'BT device disconnected',
             ttl: 2400,
@@ -157,21 +127,15 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
     case 'BatteryEvent': {
       const d = data as { batteryHeadset: number; batteryDock: number }
 
-      // Low battery threshold crossing (only fires on the way down)
       if (cfg.batteryLow.enabled && _prevBatteryHeadset !== null) {
         const threshold = cfg.batteryLow.threshold
         if (d.batteryHeadset < threshold && _prevBatteryHeadset >= threshold) {
           if (cfg.batteryLow.shape === 'ring') {
-            push({
-              kind: 'ring', key: 'battery-low',
-              icon: icon(IconBatteryLow),
-              value: d.batteryHeadset,
-              ttl: 4000,
-            })
+            push({ kind: 'ring', key: 'battery-low', iconId: 'battery-low', value: d.batteryHeadset, ttl: 4000 })
           } else {
             push({
               kind: 'rect', key: 'battery-low',
-              icon: icon(IconBatteryLow),
+              iconId: 'battery-low',
               title: 'Low battery',
               subtitle: `Headset at ${d.batteryHeadset}%`,
               tail: `${d.batteryHeadset}%`,
@@ -181,15 +145,14 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
         }
       }
 
-      // Charging detection — battery increasing by ≥2 between events
       if (cfg.batteryCharging.enabled && _prevBatteryHeadset !== null) {
         if (d.batteryHeadset >= _prevBatteryHeadset + 2) {
           if (cfg.batteryCharging.shape === 'circle') {
-            push({ kind: 'circle', key: 'battery-charging', icon: icon(IconBatteryCharging), ttl: 2400 })
+            push({ kind: 'circle', key: 'battery-charging', iconId: 'battery-charging', ttl: 2400 })
           } else {
             push({
               kind: 'rect', key: 'battery-charging',
-              icon: icon(IconBatteryCharging),
+              iconId: 'battery-charging',
               title: 'Charging',
               subtitle: `Headset at ${d.batteryHeadset}%`,
               ttl: 2400,
@@ -199,21 +162,16 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       }
       _prevBatteryHeadset = d.batteryHeadset
 
-      // Dock inserted / removed (batteryDock 0 ↔ > 0)
       if (cfg.batteryDock.enabled && _prevBatteryDock !== null) {
         const wasInDock = _prevBatteryDock > 0
         const isInDock = d.batteryDock > 0
         if (isInDock !== wasInDock) {
           if (cfg.batteryDock.shape === 'circle') {
-            push({
-              kind: 'circle', key: 'battery-dock',
-              icon: icon(isInDock ? IconBattery : IconBatteryLow),
-              ttl: 2400,
-            })
+            push({ kind: 'circle', key: 'battery-dock', iconId: isInDock ? 'battery' : 'battery-low', ttl: 2400 })
           } else {
             push({
               kind: 'rect', key: 'battery-dock',
-              icon: icon(IconBattery),
+              iconId: 'battery',
               title: isInDock ? 'Dock inserted' : 'Dock removed',
               subtitle: isInDock ? `Dock at ${d.batteryDock}%` : undefined,
               ttl: 2400,
@@ -230,15 +188,11 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       if (!cfg.micMute.enabled) break
       const d = data as { micMuted: boolean }
       if (cfg.micMute.shape === 'circle') {
-        push({
-          kind: 'circle', key: 'mic-mute',
-          icon: icon(d.micMuted ? IconMicOff : IconMic),
-          ttl: 1800,
-        })
+        push({ kind: 'circle', key: 'mic-mute', iconId: d.micMuted ? 'mic-off' : 'mic', ttl: 1800 })
       } else {
         push({
           kind: 'rect', key: 'mic-mute',
-          icon: icon(d.micMuted ? IconMicOff : IconMic),
+          iconId: d.micMuted ? 'mic-off' : 'mic',
           title: d.micMuted ? 'Mic muted' : 'Mic active',
           subtitle: d.micMuted ? 'Microphone is muted' : 'Microphone is live',
           ttl: 1800,
@@ -253,11 +207,10 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       const d = data as { ancMode: ArctisState['ancMode'] }
       const mode = d.ancMode
 
-      // Skip if mode hasn't actually changed (e.g. on initial sync)
       if (mode === _prevAncMode) break
       _prevAncMode = mode
 
-      const ancIcon = mode === 'TRANSPARENCY' ? IconTransparency : IconAnc
+      const ancIconId = mode === 'TRANSPARENCY' ? 'transparency' : 'anc'
       const ancTitle =
         mode === 'TRANSPARENCY' ? 'Transparency mode' :
         mode === 'ANC'          ? 'Noise cancellation' :
@@ -268,15 +221,9 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
                                   'Passive listening'
 
       if (cfg.ancMode.shape === 'circle') {
-        push({ kind: 'circle', key: 'anc-mode', icon: icon(ancIcon), ttl: 2400 })
+        push({ kind: 'circle', key: 'anc-mode', iconId: ancIconId, ttl: 2400 })
       } else {
-        push({
-          kind: 'rect', key: 'anc-mode',
-          icon: icon(ancIcon),
-          title: ancTitle,
-          subtitle: ancSub,
-          ttl: 2400,
-        })
+        push({ kind: 'rect', key: 'anc-mode', iconId: ancIconId, title: ancTitle, subtitle: ancSub, ttl: 2400 })
       }
       break
     }
@@ -286,20 +233,9 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       if (!cfg.volume.enabled) break
       const d = data as { volume: number }
       if (cfg.volume.shape === 'volume') {
-        push({
-          kind: 'volume', key: 'headset-volume',
-          icon: icon(IconVolume),
-          label: 'Headset volume',
-          value: d.volume,
-          ttl: 1800,
-        })
+        push({ kind: 'volume', key: 'headset-volume', iconId: 'volume', label: 'Headset volume', value: d.volume, ttl: 1800 })
       } else {
-        push({
-          kind: 'ring', key: 'headset-volume',
-          icon: icon(IconVolume),
-          value: d.volume,
-          ttl: 1800,
-        })
+        push({ kind: 'ring', key: 'headset-volume', iconId: 'volume', value: d.volume, ttl: 1800 })
       }
       break
     }
@@ -308,23 +244,11 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
     case 'ChatMixEvent': {
       if (!cfg.chatmix.enabled) break
       const d = data as { chatmixGame: number; chatmixChat: number }
-      // Represent chatmix as game-side percentage (0 = all chat, 100 = all game)
       const gameBalance = d.chatmixGame
       if (cfg.chatmix.shape === 'volume') {
-        push({
-          kind: 'volume', key: 'chatmix',
-          icon: icon(IconChatMix),
-          label: 'ChatMix · Game',
-          value: gameBalance,
-          ttl: 1800,
-        })
+        push({ kind: 'volume', key: 'chatmix', iconId: 'chatmix', label: 'ChatMix · Game', value: gameBalance, ttl: 1800 })
       } else {
-        push({
-          kind: 'ring', key: 'chatmix',
-          icon: icon(IconChatMix),
-          value: gameBalance,
-          ttl: 1800,
-        })
+        push({ kind: 'ring', key: 'chatmix', iconId: 'chatmix', value: gameBalance, ttl: 1800 })
       }
       break
     }
@@ -339,15 +263,9 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
         d.sidetone === 'MEDIUM' ? 'Medium' :
                                   'High'
       if (cfg.sidetone.shape === 'circle') {
-        push({ kind: 'circle', key: 'sidetone', icon: icon(IconSidetone), ttl: 2400 })
+        push({ kind: 'circle', key: 'sidetone', iconId: 'sidetone', ttl: 2400 })
       } else {
-        push({
-          kind: 'rect', key: 'sidetone',
-          icon: icon(IconSidetone),
-          title: 'Sidetone',
-          subtitle: levelLabel,
-          ttl: 2400,
-        })
+        push({ kind: 'rect', key: 'sidetone', iconId: 'sidetone', title: 'Sidetone', subtitle: levelLabel, ttl: 2400 })
       }
       break
     }

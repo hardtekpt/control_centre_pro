@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import './styles/globals.css'
 import { useAppStore } from './stores/appStore'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'

@@ -2,6 +2,7 @@ import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
+  SerializedNotification,
 } from '../../../shared/types'
 
 /**
@@ -87,6 +88,12 @@ declare global {
     onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void) => () => void
     ddcGetPollInterval: () => Promise<number>
     ddcSetPollInterval: (seconds: number) => Promise<void>
+
+    // Notification overlay
+    notifPush: (spec: SerializedNotification) => Promise<void>
+    onNotifReceive: (callback: (spec: SerializedNotification) => void) => () => void
+    notifSetIgnoreMouse: (ignore: boolean) => Promise<void>
+    notifAllDismissed: () => Promise<void>
     }
   }
 }

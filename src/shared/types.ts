@@ -75,10 +75,42 @@ export const IPC_CHANNELS = {
   DDC_UPDATE: 'ddc:update',                  // main → renderer push
   DDC_GET_POLL_INTERVAL: 'ddc:getPollInterval', // renderer → main invoke
   DDC_SET_POLL_INTERVAL: 'ddc:setPollInterval', // renderer → main invoke
+
+  // Notification overlay
+  NOTIF_PUSH:             'notif:push',           // main renderer → main invoke (show notification)
+  NOTIF_RECEIVE:          'notif:receive',         // main → overlay push (forwarded spec)
+  NOTIF_SET_IGNORE_MOUSE: 'notif:setIgnoreMouse',  // overlay → main invoke (passthrough toggle)
+  NOTIF_ALL_DISMISSED:    'notif:allDismissed',    // overlay → main invoke (hide overlay window)
 } as const
 
 /** Union of all valid IPC channel strings */
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
+
+// ─── Serialized Notifications ─────────────────────────────────────────────────
+
+/**
+ * IPC-safe notification spec — icon is a string ID instead of a ReactNode.
+ * Produced by notifyFromEvent.ts in the main renderer, consumed by the overlay renderer.
+ */
+export interface SerializedNotification {
+  kind: 'rect' | 'volume' | 'circle' | 'ring' | 'glyph'
+  key?: string
+  iconId?: string   // maps to an icon component in the overlay's ICON_MAP
+  ttl?: number
+  // rect-specific
+  title?: string
+  subtitle?: string
+  tail?: string
+  wide?: boolean
+  // volume / ring-specific
+  value?: number
+  label?: string
+  // circle-specific
+  dot?: boolean
+  // glyph-specific
+  glyph?: string
+  sub?: string
+}
 
 // ─── Notification Settings ────────────────────────────────────────────────────
 

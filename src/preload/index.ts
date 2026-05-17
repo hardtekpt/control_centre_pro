@@ -4,6 +4,7 @@ import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
+  SerializedNotification,
 } from '../shared/types'
 
 /**
@@ -221,6 +222,24 @@ const api = {
 
   ddcSetPollInterval: (seconds: number): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_POLL_INTERVAL, seconds),
+
+  // ── Notification overlay ─────────────────────────────────────────────────
+
+  notifPush: (spec: SerializedNotification): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.NOTIF_PUSH, spec),
+
+  onNotifReceive: (callback: (spec: SerializedNotification) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, spec: SerializedNotification): void =>
+      callback(spec)
+    ipcRenderer.on(IPC_CHANNELS.NOTIF_RECEIVE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.NOTIF_RECEIVE, handler)
+  },
+
+  notifSetIgnoreMouse: (ignore: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.NOTIF_SET_IGNORE_MOUSE, ignore),
+
+  notifAllDismissed: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.NOTIF_ALL_DISMISSED),
 }
 
 contextBridge.exposeInMainWorld('api', api)
