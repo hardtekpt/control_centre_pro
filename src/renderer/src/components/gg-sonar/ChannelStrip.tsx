@@ -67,6 +67,7 @@ function VerticalFaderComponent({
     }
     function onUp(): void {
       dragging.current = false
+      const finalValue = dragValueRef.current
       dragValueRef.current = null
       setDragValue(null)
       useSonarStore.getState().endDrag()
@@ -74,7 +75,7 @@ function VerticalFaderComponent({
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
       }
-      if (dragValueRef.current !== null) onChange(dragValueRef.current)
+      if (finalValue !== null) onChange(finalValue)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
