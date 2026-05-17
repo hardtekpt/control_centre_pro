@@ -458,17 +458,11 @@ export class DdcService {
     return this.devicePaths.get(monitorId) ?? null
   }
 
-  async setPrimaryMonitor(monitorId: number, nircmdPath: string): Promise<void> {
-    const gdiName = this.gdiDeviceNames.get(monitorId)
-    if (!gdiName) {
-      throw new Error(`No GDI device name cached for monitor ${monitorId} — refresh first`)
-    }
-
-    // Use nircmd to set primary display
+  async setPrimaryMonitor(monitorId: number, multiMonitorToolPath: string): Promise<void> {
     try {
-      this.log('info', `Attempting to set primary monitor to ${monitorId} using: ${nircmdPath} setprimarydisplay ${gdiName}`)
+      this.log('info', `Setting primary monitor to ${monitorId} via MultiMonitorTool /SetPrimary ${monitorId}`)
 
-      const result = spawnSync(nircmdPath, ['setprimarydisplay', gdiName], {
+      const result = spawnSync(multiMonitorToolPath, ['/SetPrimary', String(monitorId)], {
         timeout: 5000,
       })
 
@@ -477,10 +471,10 @@ export class DdcService {
       }
 
       if (result.status !== 0) {
-        throw new Error(`nircmd exited with status ${result.status}`)
+        throw new Error(`MultiMonitorTool exited with status ${result.status}`)
       }
 
-      this.log('info', `Set primary monitor to ${monitorId} (${gdiName})`)
+      this.log('info', `Set primary monitor to ${monitorId}`)
 
       // Re-query to update is_primary flags on all monitors
       await this.refreshMonitors()

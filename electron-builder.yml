@@ -10,6 +10,6 @@ win:
 asarUnpack:
   - "**/node_modules/naudiodon2/**"
 extraResources:
-  - from: "resources/nircmd"
-    to: "nircmd"
+  - from: "resources/MultiMonitorTool.exe"
+    to: "MultiMonitorTool.exe"
 buildDependenciesFromSource: false

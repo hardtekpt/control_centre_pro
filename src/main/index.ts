@@ -17,10 +17,10 @@ let sonarService: SonarService
 let ddcService: DdcService
 let activeWindowMonitor: ActiveWindowMonitor | null = null
 
-// Resolve nircmd.exe path for primary display switching
-const nircmdExePath = app.isPackaged
-  ? join(process.resourcesPath, 'nircmd', 'nircmd.exe')
-  : join(__dirname, '../../resources/nircmd/nircmd.exe')
+// Resolve MultiMonitorTool.exe path for primary display switching
+const multiMonitorToolPath = app.isPackaged
+  ? join(process.resourcesPath, 'MultiMonitorTool.exe')
+  : join(__dirname, '../../resources/MultiMonitorTool.exe')
 
 // ─── DDC Service State ────────────────────────────────────────────────────────
 let ddcCache: DdcMonitor[] = []
@@ -479,7 +479,7 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.DDC_SET_PRIMARY_MONITOR, async (_, monitorId: number) => {
-    await ddcService.setPrimaryMonitor(monitorId, nircmdExePath)
+    await ddcService.setPrimaryMonitor(monitorId, multiMonitorToolPath)
     await refreshDdcMonitors()
     broadcastDdcMonitors()
   })
