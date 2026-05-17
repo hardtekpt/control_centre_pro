@@ -38,6 +38,7 @@ export class SonarService {
   private window: BrowserWindow | null = null
   private fastTimer: ReturnType<typeof setInterval> | null = null
   private slowTimer: ReturnType<typeof setInterval> | null = null
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null
   private discovering = false
   private lastAvailable = false
   private pendingMode: SonarMode | null = null
@@ -111,6 +112,7 @@ export class SonarService {
   stop(): void {
     if (this.fastTimer !== null) { clearInterval(this.fastTimer); this.fastTimer = null }
     if (this.slowTimer !== null) { clearInterval(this.slowTimer); this.slowTimer = null }
+    if (this.refreshTimer !== null) { clearTimeout(this.refreshTimer); this.refreshTimer = null }
   }
 
   // ── Write commands ──────────────────────────────────────────────────────────
@@ -121,6 +123,7 @@ export class SonarService {
     await this.httpPut(`${this.baseUrl}/volumeSettings/classic/${channel}/Volume/${clamped}`)
     this.applyClassicPatch(channel, { volume: clamped })
     this.push()
+    this.scheduleRefresh()
   }
 
   async setMute(channel: SonarChannel, muted: boolean): Promise<void> {
@@ -128,6 +131,7 @@ export class SonarService {
     await this.httpPut(`${this.baseUrl}/volumeSettings/classic/${channel}/Mute/${muted}`)
     this.applyClassicPatch(channel, { muted })
     this.push()
+    this.scheduleRefresh()
   }
 
   async selectPreset(id: string): Promise<void> {
@@ -145,6 +149,7 @@ export class SonarService {
       // non-fatal — list will refresh on next slow poll
     }
     this.push()
+    this.scheduleRefresh()
   }
 
   async setMode(mode: SonarMode): Promise<void> {
@@ -159,6 +164,7 @@ export class SonarService {
       this.pendingModeExpiry = Date.now() + 4000
       this.state = { ...this.state, mode }
       this.push()
+      this.scheduleRefresh()
     } catch {
       // endpoint may not exist — ignore
     }
@@ -180,6 +186,7 @@ export class SonarService {
       }
     }
     this.push()
+    this.scheduleRefresh()
   }
 
   async refreshDevices(): Promise<void> {
@@ -210,6 +217,7 @@ export class SonarService {
       }
     }
     this.push()
+    this.scheduleRefresh()
   }
 
   // ── Polling ─────────────────────────────────────────────────────────────────
@@ -450,6 +458,18 @@ export class SonarService {
     } finally {
       this.discovering = false
     }
+  }
+
+  // ── Post-write refresh ──────────────────────────────────────────────────────
+
+  // Coalescing 100 ms refresh — multiple rapid writes collapse into one poll pair.
+  private scheduleRefresh(delayMs = 100): void {
+    if (this.refreshTimer !== null) clearTimeout(this.refreshTimer)
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null
+      this.pollFast().catch(() => {})
+      this.pollSlow().catch(() => {})
+    }, delayMs)
   }
 
   // ── State helpers ───────────────────────────────────────────────────────────
