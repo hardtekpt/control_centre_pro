@@ -102,6 +102,17 @@ Sonar uses different channel key strings depending on the endpoint context:
 
 > **All PUT endpoints use path parameters only — no JSON body.**
 
+## Config/Preset Limitations
+
+⚠️ **Preset creation, editing, and deletion are NOT supported via the Sonar HTTP API.** The API only allows:
+- Reading the full config catalog (`GET /configs`)
+- Reading currently selected configs per channel (`GET /configs/selected`)
+- **Selecting** an existing config (`PUT /configs/{configId}/select`)
+
+To create or modify presets, users must do so through the **SteelSeries GG application directly**. The HTTP API is read-only for preset content; only the active preset selection can be changed programmatically.
+
+Confirmed by: [SteelSeries-NET-API repository](https://github.com/DataNext27/SteelSeries-NET-API) (see ConfigurationManager.cs — only GET and PUT /select are implemented; no POST/DELETE or PUT for editing config data)
+
 ## Data Carried By Working Endpoints
 
 ### 1. `/mode`
