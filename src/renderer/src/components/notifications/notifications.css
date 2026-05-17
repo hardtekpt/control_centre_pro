@@ -22,8 +22,6 @@
   background: var(--notif-bg);
   border: 1px solid var(--notif-border);
   box-shadow: var(--notif-shadow);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   will-change: transform, opacity;
 }
 
