@@ -219,26 +219,17 @@ export function DDCSettings(): JSX.Element {
       </div>
 
       <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
-          Sync Brightness
-        </h2>
-        <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-          When enabled, adjusting brightness on one monitor will sync to all connected monitors.
-        </p>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={draftSyncBrightness}
-            onChange={(e) => setDraftSyncBrightness(e.currentTarget.checked)}
-            className="w-4 h-4 rounded accent-current"
-            style={{
-              accentColor: 'var(--color-accent)',
-            }}
-          />
-          <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-            Sync brightness across all monitors
-          </span>
-        </label>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+              Sync Brightness
+            </h2>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              When enabled, adjusting brightness on one monitor will sync to all connected monitors.
+            </p>
+          </div>
+          <Toggle checked={draftSyncBrightness} onChange={() => setDraftSyncBrightness(!draftSyncBrightness)} />
+        </div>
       </div>
 
       <div className="mb-8">
@@ -267,5 +258,46 @@ export function DDCSettings(): JSX.Element {
         </p>
       </div>
     </div>
+  )
+}
+
+// ─── Toggle switch ────────────────────────────────────────────────────────────
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: () => void
+}): JSX.Element {
+  return (
+    <button
+      onClick={onChange}
+      style={{
+        width: 36,
+        height: 20,
+        borderRadius: 10,
+        background: checked ? 'var(--color-accent)' : 'var(--color-border)',
+        border: 'none',
+        cursor: 'pointer',
+        position: 'relative',
+        transition: 'background 150ms',
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: checked ? 18 : 2,
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          background: '#ffffff',
+          transition: 'left 150ms',
+          display: 'block',
+        }}
+      />
+    </button>
   )
 }
