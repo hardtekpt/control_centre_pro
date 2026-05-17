@@ -35,6 +35,14 @@ function MonitorIcon(): JSX.Element {
   )
 }
 
+function SetPrimaryIcon(): JSX.Element {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  )
+}
+
 export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
@@ -99,7 +107,7 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
             onClick={(): void => {
               window.api.ddcSetPrimaryMonitor(monitor.monitor_id).catch(console.error)
             }}
-            className="text-xs px-2 py-1 rounded mono"
+            className="p-1 rounded-md"
             title="Set as primary display"
             style={{
               background: 'transparent',
@@ -107,6 +115,9 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
               border: '1px solid var(--color-border)',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
             onMouseEnter={(e): void => {
               e.currentTarget.style.color = 'var(--color-text-primary)'
@@ -117,7 +128,7 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
               e.currentTarget.style.background = 'transparent'
             }}
           >
-            Set Primary
+            <SetPrimaryIcon />
           </button>
         )}
       </div>

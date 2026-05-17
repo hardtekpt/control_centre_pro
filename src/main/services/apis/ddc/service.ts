@@ -284,6 +284,9 @@ export class DdcService {
       return []
     }
 
+    // Sort devicePaths to ensure stable monitor IDs across refreshes
+    devicePaths.sort()
+
     const primaryRaw = queryPrimaryDevicePath()
     const primaryNorm = primaryRaw ? normPath(primaryRaw) : null
     const gdiMap = queryDeviceMap()

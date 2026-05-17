@@ -9,27 +9,26 @@
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "rebuild": "electron-rebuild -f -w naudiodon2"
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
-    "@hensm/ddcci": "*",
     "electron-updater": "^6.1.7",
     "fft.js": "*",
     "naudiodon2": "*"
   },
+  "optionalDependencies": {
+    "@hensm/ddcci": "*"
+  },
   "build": {
-    "files": ["dist", "resources"],
-    "win": {
-      "icon": "resources/mission-control-terracotta-1024.png"
-    },
-    "asarUnpack": ["**/node_modules/@hensm/ddcci/**", "**/node_modules/naudiodon2/**"],
+    "files": ["out", "resources"],
+    "asarUnpack": ["**/node_modules/naudiodon2/**"],
     "extraResources": [
       { "from": "resources/nircmd", "to": "nircmd" }
-    ]
+    ],
+    "buildDependenciesFromSource": false
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.5.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

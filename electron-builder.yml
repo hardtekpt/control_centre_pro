@@ -1,26 +1,15 @@
-appId: com.missioncontrol.app
-productName: Mission Control
-copyright: Copyright © 2026
-
+appId: "com.control-centre-pro"
+productName: "Control Centre Pro"
 directories:
-  buildResources: build
-  output: dist
-
+  buildResources: resources
 files:
-  - out/**/*
-  - node_modules/**/*
-  - package.json
-  - '!node_modules/.cache'
-  - '!**/*.map'
-
+  - out
+  - resources
 win:
-  executableName: MissionControl
-  target:
-    - target: nsis
-      arch:
-        - x64
-        - arm64
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  icon: "resources/mission-control-terracotta-1024.png"
+asarUnpack:
+  - "**/node_modules/naudiodon2/**"
+extraResources:
+  - from: "resources/nircmd"
+    to: "nircmd"
+buildDependenciesFromSource: false

@@ -63,7 +63,11 @@
       "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-step.ps1\")",
       "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-size.ps1\")",
       "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-wmi.ps1\")",
-      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-reg.ps1\")"
+      "Bash(powershell -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Local\\\\Temp\\\\ddc-reg.ps1\")",
+      "Bash(Test-Path \"c:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\\\\resources\\\\nircmd\" -PathType Container)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\\\\resources\\\\nircmd\" -Force)",
+      "PowerShell(Remove-Item -Recurse -Force \"$env:LOCALAPPDATA\\\\electron-builder\\\\Cache\" -ErrorAction SilentlyContinue; Write-Host \"Cleared electron-builder cache\")",
+      "PowerShell(npm run build 2>&1)"
     ]
   }
 }
