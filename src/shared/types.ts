@@ -52,6 +52,7 @@ export const IPC_CHANNELS = {
   SONAR_SET_POLLING_CONFIG: 'sonar:setPollingConfig', // renderer → main invoke
   SONAR_SET_REDIRECTION: 'sonar:setRedirection', // renderer → main invoke (channel, deviceId)
   SONAR_ROUTE_PROCESS: 'sonar:routeProcess',     // renderer → main invoke (sessionId, targetDeviceId)
+  SONAR_REFRESH_DEVICES: 'sonar:refreshDevices', // renderer → main invoke (on-demand device refresh)
 
   // Preset Switcher — auto-switch presets by active app
   ACTIVE_WINDOW_CHANGE: 'activeWindow:change',          // main → renderer push

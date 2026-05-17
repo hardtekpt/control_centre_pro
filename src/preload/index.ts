@@ -142,6 +142,9 @@ const api = {
   sonarRouteProcess: (sessionId: string, targetDeviceId: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_ROUTE_PROCESS, sessionId, targetDeviceId),
 
+  sonarRefreshDevices: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_REFRESH_DEVICES),
+
   onSonarStateChange: (callback: (state: SonarState) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: SonarState): void => callback(state)
     ipcRenderer.on(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)

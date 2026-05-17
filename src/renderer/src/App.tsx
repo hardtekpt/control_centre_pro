@@ -230,6 +230,13 @@ export default function App(): JSX.Element {
     }
   }, [currentView])
 
+  // Refresh Sonar device routing when navigating to GG Sonar page
+  useEffect(() => {
+    if (currentView === 'gg-sonar') {
+      window.api.sonarRefreshDevices().catch(console.error)
+    }
+  }, [currentView])
+
   // Refresh DDC monitors when navigating to DDC settings
   useEffect(() => {
     if (currentView === 'settings' && currentSettingsTab === 'ddc') {

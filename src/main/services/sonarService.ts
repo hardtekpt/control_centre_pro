@@ -170,6 +170,12 @@ export class SonarService {
     this.push()
   }
 
+  async refreshDevices(): Promise<void> {
+    if (!this.baseUrl) return
+    await this.fetchDevices()
+    this.push()
+  }
+
   async routeProcess(sessionId: string, targetDeviceId: string): Promise<void> {
     if (!this.baseUrl) return
     await this.httpPutJson(
@@ -355,9 +361,10 @@ export class SonarService {
         return this.state.audioDevices
       }
       const parsed = (data as Record<string, unknown>[])
+        .filter((d) => !d.isVad)
         .map((d) => ({
           id: String(d.id ?? d.deviceId ?? ''),
-          name: String(d.name ?? d.friendlyName ?? d.deviceName ?? 'Unknown'),
+          name: String(d.friendlyName ?? d.name ?? d.deviceName ?? 'Unknown'),
         }))
         .filter((d) => d.id.length > 0)
       if (parsed.length === 0 && (data as unknown[]).length > 0) {
@@ -370,6 +377,12 @@ export class SonarService {
     }
   }
 
+  // Maps API channel names to internal SonarDeviceChannel names
+  private readonly CHANNEL_NAME_MAP: Record<string, string> = {
+    chat: 'chatRender',
+    mic: 'chatCapture',
+  }
+
   // Returns channel → raw id string; cross-referencing with audioDevices happens in fetchDevices.
   private parseRawRedirections(raw: string): Record<string, string> {
     try {
@@ -377,21 +390,23 @@ export class SonarService {
       const result: Record<string, string> = {}
 
       if (Array.isArray(data)) {
-        // Shape: [{ role: "game", deviceId: "..." }, ...]
+        // Shape: [{ id: "game", deviceId: "..." }, ...]  (id = channel name)
         for (const entry of data as Record<string, unknown>[]) {
-          const role = String(entry.role ?? entry.channel ?? '')
-          const rawId = String(entry.deviceId ?? entry.id ?? '')
-          if (role && rawId) result[role] = rawId
+          const apiChannel = String(entry.id ?? entry.role ?? entry.channel ?? '')
+          const channel = this.CHANNEL_NAME_MAP[apiChannel] ?? apiChannel
+          const rawId = String(entry.deviceId ?? '')
+          if (channel && rawId) result[channel] = rawId
         }
       } else if (data && typeof data === 'object') {
         // Shape: { game: "...", ... }  or { game: { deviceId|id: "..." }, ... }
-        for (const [role, val] of Object.entries(data as Record<string, unknown>)) {
+        for (const [apiChannel, val] of Object.entries(data as Record<string, unknown>)) {
+          const channel = this.CHANNEL_NAME_MAP[apiChannel] ?? apiChannel
           if (typeof val === 'string') {
-            result[role] = val
+            result[channel] = val
           } else if (val && typeof val === 'object') {
             const v = val as Record<string, unknown>
             const rawId = String(v.deviceId ?? v.id ?? '')
-            if (rawId) result[role] = rawId
+            if (rawId) result[channel] = rawId
           }
         }
       } else {

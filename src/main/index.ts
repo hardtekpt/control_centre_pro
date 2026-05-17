@@ -341,6 +341,10 @@ function registerIpcHandlers(): void {
     sonarService.routeProcess(sessionId, targetDeviceId)
   )
 
+  ipcMain.handle(IPC_CHANNELS.SONAR_REFRESH_DEVICES, () =>
+    sonarService.refreshDevices()
+  )
+
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, (_, url: string) =>
     shell.openExternal(url)
   )

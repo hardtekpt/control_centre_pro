@@ -59,6 +59,7 @@ declare global {
     sonarSetPollingConfig: (config: SonarPollingConfig) => Promise<void>
     sonarSetRedirection: (channel: SonarDeviceChannel, deviceId: string) => Promise<void>
     sonarRouteProcess: (sessionId: string, targetDeviceId: string) => Promise<void>
+    sonarRefreshDevices: () => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
 
     // Preset Switcher
