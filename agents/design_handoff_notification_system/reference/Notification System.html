@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Mission Control — Notification System</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ── Mission Control design tokens ─────────────────────────────────── */
+  /* Mirrors src/renderer/src/styles/globals.css from the repo: pure
+     neutral grays, no warm/cool tint, accent is gray. */
+  :root, [data-theme="light"] {
+    --color-bg:             #F5F5F5;
+    --color-surface:        #EBEBEB;
+    --color-surface-raised: #E3E3E3;
+    --color-text-primary:   #141414;
+    --color-text-secondary: #8C8C8C;
+    --color-accent:         #525252;
+    --color-border:         #D8D8D8;
+    --color-border-strong:  #C8C8C8;
+    --color-code-bg:        #E5E5E5;
+    /* Notification specific — slightly punchier surface so it lifts off
+       the app's own surface step without needing a heavy shadow. */
+    --notif-bg:             rgba(245,245,245,0.86);
+    --notif-border:         rgba(20,20,20,0.10);
+    --notif-shadow:         0 8px 28px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.6) inset;
+  }
+  [data-theme="dark"] {
+    --color-bg:             #1C1C1C;
+    --color-surface:        #252525;
+    --color-surface-raised: #2C2C2C;
+    --color-text-primary:   #EBEBEB;
+    --color-text-secondary: #888888;
+    --color-accent:         #B0B0B0;
+    --color-border:         #353535;
+    --color-border-strong:  #454545;
+    --color-code-bg:        #252525;
+    --notif-bg:             rgba(40,40,40,0.86);
+    --notif-border:         rgba(255,255,255,0.08);
+    --notif-shadow:         0 10px 32px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset;
+  }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #0d0d0d;
+    color: #ebebeb;
+    font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace; }
+
+  /* ── Page chrome ───────────────────────────────────────────────────── */
+  /* The whole page sits on a dark "desk" so we can show both light and
+     dark theme cards side by side as if they were two app windows. */
+  .page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 56px 40px 96px;
+  }
+  .page-h {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 24px; margin-bottom: 8px;
+  }
+  .page-h h1 {
+    margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em;
+    color: #ebebeb;
+  }
+  .page-h .meta {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #6e6e6e;
+  }
+  .page-sub {
+    color: #8a8a8a; font-size: 13px; max-width: 720px; margin: 0 0 40px;
+    line-height: 1.55;
+  }
+
+  .section-h {
+    display: flex; align-items: baseline; gap: 14px;
+    margin: 48px 0 16px;
+  }
+  .section-h h2 {
+    margin: 0; font-size: 13px; font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: #b8b8b8;
+  }
+  .section-h .rule {
+    flex: 1; height: 1px; background: #2a2a2a;
+  }
+
+  /* ── App window frame ──────────────────────────────────────────────── */
+  /* A simplified Mission Control window — title bar, collapsed sidebar
+     toggle, content area. Just enough chrome to anchor the notifications
+     in context; not a full faithful clone. */
+  .app-window {
+    width: 100%;
+    height: 560px;
+    background: var(--color-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .app-titlebar {
+    height: 36px; flex-shrink: 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex; align-items: center;
+    padding: 0 14px;
+    gap: 12px;
+    font-size: 12px; color: var(--color-text-secondary);
+  }
+  .app-titlebar .traffic {
+    display: flex; gap: 6px;
+  }
+  .app-titlebar .traffic span {
+    width: 12px; height: 12px; border-radius: 999px;
+    background: var(--color-border-strong);
+  }
+  .app-titlebar .title {
+    font-weight: 500; color: var(--color-text-primary);
+  }
+  .app-titlebar .spacer { flex: 1; }
+  .app-titlebar .winctl {
+    display: flex; gap: 14px; font-size: 14px; color: var(--color-text-secondary);
+  }
+
+  .app-body {
+    flex: 1; display: flex; min-height: 0;
+  }
+  .app-sidebar {
+    width: 200px; flex-shrink: 0;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: 16px 10px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--color-text-secondary);
+    cursor: default;
+  }
+  .nav-item.active {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+  }
+  .nav-item .dot {
+    width: 6px; height: 6px; border-radius: 999px;
+    background: currentColor; opacity: 0.6;
+  }
+  .app-sidebar .settings-chip {
+    margin-top: auto;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    font-size: 13px; color: var(--color-text-primary);
+  }
+  .app-sidebar .settings-chip .badge {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--color-border);
+    display: grid; place-items: center;
+    color: var(--color-text-secondary);
+  }
+  .app-sidebar .settings-chip .spacer { flex: 1; }
+
+  .app-content {
+    flex: 1; padding: 24px 28px; min-width: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-content h3 {
+    margin: 0 0 4px; font-size: 18px; font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .app-content .crumb {
+    font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: 18px;
+  }
+
+  /* HeadsetCard mock — minimal facsimile of the real one. */
+  .headset-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 6px 24px;
+    max-width: 520px;
+  }
+  .headset-card .hc-name {
+    font-size: 14px; font-weight: 600;
+  }
+  .headset-card .hc-status {
+    font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+  .headset-card .hc-stats {
+    grid-column: 1 / -1;
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .headset-card .hc-stat .k {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--color-text-secondary); margin-bottom: 4px;
+  }
+  .headset-card .hc-stat .v {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 16px; color: var(--color-text-primary);
+  }
+  .headset-card .hc-stat .v small {
+    font-size: 11px; color: var(--color-text-secondary); margin-left: 2px;
+  }
+
+  /* ── Notification stack ──────────────────────────────────────────── */
+  .notif-stack {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column-reverse; align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .notif-stack > * { pointer-events: auto; }
+
+  .notif {
+    /* Acrylic-ish base — neutral surface, blurred bg, faint border. */
+    background: var(--notif-bg);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--notif-border);
+    color: var(--color-text-primary);
+    box-shadow: var(--notif-shadow);
+    transition: transform .28s cubic-bezier(.2,.7,.3,1), opacity .28s ease;
+  }
+  .notif-rect {
+    border-radius: 14px;
+    padding: 12px 16px 12px 12px;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    min-width: 320px;
+    max-width: 440px;
+  }
+  .notif-rect.wide { min-width: 380px; }
+  .notif-rect .ic {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--color-surface-raised);
+    display: grid; place-items: center;
+    color: var(--color-text-primary);
+  }
+  .notif-rect .body { min-width: 0; }
+  .notif-rect .title {
+    font-size: 13px; font-weight: 600; line-height: 1.25;
+    color: var(--color-text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .notif-rect .sub {
+    font-size: 12px; line-height: 1.35; margin-top: 2px;
+    color: var(--color-text-secondary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .notif-rect .tail {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--color-text-secondary);
+    letter-spacing: 0.04em;
+    padding-left: 8px;
+  }
+  /* Volume slider variant — replaces sub with a track. */
+  .notif-rect.slider .body {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .notif-rect.slider .row1 {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px;
+  }
+  .notif-rect.slider .row1 .pct {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; color: var(--color-text-primary);
+    letter-spacing: 0.04em;
+  }
+  .track {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-border);
+    overflow: hidden;
+  }
+  .track .fill {
+    position: absolute; inset: 0 auto 0 0;
+    background: var(--color-accent);
+    border-radius: 999px;
+    transition: width .15s ease;
+  }
+
+  .notif-circ {
+    width: 56px; height: 56px;
+    border-radius: 999px;
+    display: grid; place-items: center;
+    color: var(--color-text-primary);
+    position: relative;
+  }
+  /* Tiny status dot in top-right of a circular notification. Uses the
+     accent gray; sits half-on / half-off the edge. */
+  .circ-dot {
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 10px; height: 10px;
+    border-radius: 999px;
+    background: var(--color-text-primary);
+    box-shadow: 0 0 0 2.5px var(--color-bg);
+  }
+  /* Progress ring overlay — sits inside the circle, icon centred above. */
+  .notif-circ.ring .ring-svg {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .notif-circ.ring .ring-content {
+    position: relative; z-index: 1;
+    display: grid; place-items: center;
+  }
+  /* Letter glyph variant — mono, optical centring. */
+  .notif-circ.glyph .glyph-main {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 22px; font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--color-text-primary);
+    line-height: 1;
+  }
+  .notif-circ.glyph .glyph-sub {
+    position: absolute;
+    bottom: 7px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px; letter-spacing: 0.1em;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+  }
+
+  /* Enter/exit animation — slide up + fade. */
+  .notif.enter {
+    opacity: 0; transform: translateY(14px) scale(0.96);
+  }
+  .notif.enter-active, .notif.shown {
+    opacity: 1; transform: translateY(0) scale(1);
+  }
+  .notif.exit {
+    opacity: 0; transform: translateY(8px) scale(0.96);
+  }
+
+  /* ── Trigger panel (right of the window) ───────────────────────── */
+  .demo-row {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 20px;
+  }
+  .triggers {
+    background: #161616;
+    border: 1px solid #252525;
+    border-radius: 12px;
+    padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 16px;
+    color: #d4d4d4;
+  }
+  .triggers h4 {
+    margin: 0; font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #8a8a8a; font-weight: 500;
+  }
+  .triggers .group {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .trig-btn {
+    appearance: none; border: 1px solid #2a2a2a; background: #1c1c1c;
+    color: #d4d4d4; font: inherit; font-size: 12px;
+    padding: 8px 12px; border-radius: 8px; text-align: left;
+    cursor: pointer; display: flex; align-items: center; gap: 10px;
+    transition: background .12s, border-color .12s;
+  }
+  .trig-btn:hover { background: #232323; border-color: #353535; }
+  .trig-btn .kbd {
+    margin-left: auto; font-family: "JetBrains Mono", monospace;
+    font-size: 10px; color: #707070;
+  }
+  .trig-btn .dot {
+    width: 18px; height: 18px; border-radius: 6px;
+    background: #2a2a2a; color: #c0c0c0;
+    display: grid; place-items: center; flex-shrink: 0;
+  }
+  .triggers .theme-toggle {
+    display: flex; gap: 6px; padding: 4px;
+    background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 8px;
+  }
+  .theme-toggle button {
+    flex: 1; appearance: none; border: 0; background: transparent;
+    color: #8a8a8a; font: inherit; font-size: 12px;
+    padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .theme-toggle button.active {
+    background: #2c2c2c; color: #ebebeb;
+  }
+
+  /* ── Variant catalog (spec sheet) ──────────────────────────────── */
+  .catalog {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .cat-card {
+    border-radius: 12px;
+    padding: 36px 24px 28px;
+    position: relative;
+    border: 1px solid;
+    overflow: hidden;
+  }
+  .cat-card[data-theme="light"] {
+    background:
+      repeating-linear-gradient(45deg, #ededed 0 1px, transparent 1px 12px),
+      var(--color-bg);
+    background-color: #f5f5f5;
+    border-color: #e0e0e0;
+  }
+  .cat-card[data-theme="dark"] {
+    background:
+      repeating-linear-gradient(45deg, #232323 0 1px, transparent 1px 12px),
+      #1c1c1c;
+    background-color: #1c1c1c;
+    border-color: #2a2a2a;
+  }
+  .cat-card .cat-label {
+    position: absolute; top: 12px; left: 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.08em;
+    color: var(--color-text-secondary);
+  }
+  .cat-grid {
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  }
+  .cat-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-top: 8px;
+    text-align: center;
+    opacity: 0.75;
+  }
+  .cat-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    justify-content: center;
+    padding: 4px 0;
+  }
+  .cat-row .notif { transition: none; }
+  .cat-grid > .notif-rect, .cat-grid > .notif {
+    align-self: center;
+  }
+
+  /* anatomy callout */
+  .anatomy {
+    margin-top: 28px;
+    background: #161616;
+    border: 1px solid #252525;
+    border-radius: 12px;
+    padding: 28px;
+    display: grid; grid-template-columns: auto 1fr; gap: 36px;
+    align-items: center;
+  }
+  .anatomy .stage {
+    background: #1c1c1c;
+    border-radius: 12px;
+    padding: 36px;
+    display: grid; place-items: center;
+    border: 1px dashed #303030;
+  }
+  .anatomy ul {
+    margin: 0; padding: 0; list-style: none;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px;
+    color: #c0c0c0; font-size: 13px;
+  }
+  .anatomy li {
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  .anatomy li .k {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: #8a8a8a;
+    min-width: 56px;
+  }
+  .anatomy li .v { color: #d4d4d4; }
+
+  /* tiny utility */
+  .mute { color: var(--color-text-secondary); }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="notif-icons.jsx"></script>
+<script type="text/babel" src="notif-components.jsx"></script>
+<script type="text/babel" src="notif-app.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>
