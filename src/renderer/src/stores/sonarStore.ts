@@ -13,61 +13,9 @@ let _postDragHoldTimer: ReturnType<typeof setTimeout> | null = null
 let _pendingPresetSelections: Record<string, number> = {}
 let _pendingRedirections: Record<string, number> = {}  // channel → expiry timestamp
 
-// Per-session pending routing moves. Replaces the old single-expiry approach so
-// that moving a session back immediately (before the backend confirms the first
-// move) does not cause it to vanish.
-let _pendingRoutingMoves = new Map<number, { toChannel: string; expiry: number }>()
-
-/**
- * Apply any in-flight routing moves on top of `base` routing.
- * `fallback` (the previous optimistic routing) supplies session objects and
- * route metadata (deviceId/dataFlow) that may be absent from the backend
- * response when the target channel has no other sessions.
- */
-function applyPendingMoves(
-  base: SonarDeviceRoute[],
-  moves: Map<number, { toChannel: string }>,
-  fallback: SonarDeviceRoute[],
-): SonarDeviceRoute[] {
-  // Work on a shallow clone so we don't mutate the base array
-  let result = base.map((r) => ({ ...r, audioSessions: [...r.audioSessions] }))
-
-  for (const [processId, { toChannel }] of moves) {
-    // Find the session — prefer the live backend data, fall back to previous optimistic state
-    let session: SonarAudioSession | undefined
-    for (const route of result) {
-      session = route.audioSessions.find((s) => s.processId === processId)
-      if (session) break
-    }
-    if (!session) {
-      for (const route of fallback) {
-        session = route.audioSessions.find((s) => s.processId === processId)
-        if (session) break
-      }
-    }
-    if (!session) continue
-
-    // Remove the session from wherever it currently sits
-    result = result.map((r) => ({
-      ...r,
-      audioSessions: r.audioSessions.filter((s) => s.processId !== processId),
-    }))
-
-    // Place the session in the target channel
-    const targetIdx = result.findIndex((r) => r.role === toChannel)
-    if (targetIdx >= 0) {
-      result[targetIdx] = { ...result[targetIdx], audioSessions: [...result[targetIdx].audioSessions, session] }
-    } else {
-      // Target channel entry was absent from backend (empty channel may be omitted).
-      // Reconstruct the route using metadata from the previous routing so the session
-      // remains visible without waiting for the next periodic poll.
-      const prevRoute = fallback.find((r) => r.role === toChannel)
-      if (prevRoute) result.push({ ...prevRoute, audioSessions: [session] })
-    }
-  }
-
-  return result
-}
+// Pending routing moves — session processId → target channel + expiry timestamp
+// Reapplied on top of API state until expiry, matching the playback device pattern
+let _pendingRoutingMoves: Record<number, { toChannel: string; expiry: number }> = {}
 
 interface SonarStoreState {
   sonarState: SonarState | null
@@ -132,16 +80,44 @@ export const useSonarStore = create<SonarStoreState>()(
             }
           }
 
-          // Merge routing: apply any still-pending session moves on top of backend data.
-          // Expired moves are cleared first; remaining moves are applied per-session so
-          // that a quick back-and-forth drag never loses a session from the visible routing.
-          for (const [pid, move] of _pendingRoutingMoves) {
-            if (now >= move.expiry) _pendingRoutingMoves.delete(pid)
+          // Merge routing: reapply any pending session moves on top of fresh API data.
+          // Clear expired moves; then reapply all remaining pending moves.
+          for (const pid in _pendingRoutingMoves) {
+            if (now >= _pendingRoutingMoves[pid].expiry) {
+              delete _pendingRoutingMoves[pid]
+            }
           }
-          const mergedRouting =
-            _pendingRoutingMoves.size > 0 && s.sonarState
-              ? applyPendingMoves(state.routing, _pendingRoutingMoves, s.sonarState.routing)
-              : state.routing
+          let mergedRouting = state.routing.map((r) => ({ ...r, audioSessions: [...r.audioSessions] }))
+          if (Object.keys(_pendingRoutingMoves).length > 0) {
+            for (const pidStr in _pendingRoutingMoves) {
+              const pid = Number(pidStr)
+              const { toChannel } = _pendingRoutingMoves[pid]
+              // Find the session in the merged routing
+              let session: SonarAudioSession | undefined
+              for (const route of mergedRouting) {
+                session = route.audioSessions.find((s) => s.processId === pid)
+                if (session) break
+              }
+              // Also check the API state as fallback
+              if (!session) {
+                for (const route of state.routing) {
+                  session = route.audioSessions.find((s) => s.processId === pid)
+                  if (session) break
+                }
+              }
+              if (!session) continue
+
+              // Remove session from all routes, then add to target
+              mergedRouting = mergedRouting.map((r) => ({
+                ...r,
+                audioSessions: r.audioSessions.filter((s) => s.processId !== pid),
+              }))
+              const targetRoute = mergedRouting.find((r) => r.role === toChannel)
+              if (targetRoute) {
+                targetRoute.audioSessions = [...targetRoute.audioSessions, session]
+              }
+            }
+          }
 
           return {
             sonarState: { ...state, redirections: mergedRedirections, routing: mergedRouting },
@@ -193,13 +169,32 @@ export const useSonarStore = create<SonarStoreState>()(
       },
 
       patchRouting: (processId, toChannel) => {
-        _pendingRoutingMoves.set(processId, { toChannel, expiry: Date.now() + 5000 })
+        _pendingRoutingMoves[processId] = { toChannel, expiry: Date.now() + 5000 }
         set((s) => {
           if (!s.sonarState) return s
+          // Find the session to move
+          let session: SonarAudioSession | undefined
+          for (const route of s.sonarState.routing) {
+            session = route.audioSessions.find((ss) => ss.processId === processId)
+            if (session) break
+          }
+          if (!session) return s
+          // Move the session: remove from all routes, add to target
+          let newRouting = s.sonarState.routing.map((r) => ({
+            ...r,
+            audioSessions: r.audioSessions.filter((ss) => ss.processId !== processId),
+          }))
+          const targetIdx = newRouting.findIndex((r) => r.role === toChannel)
+          if (targetIdx >= 0) {
+            newRouting[targetIdx] = {
+              ...newRouting[targetIdx],
+              audioSessions: [...newRouting[targetIdx].audioSessions, session],
+            }
+          }
           return {
             sonarState: {
               ...s.sonarState,
-              routing: applyPendingMoves(s.sonarState.routing, _pendingRoutingMoves, s.sonarState.routing),
+              routing: newRouting,
             },
           }
         })
