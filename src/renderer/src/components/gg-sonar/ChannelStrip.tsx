@@ -616,16 +616,23 @@ function ChannelStripComponent({
             {label}
           </span>
         </div>
-        {channel !== 'master' && (
-          <div className="mt-1.5">
+        <div className="mt-1.5">
+          {channel === 'master' ? (
+            <span
+              className="px-1.5 py-0.5 text-xs"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Devices
+            </span>
+          ) : (
             <DeviceSelector
               audioDevices={audioDevices}
               currentDevice={currentDevice}
               channel={channel}
               onSelect={handleDeviceSelect}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Fader zone */}
