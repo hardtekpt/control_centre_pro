@@ -124,10 +124,12 @@ export const useSonarStore = create<SonarStoreState>()(
       name: 'sonar-store',
       partialize: (state) => ({
         visibleChannels: Array.from(state.visibleChannels),
+        activePresetIds: state.activePresetIds,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
         visibleChannels: new Set((persistedState as any).visibleChannels || DEFAULT_VISIBLE_CHANNELS),
+        activePresetIds: (persistedState as any).activePresetIds ?? {},
       }),
     }
   )
