@@ -1,14 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { SonarState, SonarChannel, SonarDeviceChannel, SonarChannelVolume } from '@shared/types'
+import type { SonarState, SonarChannel, SonarDeviceChannel, SonarChannelVolume, SonarAudioDevice, SonarRedirections } from '@shared/types'
 
 // Module-level drag tracking — not Zustand state, so no re-renders
 let _activeDrags = 0
 let _postDragHoldTimer: ReturnType<typeof setTimeout> | null = null
 
-// Track preset selections made by the user so they persist across API refreshes
-// until the API confirms the change
+// Pending selections — user choices held for 5 s to survive API refreshes
 let _pendingPresetSelections: Record<string, number> = {}
+let _pendingRedirections: Record<string, number> = {}  // channel → expiry timestamp
+let _pendingRoutingExpiry = 0  // single expiry covers all in-flight routing moves
 
 interface SonarStoreState {
   sonarState: SonarState | null
@@ -20,6 +21,10 @@ interface SonarStoreState {
   setSonarState: (state: SonarState) => void
   /** Optimistic patch for a channel's classic volume/mute — avoids fader flicker during poll cycle */
   patchClassicVolume: (channel: SonarChannel, patch: Partial<SonarChannelVolume>) => void
+  /** Optimistic patch for a channel's playback device — avoids selector reverting during poll cycle */
+  patchRedirection: (channel: SonarDeviceChannel, device: SonarAudioDevice) => void
+  /** Optimistic patch for a process routing move — avoids session jumping back during poll cycle */
+  patchRouting: (processId: number, toChannel: string) => void
   setActivePreset: (virtualAudioDevice: string, presetId: string) => void
   setChannelVisibility: (channel: SonarChannel, visible: boolean) => void
   /** Called by VerticalFader on drag start/end to suppress poll updates during interaction */
@@ -43,22 +48,42 @@ export const useSonarStore = create<SonarStoreState>()(
           const merged = { ...s.activePresetIds }
           const now = Date.now()
 
-          // Clear expired pending selections and sync API state
+          // Clear expired pending preset selections and sync API state
           for (const channel in _pendingPresetSelections) {
             if (now >= _pendingPresetSelections[channel]) {
               delete _pendingPresetSelections[channel]
             }
           }
-
           // Update activePresetIds from API, but preserve pending user selections
           for (const config of state.configs) {
             const channel = config.virtualAudioDevice
-            // Only update from API if this channel doesn't have a pending selection
             if (!(channel in _pendingPresetSelections) && config.isSelected) {
               merged[channel] = config.id
             }
           }
-          return { sonarState: state, activePresetIds: merged }
+
+          // Build merged redirections — keep any channel whose write is still in flight
+          for (const ch in _pendingRedirections) {
+            if (now >= _pendingRedirections[ch]) delete _pendingRedirections[ch]
+          }
+          const mergedRedirections: SonarRedirections = { ...state.redirections }
+          if (s.sonarState) {
+            for (const ch in _pendingRedirections) {
+              const pending = s.sonarState.redirections[ch]
+              if (pending) mergedRedirections[ch] = pending
+            }
+          }
+
+          // Preserve routing while a move is still in flight
+          const mergedRouting =
+            now < _pendingRoutingExpiry && s.sonarState
+              ? s.sonarState.routing
+              : state.routing
+
+          return {
+            sonarState: { ...state, redirections: mergedRedirections, routing: mergedRouting },
+            activePresetIds: merged,
+          }
         }),
 
       patchClassicVolume: (channel, patch) =>
@@ -90,6 +115,40 @@ export const useSonarStore = create<SonarStoreState>()(
             },
           }
         }),
+
+      patchRedirection: (channel, device) => {
+        _pendingRedirections[channel] = Date.now() + 5000
+        set((s) => {
+          if (!s.sonarState) return s
+          return {
+            sonarState: {
+              ...s.sonarState,
+              redirections: { ...s.sonarState.redirections, [channel]: device },
+            },
+          }
+        })
+      },
+
+      patchRouting: (processId, toChannel) => {
+        _pendingRoutingExpiry = Date.now() + 5000
+        set((s) => {
+          if (!s.sonarState) return s
+          const session = s.sonarState.routing
+            .flatMap((r) => r.audioSessions)
+            .find((sess) => sess.processId === processId)
+          if (!session) return s
+          return {
+            sonarState: {
+              ...s.sonarState,
+              routing: s.sonarState.routing.map((r) => {
+                if (r.role === toChannel)
+                  return { ...r, audioSessions: [...r.audioSessions, session] }
+                return { ...r, audioSessions: r.audioSessions.filter((sess) => sess.processId !== processId) }
+              }),
+            },
+          }
+        })
+      },
 
       setActivePreset: (virtualAudioDevice, presetId) => {
         // Mark this preset selection as pending for 5 seconds

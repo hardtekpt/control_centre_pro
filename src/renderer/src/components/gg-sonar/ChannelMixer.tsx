@@ -27,7 +27,7 @@ interface ChannelMixerProps {
 }
 
 export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
-  const { activePresetIds, patchClassicVolume, setActivePreset, visibleChannels } = useSonarStore()
+  const { activePresetIds, patchClassicVolume, patchRedirection, patchRouting, setActivePreset, visibleChannels } = useSonarStore()
 
   // Group presets by virtualAudioDevice (which is the channel name: game, chatRender, etc.)
   const presetsByChannel = useMemo(() => {
@@ -90,10 +90,13 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
 
   function handleDeviceSelect(channel: SonarChannel, deviceId: string): void {
     if (channel === 'master') return
+    const device = sonarState.audioDevices.find((d) => d.id === deviceId)
+    if (device) patchRedirection(channel as SonarDeviceChannel, device)
     window.api.sonarSetRedirection(channel as SonarDeviceChannel, deviceId).catch(console.error)
   }
 
   function handleProcessDrop(targetChannel: SonarChannel, processId: number): void {
+    patchRouting(processId, targetChannel)
     window.api.sonarRouteProcess(processId, targetChannel).catch(console.error)
   }
 
