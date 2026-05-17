@@ -254,9 +254,14 @@ mounts/unmounts automatically based on `arctisState !== null`.
 
 ## DDC/CI Display Control Service
 
-**Why native service instead of Python subprocess?** DDC/CI calls are synchronous and relatively fast
-(200–400 ms each), so blocking Node.js threads is acceptable. Native registration simplifies the
-caching layer and state management — no subprocess protocol overhead. Windows-only via `@hensm/ddcci`.
+**Why native service instead of Python subprocess?** DDC/CI calls are Windows-only via
+`@hensm/ddcci`. Native registration simplifies the caching layer and state management — no
+subprocess protocol overhead.
+
+> **Important**: DDC calls are synchronous and slow (200–400 ms per call) and the PowerShell
+> queries used to map device paths block for seconds. All of this runs in a dedicated
+> `worker_threads` Worker so the main process event loop is never blocked. Do **not** move these
+> operations back to the main thread.
 
 **Package**: [`@hensm/ddcci`](https://www.npmjs.com/package/@hensm/ddcci) — Windows DDC/CI library.
 Add to `package.json` with `electron-builder` ASAR unpack config:
@@ -277,21 +282,62 @@ Add to `package.json` with `electron-builder` ASAR unpack config:
 - `0x12` — contrast
 - `0x60` — input source (values: `0x01`–`0x04` VGA/DVI, `0x0f`–`0x10` DisplayPort, `0x11`–`0x12` HDMI, `0x1b` USB-C)
 
-**DdcService** (`src/main/services/apis/ddc/service.ts`):
-- **Constructor**: tries to load `@hensm/ddcci`; sets `available = false` on error
-- **State**:
-  - `cachedMonitors: DdcMonitor[]` — persisted across calls
-  - `cacheTimestamp: number` — for cache freshness checking
-  - `devicePaths: Map<number, string>` — monitorId → device path (stable across polls)
-  - `stateChangedCallback: (monitors: DdcMonitor[]) => void` — called whenever cache updates
-  - `logEmitter: (level, msg) => void` — wired to the About page terminal log
-- **Methods**:
-  - `refreshMonitors(): Promise<DdcMonitor[]>` — enumerate, read brightness/contrast/input; update cache; notify callback
-  - `setBrightness(monitorId, value)` — write to hardware + update cache
-  - `setInputSource(monitorId, inputValue)` — write via VCP code 0x60 + update cache
-  - `getInputName(inputHex): string` — map hex codes to friendly names (VGA 1, HDMI 1, etc.)
-  - `isAvailable(): boolean` — true if module loaded and service is running
-  - `start() / stop()` — service lifecycle
+**Worker thread architecture** (`src/main/services/apis/ddc/`):
+
+Two files work together:
+
+- **`ddcWorker.ts`** — runs in a `worker_threads` Worker. Contains all blocking work: the two
+  PowerShell `spawnSync` queries (primary display detection, GDI device map) and all `ddcci` native
+  calls. Communicates via `parentPort` messages.
+- **`service.ts`** — thin async wrapper. Spawns the worker on `start()`, posts messages, and
+  resolves Promises when the worker responds. Maintains `devicePaths` and `cachedMonitors` locally,
+  updated after each `refreshDone`/`setPrimaryDone` response.
+
+Worker message protocol (main → worker):
+```typescript
+{ id: number; type: 'refresh' }
+{ type: 'setBrightness'; devicePath: string; value: number }   // fire-and-forget
+{ type: 'setInputSource'; devicePath: string; vcpCode: number } // fire-and-forget
+{ id: number; type: 'setPrimary'; monitorId: number; multiMonitorToolPath: string }
+```
+
+Worker message protocol (worker → main):
+```typescript
+{ type: 'refreshDone';    id: number; monitors: DdcMonitor[]; devicePaths: [number, string][] }
+{ type: 'setPrimaryDone'; id: number; monitors: DdcMonitor[]; devicePaths: [number, string][] }
+{ type: 'error';          id: number; message: string }
+{ type: 'log';            level: 'info'|'warn'|'error'; message: string }
+```
+
+Async requests use a `pendingCallbacks: Map<id, { resolve, reject }>` in the service — post the
+message with an `id`, store the callbacks, resolve/reject when the matching response arrives.
+
+**Adding the worker as a build entry** (`electron.vite.config.ts`):
+```typescript
+main: {
+  build: {
+    rollupOptions: {
+      input: {
+        index:     resolve('src/main/index.ts'),
+        ddcWorker: resolve('src/main/services/apis/ddc/ddcWorker.ts'),
+      },
+      output: { entryFileNames: '[name].js' },
+    },
+  },
+}
+```
+This compiles the worker to `out/main/ddcWorker.js` alongside `out/main/index.js`. Reference it
+at runtime with `join(__dirname, 'ddcWorker.js')`.
+
+**DdcService public API** (`src/main/services/apis/ddc/service.ts`):
+- `start() / stop()` — spawns/terminates the worker
+- `refreshMonitors(): Promise<DdcMonitor[]>` — non-blocking; resolves when worker finishes
+- `setBrightness(monitorId, value)` — posts to worker + optimistic cache update
+- `setInputSource(monitorId, inputValue)` — posts to worker + optimistic cache update
+- `setPrimaryMonitor(monitorId, toolPath): Promise<void>` — delegates to worker
+- `getCachedMonitors(): DdcMonitor[]` — synchronous; returns last known state
+- `isAvailable(): boolean` — true if worker is running
+- `setLogEmitter(fn)` / `setStateChangedCallback(fn)` — wiring hooks
 
 **DdcMonitor interface** (shared type in `types.ts`):
 ```typescript
@@ -363,15 +409,23 @@ Responsive: 2 columns on wide screens, 1 on narrow (CSS `auto-fit` + `minmax`).
 - Padding: always `padStart(2, '0')` and `.toLowerCase()` on hex strings to ensure consistency
 
 **Architectural lessons**:
-1. **DDC latency**: 200–400 ms per call. Caching + in-flight guard prevents UI hangs from
-   overlapping reads. Always guard `ddcInFlight = true/false` around actual refreshes.
-2. **Optimistic UI**: local draft state in DisplayCard + write-lock pattern avoids flashing
+1. **Worker thread for blocking native calls**: DDC reads (200–400 ms each) and PowerShell
+   `spawnSync` queries (up to 10 s) run in a `worker_threads` Worker. `spawnSync` is fine inside
+   a worker since it blocks only that OS thread, not the main event loop. Never run these on the
+   main thread — it freezes the entire IPC layer and the UI becomes unresponsive.
+2. **electron-vite worker build entries**: worker files need a separate rollup `input` entry in
+   `electron.vite.config.ts` so they compile to their own `.js` file alongside `index.js`. Use
+   `join(__dirname, 'workerName.js')` to reference the compiled file at runtime.
+3. **Promise map for async worker communication**: post a message with a unique `id`, store
+   `{ resolve, reject }` in a `Map<id, callbacks>`, resolve/reject when the matching reply arrives.
+   Clean up the map on worker error/exit to avoid leaked promises.
+4. **Optimistic UI**: local draft state in DisplayCard + write-lock pattern avoids flashing
    old values when echoed updates arrive from the backend.
-3. **Command coalescing**: rapid slider drags produce many `DDC_SET_BRIGHTNESS` calls. Queue
+5. **Command coalescing**: rapid slider drags produce many `DDC_SET_BRIGHTNESS` calls. Queue
    + `setImmediate` ensures we only write to hardware once per gesture, not once per tick.
-4. **Input discovery**: Rather than querying monitor capabilities (slow + unreliable), use a
+6. **Input discovery**: Rather than querying monitor capabilities (slow + unreliable), use a
    fixed list of common input codes. Always include the current input in `available_inputs`.
-5. **Service callback**: `setStateChangedCallback()` decouples the service from IPC. Main process
+7. **Service callback**: `setStateChangedCallback()` decouples the service from IPC. Main process
    calls `broadcastDdcMonitors()` when the callback fires, keeping renderer in sync without
    explicit polling.
 
