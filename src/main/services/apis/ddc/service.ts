@@ -367,7 +367,6 @@ export class DdcService {
 
     if (monitors.length > 0) {
       this.log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
-      this.devicePaths.forEach((p, id) => this.log('info', `  ddcci[${id}]: ${p}`))
     }
 
     this.cachedMonitors = monitors
