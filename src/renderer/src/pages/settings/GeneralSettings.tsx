@@ -14,6 +14,8 @@ export function GeneralSettings(): JSX.Element {
   const { setDirty, registerSave } = useSettingsForm()
 
   const [draftTheme, setDraftTheme] = useState<Theme>(theme)
+  const [draftMinimizeToTray, setDraftMinimizeToTray] = useState(true)
+  const [savedMinimizeToTray, setSavedMinimizeToTray] = useState(true)
   const [draftPythonPath, setDraftPythonPath] = useState('')
   const [savedPythonPath, setSavedPythonPath] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -23,10 +25,17 @@ export function GeneralSettings(): JSX.Element {
       setDraftPythonPath(cfg.pythonPath)
       setSavedPythonPath(cfg.pythonPath)
     })
+    window.api.getSettings().then((s) => {
+      setDraftMinimizeToTray(s.minimizeToTray)
+      setSavedMinimizeToTray(s.minimizeToTray)
+    })
   }, [])
 
   // Sync dirty state to context
-  const isDirtyLocal = draftTheme !== theme || draftPythonPath !== savedPythonPath
+  const isDirtyLocal =
+    draftTheme !== theme ||
+    draftPythonPath !== savedPythonPath ||
+    draftMinimizeToTray !== savedMinimizeToTray
   useEffect(() => {
     setDirty(isDirtyLocal)
   }, [isDirtyLocal, setDirty])
@@ -36,8 +45,13 @@ export function GeneralSettings(): JSX.Element {
   useEffect(() => {
     registerSave(async () => {
       const currentSettings = await window.api.getSettings()
-      await window.api.setSettings({ ...currentSettings, theme: draftTheme })
+      await window.api.setSettings({
+        ...currentSettings,
+        theme: draftTheme,
+        minimizeToTray: draftMinimizeToTray,
+      })
       setTheme(draftTheme)
+      setSavedMinimizeToTray(draftMinimizeToTray)
 
       const trimmedPath = draftPythonPath.trim()
       if (trimmedPath) {
@@ -46,7 +60,7 @@ export function GeneralSettings(): JSX.Element {
       }
     })
     return () => registerSave(null)
-  }, [draftTheme, draftPythonPath, registerSave, setTheme])
+  }, [draftTheme, draftMinimizeToTray, draftPythonPath, registerSave, setTheme])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
@@ -60,7 +74,6 @@ export function GeneralSettings(): JSX.Element {
         <SettingRow
           label="Theme"
           helper="Choose the color scheme for the application"
-          last
         >
           <select
             value={draftTheme}
@@ -77,6 +90,17 @@ export function GeneralSettings(): JSX.Element {
             <option value="light">Light</option>
             <option value="system">System</option>
           </select>
+        </SettingRow>
+        <SettingRow
+          label="Minimize to tray"
+          helper="Keep the app running in the system tray when the window is closed"
+          last
+        >
+          <Toggle
+            checked={draftMinimizeToTray}
+            color="green"
+            onChange={() => setDraftMinimizeToTray((v) => !v)}
+          />
         </SettingRow>
       </SettingsSection>
 

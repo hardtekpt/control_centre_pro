@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
@@ -12,6 +12,9 @@ import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 import { DdcService } from './services/apis/ddc/service'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let minimizeToTray = true
+let isQuitting = false
 let serviceManager: ServiceManager
 let sonarService: SonarService
 let ddcService: DdcService
@@ -111,6 +114,37 @@ function navigate(target: NavigateTarget): void {
   mainWindow?.webContents.send(IPC_CHANNELS.NAVIGATE, target)
 }
 
+function createTray(): void {
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'mission-control-terracotta-1024.png')
+    : join(__dirname, '../../resources/mission-control-terracotta-1024.png')
+
+  const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+  tray = new Tray(icon)
+  tray.setToolTip('Control Centre Pro')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.focus()
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => app.quit(),
+    },
+  ])
+
+  tray.setContextMenu(contextMenu)
+  tray.on('click', () => {
+    mainWindow?.show()
+    mainWindow?.focus()
+  })
+}
+
 /** Try to open the SteelSeries GG application */
 async function openSteelSeriesGG(): Promise<void> {
   const commonPaths = [
@@ -165,6 +199,13 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => mainWindow?.show())
+
+  mainWindow.on('close', (e) => {
+    if (minimizeToTray && !isQuitting) {
+      e.preventDefault()
+      mainWindow?.hide()
+    }
+  })
 
   if (is.dev) {
     mainWindow.webContents.on('did-finish-load', () => {
@@ -270,6 +311,9 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, settings: AppSettings) => {
     writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
+    if (typeof settings.minimizeToTray === 'boolean') {
+      minimizeToTray = settings.minimizeToTray
+    }
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
@@ -572,7 +616,7 @@ app.whenReady().then(() => {
   }
   activeWindowMonitor.start()
 
-  // Restore persisted DDC poll interval before starting services
+  // Restore persisted settings before starting services
   try {
     const settingsPath = join(app.getPath('userData'), 'settings.json')
     if (existsSync(settingsPath)) {
@@ -580,8 +624,13 @@ app.whenReady().then(() => {
       if (typeof saved.ddcPollIntervalSeconds === 'number') {
         ddcPollIntervalSec = Math.max(10, Math.min(3600, saved.ddcPollIntervalSeconds))
       }
+      if (typeof saved.minimizeToTray === 'boolean') {
+        minimizeToTray = saved.minimizeToTray
+      }
     }
   } catch { /* use default */ }
+
+  createTray()
 
   serviceManager.startAll()  // starts Python services + GG Sonar native service
 
@@ -590,8 +639,17 @@ app.whenReady().then(() => {
   })
 })
 
+app.on('before-quit', () => {
+  isQuitting = true
+})
+
 app.on('window-all-closed', () => {
-  activeWindowMonitor?.stop()
-  serviceManager?.stopAll()  // stops Python services + GG Sonar via native service registry
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('will-quit', () => {
+  tray?.destroy()
+  tray = null
+  activeWindowMonitor?.stop()
+  serviceManager?.stopAll()
 })

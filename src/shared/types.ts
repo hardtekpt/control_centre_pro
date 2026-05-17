@@ -89,6 +89,7 @@ export interface AppSettings {
   sidebarCollapsed: boolean
   ddcPollIntervalSeconds: number
   ddcSyncBrightness: boolean
+  minimizeToTray: boolean
 }
 
 /** Defaults applied when no saved settings exist */
@@ -98,6 +99,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarCollapsed: false,
   ddcPollIntervalSeconds: 60,
   ddcSyncBrightness: false,
+  minimizeToTray: true,
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
