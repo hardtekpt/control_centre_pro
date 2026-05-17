@@ -273,6 +273,8 @@ export class DdcService {
     let devicePaths: string[]
     try {
       devicePaths = ddcci.getMonitorList()
+      this.log('info', `ddcci.getMonitorList returned ${devicePaths.length} paths`)
+      devicePaths.forEach((p, i) => this.log('info', `  [${i}] ${p}`))
     } catch (err) {
       this.log('error', `Failed to enumerate monitors: ${err instanceof Error ? err.message : String(err)}`)
       return this.cachedMonitors
@@ -289,6 +291,9 @@ export class DdcService {
     const primaryNorm = primaryRaw ? normPath(primaryRaw) : null
     const gdiMap = queryDeviceMap()
 
+    this.log('info', `gdiMap has ${gdiMap.size} entries:`)
+    gdiMap.forEach((gdi, path) => this.log('info', `  ${path} → ${gdi}`))
+
     // Sort devicePaths by GDI device name number (DISPLAY1, DISPLAY2, etc.)
     // so monitor IDs match the Windows device numbers
     devicePaths.sort((a, b) => {
@@ -296,8 +301,12 @@ export class DdcService {
       const gdiB = gdiMap.get(normPath(b)) || ''
       const numA = parseInt(gdiA.replace(/\D/g, '')) || 999
       const numB = parseInt(gdiB.replace(/\D/g, '')) || 999
+      this.log('info', `sort: ${a} (${gdiA}=${numA}) vs ${b} (${gdiB}=${numB})`)
       return numA - numB
     })
+
+    this.log('info', `After sort:`)
+    devicePaths.forEach((p, i) => this.log('info', `  [${i}] ${p}`))
 
     const monitors: DdcMonitor[] = []
     const newDevicePaths = new Map<number, string>()
