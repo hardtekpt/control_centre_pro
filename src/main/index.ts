@@ -655,6 +655,23 @@ app.whenReady().then(() => {
     isRunning: () => ddcService.isAvailable(),
   })
 
+  // Register notifications service (tracks global notification enable/disable state)
+  let notificationsEnabled = true
+  serviceManager.registerNativeService({
+    id: 'notifications',
+    name: 'Device Notifications',
+    description: 'System notifications for headset and device events',
+    onEnable: () => {
+      notificationsEnabled = true
+      serviceManager.broadcastServiceState()
+    },
+    onDisable: () => {
+      notificationsEnabled = false
+      serviceManager.broadcastServiceState()
+    },
+    isRunning: () => notificationsEnabled,
+  })
+
   registerIpcHandlers()
   createWindow()
   serviceManager.setWindow(mainWindow!)

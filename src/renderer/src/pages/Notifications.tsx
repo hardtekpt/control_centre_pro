@@ -362,6 +362,8 @@ function Section({ title, children }: { title: string; children: ReactNode }): J
 
 export function Notifications(): JSX.Element {
   const settings = useServiceStore((s) => s.settings)
+  const services = useServiceStore((s) => s.services)
+  const notifService = services.find((s) => s.id === 'notifications')
 
   const [headset, setHeadsetRaw] = useState<HeadsetNotificationSettings>(
     settings.notifications?.headset ?? DEFAULT_SETTINGS.notifications.headset
@@ -500,9 +502,23 @@ export function Notifications(): JSX.Element {
           >
             <PageIcon />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-            Notifications
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
+              Notifications
+            </h1>
+            {notifService && (
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: notifService.enabled ? '#22c55e' : 'var(--color-border)',
+                  flexShrink: 0,
+                }}
+                title={notifService.enabled ? 'Service enabled' : 'Service disabled'}
+              />
+            )}
+          </div>
         </div>
         <p className="text-sm pl-11" style={{ color: 'var(--color-text-secondary)' }}>
           Configure notifications for connected devices. Click any notification title to preview.
