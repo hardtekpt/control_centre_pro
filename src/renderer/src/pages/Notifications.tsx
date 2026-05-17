@@ -9,7 +9,7 @@ import type {
   NotifValueShape,
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
-import { IconHeadset } from '../components/notifications/icons'
+import { IconHeadset, IconPlay } from '../components/notifications/icons'
 import { createElement } from 'react'
 
 // ── Save helper ───────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ const SIMPLE_SHAPES: ShapeOption<NotifSimpleShape>[] = [
 
 function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, onChange, onPreview }: SimpleRowProps): JSX.Element {
   return (
-    <div className="flex items-center gap-3 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+    <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{label}</div>
         {description && (
@@ -194,17 +194,23 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
       />
       <button
         onClick={onPreview}
-        className="text-xs px-2 py-1 rounded flex-shrink-0 transition-colors"
+        className="flex items-center justify-center rounded flex-shrink-0 transition-colors"
         style={{
+          width: 32,
+          height: 32,
           background: 'var(--color-surface-raised)',
           border: '1px solid var(--color-border)',
           color: 'var(--color-text-secondary)',
           cursor: 'pointer',
           opacity: value.enabled ? 1 : 0.4,
           pointerEvents: value.enabled ? 'auto' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
+        title="Preview notification"
       >
-        Preview
+        <IconPlay size={16} />
       </button>
       <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
@@ -226,7 +232,7 @@ const VALUE_SHAPES: ShapeOption<NotifValueShape>[] = [
 
 function ValueRow({ label, description, value, onChange, onPreview }: ValueRowProps): JSX.Element {
   return (
-    <div className="flex items-center gap-3 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+    <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{label}</div>
         {description && (
@@ -241,17 +247,23 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
       />
       <button
         onClick={onPreview}
-        className="text-xs px-2 py-1 rounded flex-shrink-0 transition-colors"
+        className="flex items-center justify-center rounded flex-shrink-0 transition-colors"
         style={{
+          width: 32,
+          height: 32,
           background: 'var(--color-surface-raised)',
           border: '1px solid var(--color-border)',
           color: 'var(--color-text-secondary)',
           cursor: 'pointer',
           opacity: value.enabled ? 1 : 0.4,
           pointerEvents: value.enabled ? 'auto' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
+        title="Preview notification"
       >
-        Preview
+        <IconPlay size={16} />
       </button>
       <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
@@ -271,7 +283,7 @@ const BATTERY_LOW_SHAPES: ShapeOption<'ring' | 'rect'>[] = [
 
 function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.Element {
   return (
-    <div className="flex items-center gap-3 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+    <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Low battery</div>
         <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>Notify when headset battery drops below threshold</div>
@@ -289,17 +301,23 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
       />
       <button
         onClick={onPreview}
-        className="text-xs px-2 py-1 rounded flex-shrink-0 transition-colors"
+        className="flex items-center justify-center rounded flex-shrink-0 transition-colors"
         style={{
+          width: 32,
+          height: 32,
           background: 'var(--color-surface-raised)',
           border: '1px solid var(--color-border)',
           color: 'var(--color-text-secondary)',
           cursor: 'pointer',
           opacity: value.enabled ? 1 : 0.4,
           pointerEvents: value.enabled ? 'auto' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
+        title="Preview notification"
       >
-        Preview
+        <IconPlay size={16} />
       </button>
       <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
@@ -311,13 +329,13 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
 function Section({ title, children }: { title: string; children: ReactNode }): JSX.Element {
   return (
     <div
-      className="rounded-xl px-5 pt-4 pb-2"
+      className="rounded-lg px-4 pt-3 pb-1"
       style={{
         background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
       }}
     >
-      <h2 className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+      <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-secondary)' }}>
         {title}
       </h2>
       {children}
@@ -457,7 +475,7 @@ export function Notifications(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-5 p-5">
       {/* Page header */}
       <div>
         <div className="flex items-center gap-3 mb-1">
@@ -472,12 +490,12 @@ export function Notifications(): JSX.Element {
           </h1>
         </div>
         <p className="text-sm pl-11" style={{ color: 'var(--color-text-secondary)' }}>
-          Configure notifications for connected devices. They appear as a floating overlay at the bottom of the screen. Click Preview to test any shape.
+          Configure notifications for connected devices. Click the play icon to preview any shape.
         </p>
       </div>
 
       {/* Headset section */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
             {createElement(IconHeadset, { size: 18 })}
@@ -485,104 +503,107 @@ export function Notifications(): JSX.Element {
           <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Arctis Nova Pro</span>
         </div>
 
-        {/* Connectivity */}
-        <Section title="Connectivity">
-          <SimpleRow
-            label="Power on / off"
-            description="Headset connected to or disconnected from Control Centre"
-            value={headset.powerOnOff}
-            onChange={(v) => setHeadset({ ...headset, powerOnOff: v })}
-            onPreview={headset.powerOnOff.enabled ? previewPowerOn : previewPowerOff}
-          />
-          <SimpleRow
-            label="Wireless"
-            description="2.4 GHz link established or dropped"
-            value={headset.wireless}
-            onChange={(v) => setHeadset({ ...headset, wireless: v })}
-            onPreview={previewWireless}
-          />
-          <SimpleRow
-            label="Bluetooth"
-            description="BT device paired and connected or disconnected"
-            value={headset.bluetooth}
-            onChange={(v) => setHeadset({ ...headset, bluetooth: v })}
-            onPreview={previewBluetooth}
-          />
-        </Section>
+        {/* Grid layout for sections */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '0.75rem' }}>
+          {/* Connectivity */}
+          <Section title="Connectivity">
+            <SimpleRow
+              label="Power on / off"
+              description="Headset connected to or disconnected from Control Centre"
+              value={headset.powerOnOff}
+              onChange={(v) => setHeadset({ ...headset, powerOnOff: v })}
+              onPreview={headset.powerOnOff.enabled ? previewPowerOn : previewPowerOff}
+            />
+            <SimpleRow
+              label="Wireless"
+              description="2.4 GHz link established or dropped"
+              value={headset.wireless}
+              onChange={(v) => setHeadset({ ...headset, wireless: v })}
+              onPreview={previewWireless}
+            />
+            <SimpleRow
+              label="Bluetooth"
+              description="BT device paired and connected or disconnected"
+              value={headset.bluetooth}
+              onChange={(v) => setHeadset({ ...headset, bluetooth: v })}
+              onPreview={previewBluetooth}
+            />
+          </Section>
 
-        {/* Battery */}
-        <Section title="Battery">
-          <BatteryLowRow
-            value={headset.batteryLow}
-            onChange={(v) => setHeadset({ ...headset, batteryLow: v })}
-            onPreview={previewBatteryLow}
-          />
-          <SimpleRow
-            label="Charging started"
-            description="Detected when headset battery level increases"
-            value={headset.batteryCharging}
-            onChange={(v) => setHeadset({ ...headset, batteryCharging: v })}
-            onPreview={previewCharging}
-          />
-          <SimpleRow
-            label="Dock inserted / removed"
-            description="Fires when dock battery goes from 0 to active or back"
-            value={headset.batteryDock}
-            onChange={(v) => setHeadset({ ...headset, batteryDock: v })}
-            onPreview={previewDock}
-          />
-        </Section>
+          {/* Battery */}
+          <Section title="Battery">
+            <BatteryLowRow
+              value={headset.batteryLow}
+              onChange={(v) => setHeadset({ ...headset, batteryLow: v })}
+              onPreview={previewBatteryLow}
+            />
+            <SimpleRow
+              label="Charging started"
+              description="Detected when headset battery level increases"
+              value={headset.batteryCharging}
+              onChange={(v) => setHeadset({ ...headset, batteryCharging: v })}
+              onPreview={previewCharging}
+            />
+            <SimpleRow
+              label="Dock inserted / removed"
+              description="Fires when dock battery goes from 0 to active or back"
+              value={headset.batteryDock}
+              onChange={(v) => setHeadset({ ...headset, batteryDock: v })}
+              onPreview={previewDock}
+            />
+          </Section>
 
-        {/* ANC */}
-        <Section title="ANC Mode">
-          <SimpleRow
-            label="ANC mode changed"
-            description="Noise cancellation, Transparency, or ANC off"
-            value={headset.ancMode}
-            onChange={(v) => setHeadset({ ...headset, ancMode: v })}
-            onPreview={previewAnc}
-          />
-        </Section>
+          {/* ANC */}
+          <Section title="ANC Mode">
+            <SimpleRow
+              label="ANC mode changed"
+              description="Noise cancellation, Transparency, or ANC off"
+              value={headset.ancMode}
+              onChange={(v) => setHeadset({ ...headset, ancMode: v })}
+              onPreview={previewAnc}
+            />
+          </Section>
 
-        {/* Mic */}
-        <Section title="Microphone">
-          <SimpleRow
-            label="Mic mute / unmute"
-            description="Hardware mute button pressed"
-            value={headset.micMute}
-            onChange={(v) => setHeadset({ ...headset, micMute: v })}
-            onPreview={previewMicMute}
-          />
-        </Section>
+          {/* Mic */}
+          <Section title="Microphone">
+            <SimpleRow
+              label="Mic mute / unmute"
+              description="Hardware mute button pressed"
+              value={headset.micMute}
+              onChange={(v) => setHeadset({ ...headset, micMute: v })}
+              onPreview={previewMicMute}
+            />
+          </Section>
 
-        {/* Volume */}
-        <Section title="Volume">
-          <ValueRow
-            label="Headset volume"
-            description="Hardware volume dial turned"
-            value={headset.volume}
-            onChange={(v) => setHeadset({ ...headset, volume: v })}
-            onPreview={previewVolume}
-          />
-          <ValueRow
-            label="ChatMix"
-            description="Game / chat balance dial adjusted"
-            value={headset.chatmix}
-            onChange={(v) => setHeadset({ ...headset, chatmix: v })}
-            onPreview={previewChatmix}
-          />
-        </Section>
+          {/* Volume */}
+          <Section title="Volume">
+            <ValueRow
+              label="Headset volume"
+              description="Hardware volume dial turned"
+              value={headset.volume}
+              onChange={(v) => setHeadset({ ...headset, volume: v })}
+              onPreview={previewVolume}
+            />
+            <ValueRow
+              label="ChatMix"
+              description="Game / chat balance dial adjusted"
+              value={headset.chatmix}
+              onChange={(v) => setHeadset({ ...headset, chatmix: v })}
+              onPreview={previewChatmix}
+            />
+          </Section>
 
-        {/* Sidetone */}
-        <Section title="Sidetone">
-          <SimpleRow
-            label="Sidetone level changed"
-            description="Off, Low, Medium, or High"
-            value={headset.sidetone}
-            onChange={(v) => setHeadset({ ...headset, sidetone: v })}
-            onPreview={previewSidetone}
-          />
-        </Section>
+          {/* Sidetone */}
+          <Section title="Sidetone">
+            <SimpleRow
+              label="Sidetone level changed"
+              description="Off, Low, Medium, or High"
+              value={headset.sidetone}
+              onChange={(v) => setHeadset({ ...headset, sidetone: v })}
+              onPreview={previewSidetone}
+            />
+          </Section>
+        </div>
       </div>
     </div>
   )
