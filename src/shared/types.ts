@@ -160,8 +160,14 @@ export interface HeadsetNotificationSettings {
   sidetone: NotifSimple
 }
 
+export interface SonarNotificationSettings {
+  presetChange: NotifSimple
+}
+
 export interface NotificationSettings {
   headset: HeadsetNotificationSettings
+  sonar: SonarNotificationSettings
+  durationMs: number  // how long notifications display; default 2400ms
 }
 
 const DEFAULT_HEADSET_NOTIFICATIONS: HeadsetNotificationSettings = {
@@ -176,6 +182,10 @@ const DEFAULT_HEADSET_NOTIFICATIONS: HeadsetNotificationSettings = {
   volume:          { enabled: true,  shape: 'volume' },
   chatmix:         { enabled: true,  shape: 'volume' },
   sidetone:        { enabled: true,  shape: 'rect'   },
+}
+
+const DEFAULT_SONAR_NOTIFICATIONS: SonarNotificationSettings = {
+  presetChange: { enabled: true, shape: 'rect' },
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -201,6 +211,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   minimizeToTray: true,
   notifications: {
     headset: DEFAULT_HEADSET_NOTIFICATIONS,
+    sonar: DEFAULT_SONAR_NOTIFICATIONS,
+    durationMs: 2400,
   },
 }
 
@@ -216,7 +228,7 @@ export type AppView =
   | 'settings'
 
 /** Tabs within the settings view */
-export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'about'
+export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'about'
 
 /** Navigate targets that can be pushed from the main process */
 export type NavigateTarget = AppView | 'settings:about'

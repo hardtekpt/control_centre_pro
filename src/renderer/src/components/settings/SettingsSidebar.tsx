@@ -10,6 +10,7 @@ const SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'general', label: 'General' },
   { id: 'gg-sonar', label: 'GG Sonar' },
   { id: 'ddc', label: 'DDC' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'about', label: 'About' },
 ]
 

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
 import type {
   HeadsetNotificationSettings,
+  SonarNotificationSettings,
   NotifSimple,
   NotifValue,
   NotifBatteryLow,
@@ -12,7 +13,7 @@ import { DEFAULT_SETTINGS } from '@shared/types'
 import { IconHeadset } from '../components/notifications/icons'
 import { createElement } from 'react'
 
-// ── Save helper ───────────────────────────────────────────────────────────────
+// ── Save helpers ──────────────────────────────────────────────────────────────
 
 async function saveHeadsetSettings(headset: HeadsetNotificationSettings): Promise<void> {
   const current = await window.api.getSettings()
@@ -23,6 +24,18 @@ async function saveHeadsetSettings(headset: HeadsetNotificationSettings): Promis
   useServiceStore.getState().setSettings({
     ...current,
     notifications: { ...current.notifications, headset },
+  })
+}
+
+async function saveSonarSettings(sonar: SonarNotificationSettings): Promise<void> {
+  const current = await window.api.getSettings()
+  await window.api.setSettings({
+    ...current,
+    notifications: { ...current.notifications, sonar },
+  })
+  useServiceStore.getState().setSettings({
+    ...current,
+    notifications: { ...current.notifications, sonar },
   })
 }
 
@@ -368,6 +381,9 @@ export function Notifications(): JSX.Element {
   const [headset, setHeadsetRaw] = useState<HeadsetNotificationSettings>(
     settings.notifications?.headset ?? DEFAULT_SETTINGS.notifications.headset
   )
+  const [sonar, setSonarRaw] = useState<SonarNotificationSettings>(
+    settings.notifications?.sonar ?? DEFAULT_SETTINGS.notifications.sonar
+  )
 
   // Sync if store settings change (e.g. on initial load)
   useEffect(() => {
@@ -376,9 +392,20 @@ export function Notifications(): JSX.Element {
     }
   }, [settings.notifications?.headset])
 
+  useEffect(() => {
+    if (settings.notifications?.sonar) {
+      setSonarRaw(settings.notifications.sonar)
+    }
+  }, [settings.notifications?.sonar])
+
   const setHeadset = useCallback((next: HeadsetNotificationSettings): void => {
     setHeadsetRaw(next)
     saveHeadsetSettings(next).catch(console.error)
+  }, [])
+
+  const setSonar = useCallback((next: SonarNotificationSettings): void => {
+    setSonarRaw(next)
+    saveSonarSettings(next).catch(console.error)
   }, [])
 
   // ── Preview helpers — route through overlay window via IPC ──────────────────
@@ -488,6 +515,15 @@ export function Notifications(): JSX.Element {
       window.api.notifPush({ kind: 'circle', key: 'preview-sidetone', iconId: 'sidetone', ttl: 2400 })
     } else {
       window.api.notifPush({ kind: 'rect', key: 'preview-sidetone', iconId: 'sidetone', title: 'Sidetone', subtitle: 'Medium', ttl: 2400 })
+    }
+  }
+
+  const previewSonarPresetChange = (): void => {
+    const cfg = sonar.presetChange
+    if (cfg.shape === 'circle') {
+      window.api.notifPush({ kind: 'circle', key: 'preview-sonar-preset', iconId: 'sonar', ttl: 2400 })
+    } else {
+      window.api.notifPush({ kind: 'rect', key: 'preview-sonar-preset', iconId: 'sonar', title: 'GG Sonar', subtitle: 'Preset: Balanced', ttl: 2400 })
     }
   }
 
@@ -632,6 +668,33 @@ export function Notifications(): JSX.Element {
               value={headset.sidetone}
               onChange={(v) => setHeadset({ ...headset, sidetone: v })}
               onPreview={previewSidetone}
+            />
+          </Section>
+        </div>
+      </div>
+
+      {/* Sonar section */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18c-4.97 0-9-4.03-9-9s4.03-9 9-9 9 4.03 9 9-4.03 9-9 9z" />
+              <path d="M9 5v8l6 0" />
+            </svg>
+          </div>
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>GG Sonar</span>
+        </div>
+
+        {/* Grid layout for sections */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '0.75rem' }}>
+          {/* Presets */}
+          <Section title="Presets">
+            <SimpleRow
+              label="Preset changed"
+              description="Audio profile switched to a different preset"
+              value={sonar.presetChange}
+              onChange={(v) => setSonar({ ...sonar, presetChange: v })}
+              onPreview={previewSonarPresetChange}
             />
           </Section>
         </div>
