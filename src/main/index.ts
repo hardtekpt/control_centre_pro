@@ -26,6 +26,9 @@ const multiMonitorToolPath = app.isPackaged
   ? join(process.resourcesPath, 'MultiMonitorTool.exe')
   : join(__dirname, '../../resources/MultiMonitorTool.exe')
 
+// ─── Notifications Service State ──────────────────────────────────────────────
+let notificationsEnabled = true
+
 // ─── DDC Service State ────────────────────────────────────────────────────────
 let ddcCache: DdcMonitor[] = []
 let ddcCacheTs = 0
@@ -584,6 +587,7 @@ function registerIpcHandlers(): void {
 
   // ── Notification overlay ───────────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.NOTIF_PUSH, (_, spec: SerializedNotification) => {
+    if (!notificationsEnabled) return
     if (!notifWindow || notifWindow.isDestroyed()) return
     if (!notifWindow.isVisible()) notifWindow.show()
     notifWindow.webContents.send(IPC_CHANNELS.NOTIF_RECEIVE, spec)
@@ -656,7 +660,6 @@ app.whenReady().then(() => {
   })
 
   // Register notifications service (tracks global notification enable/disable state)
-  let notificationsEnabled = true
   serviceManager.registerNativeService({
     id: 'notifications',
     name: 'Device Notifications',
@@ -671,6 +674,11 @@ app.whenReady().then(() => {
     },
     isRunning: () => notificationsEnabled,
   })
+  // Sync with persisted state (loaded during ServiceManager construction)
+  const notifSvc = serviceManager.getServiceList().find((s) => s.id === 'notifications')
+  if (notifSvc) {
+    notificationsEnabled = notifSvc.enabled
+  }
 
   registerIpcHandlers()
   createWindow()
