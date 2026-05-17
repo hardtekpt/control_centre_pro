@@ -619,7 +619,7 @@ function ChannelStripComponent({
         <div className="mt-1.5">
           {channel === 'master' ? (
             <span
-              className="px-1.5 py-0.5 text-xs"
+              className="px-1.5 py-0.5 text-xs w-full block text-center"
               style={{ color: 'var(--color-text-secondary)' }}
             >
               Devices
