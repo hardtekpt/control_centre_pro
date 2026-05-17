@@ -1,4 +1,4 @@
-import type { ArctisState, HeadsetNotificationSettings, SerializedNotification } from '@shared/types'
+import type { ArctisState, HeadsetNotificationSettings, SonarNotificationSettings, DisplayNotificationSettings, SerializedNotification } from '@shared/types'
 import { useServiceStore } from '../stores/serviceStore'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -9,6 +9,18 @@ function push(spec: Omit<SerializedNotification, never>): void {
 
 function getSettings(): HeadsetNotificationSettings {
   return useServiceStore.getState().settings.notifications.headset
+}
+
+function getDurationMs(): number {
+  return useServiceStore.getState().settings.notifications.durationMs
+}
+
+function getSonarSettings(): SonarNotificationSettings {
+  return useServiceStore.getState().settings.notifications.sonar
+}
+
+function getDisplaySettings(): DisplayNotificationSettings {
+  return useServiceStore.getState().settings.notifications.display
 }
 
 // ── Previous-state tracking (module-level) ────────────────────────────────────
@@ -268,6 +280,48 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
         push({ kind: 'rect', key: 'sidetone', iconId: 'sidetone', title: 'Sidetone', subtitle: levelLabel, ttl: 2400 })
       }
       break
+    }
+  }
+}
+
+// ── Sonar notifications ───────────────────────────────────────────────────────
+
+export function notifySonarPresetChange(presetName: string): void {
+  const cfg = getSonarSettings()
+  const ttl = getDurationMs()
+  if (cfg.presetChange.enabled) {
+    if (cfg.presetChange.shape === 'circle') {
+      push({ kind: 'circle', key: 'sonar-preset', iconId: 'sonar', ttl })
+    } else {
+      push({
+        kind: 'rect',
+        key: 'sonar-preset',
+        iconId: 'sonar',
+        title: 'GG Sonar',
+        subtitle: `Preset: ${presetName}`,
+        ttl,
+      })
+    }
+  }
+}
+
+// ── Display notifications ─────────────────────────────────────────────────────
+
+export function notifyDisplayInputChange(displayName: string, inputName: string): void {
+  const cfg = getDisplaySettings()
+  const ttl = getDurationMs()
+  if (cfg.inputSourceChange.enabled) {
+    if (cfg.inputSourceChange.shape === 'circle') {
+      push({ kind: 'circle', key: 'display-input', iconId: 'monitor', ttl })
+    } else {
+      push({
+        kind: 'rect',
+        key: 'display-input',
+        iconId: 'monitor',
+        title: displayName,
+        subtitle: `Input: ${inputName}`,
+        ttl,
+      })
     }
   }
 }

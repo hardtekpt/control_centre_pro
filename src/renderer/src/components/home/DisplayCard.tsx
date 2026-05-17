@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
+import { notifyDisplayInputChange } from '../../lib/notifyFromEvent'
 import type { DdcMonitor } from '@shared/types'
 
 interface DisplayCardProps {
@@ -172,27 +173,9 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
           onChange={(e) => {
             if (e.currentTarget.value) {
               const inputHex = e.currentTarget.value
+              const inputName = getInputName(inputHex)
               window.api.ddcSetInputSource(monitor.monitor_id, inputHex).catch(console.error)
-
-              // Emit notification if enabled
-              const settings = useServiceStore.getState().settings
-              const notifCfg = settings.notifications?.display?.inputSourceChange
-              if (notifCfg?.enabled) {
-                const inputName = getInputName(inputHex)
-                const ttl = settings.notifications?.durationMs ?? 2400
-                if (notifCfg.shape === 'circle') {
-                  window.api.notifPush({ kind: 'circle', key: 'display-input', iconId: 'monitor', ttl })
-                } else {
-                  window.api.notifPush({
-                    kind: 'rect',
-                    key: 'display-input',
-                    iconId: 'monitor',
-                    title: monitor.name,
-                    subtitle: `Input: ${inputName}`,
-                    ttl,
-                  })
-                }
-              }
+              notifyDisplayInputChange(monitor.name, inputName)
             }
           }}
           className="w-full text-xs p-1.5 rounded"
