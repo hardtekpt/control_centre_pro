@@ -30,14 +30,12 @@ const CHANNEL_DICT_KEY: Record<string, string> = {
 /**
  * Polls the GG Sonar local HTTP REST API and proxies read/write IPC calls.
  * Discovery: GET https://127.0.0.1:6327/subApps (HTTPS, ignore cert)
- * Fast poll (1 s): mode, volumes, chatMix
- * Slow poll (5 s): configs, routing
+ * Polling interval (default 1s): mode, volumes, chatMix, configs, routing, devices
  */
 export class SonarService {
   private baseUrl: string | null = null
   private window: BrowserWindow | null = null
-  private fastTimer: ReturnType<typeof setInterval> | null = null
-  private slowTimer: ReturnType<typeof setInterval> | null = null
+  private pollingTimer: ReturnType<typeof setInterval> | null = null
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
   private discovering = false
   private lastAvailable = false
@@ -49,8 +47,7 @@ export class SonarService {
   private stateChangeFn: (() => void) | null = null
 
   private pollingConfig: SonarPollingConfig = {
-    fastIntervalMs: 1000,
-    slowIntervalMs: 5000,
+    pollingIntervalMs: 1000,
   }
 
   private state: SonarState = {
@@ -93,8 +90,8 @@ export class SonarService {
 
   setPollingConfig(config: SonarPollingConfig): void {
     this.pollingConfig = { ...config }
-    // Restart timers with new intervals if service is running
-    if (this.fastTimer !== null || this.slowTimer !== null) {
+    // Restart timer with new interval if service is running
+    if (this.pollingTimer !== null) {
       this.stop()
       this.start()
     }
@@ -103,15 +100,12 @@ export class SonarService {
   start(): void {
     // Prevent timer accumulation if called more than once (e.g. re-enable from settings)
     this.stop()
-    this.pollFast()
-    this.pollSlow()
-    this.fastTimer = setInterval(() => this.pollFast(), this.pollingConfig.fastIntervalMs)
-    this.slowTimer = setInterval(() => this.pollSlow(), this.pollingConfig.slowIntervalMs)
+    this.poll()
+    this.pollingTimer = setInterval(() => this.poll(), this.pollingConfig.pollingIntervalMs)
   }
 
   stop(): void {
-    if (this.fastTimer !== null) { clearInterval(this.fastTimer); this.fastTimer = null }
-    if (this.slowTimer !== null) { clearInterval(this.slowTimer); this.slowTimer = null }
+    if (this.pollingTimer !== null) { clearInterval(this.pollingTimer); this.pollingTimer = null }
     if (this.refreshTimer !== null) { clearTimeout(this.refreshTimer); this.refreshTimer = null }
   }
 
@@ -222,7 +216,7 @@ export class SonarService {
 
   // ── Polling ─────────────────────────────────────────────────────────────────
 
-  private async pollFast(): Promise<void> {
+  private async poll(): Promise<void> {
     if (!this.baseUrl) {
       await this.discover()
       if (!this.baseUrl) {
@@ -234,17 +228,29 @@ export class SonarService {
       }
     }
     try {
-      const [modeRaw, classicRaw, streamerRaw, chatMixRaw] = await Promise.all([
+      // Fetch all state in parallel
+      const [modeRaw, classicRaw, streamerRaw, chatMixRaw, configsRaw, routingRaw, selectedRaw] = await Promise.all([
         this.httpGet(`${this.baseUrl}/mode`),
         this.httpGet(`${this.baseUrl}/volumeSettings/classic`),
         this.httpGet(`${this.baseUrl}/volumeSettings/streamer`),
         this.httpGet(`${this.baseUrl}/chatMix`),
+        this.httpGet(`${this.baseUrl}/configs`),
+        this.httpGet(`${this.baseUrl}/AudioDeviceRouting`).catch(() => '[]'),
+        this.httpGet(`${this.baseUrl}/configs/selected`).catch(() => '[]'),
       ])
+
       const polledMode = JSON.parse(modeRaw) as SonarMode
       const now = Date.now()
       const effectiveMode = (this.pendingMode !== null && now < this.pendingModeExpiry)
         ? this.pendingMode
         : (this.pendingMode = null, polledMode)
+
+      const allConfigs = JSON.parse(configsRaw) as SonarConfig[]
+      const selectedIds = new Set(
+        (JSON.parse(selectedRaw) as SonarConfig[]).map((c) => c.id)
+      )
+      const configs = allConfigs.map((c) => ({ ...c, isSelected: selectedIds.has(c.id) }))
+
       const wasUnavailable = !this.state.available
       this.state = {
         ...this.state,
@@ -253,49 +259,20 @@ export class SonarService {
         classic: JSON.parse(classicRaw) as SonarClassicVolumes,
         streamer: JSON.parse(streamerRaw),
         chatMix: JSON.parse(chatMixRaw),
+        configs,
+        routing: JSON.parse(routingRaw),
       }
-      // On first connect, fetch device data immediately rather than waiting for the slow poll
-      if (wasUnavailable) {
-        this.fetchDevices().then(() => this.push()).catch(() => this.push())
-      } else {
-        this.push()
-      }
+
+      // Fetch device data separately so a failure there doesn't block other endpoints
+      await this.fetchDevices()
+
+      this.push()
     } catch {
       this.baseUrl = null
       if (this.state.available) {
         this.state = { ...this.state, available: false }
         this.push()
       }
-    }
-  }
-
-  private async pollSlow(): Promise<void> {
-    if (!this.baseUrl) return
-    try {
-      const [configsRaw, routingRaw, selectedRaw] = await Promise.all([
-        this.httpGet(`${this.baseUrl}/configs`),
-        this.httpGet(`${this.baseUrl}/AudioDeviceRouting`).catch(() => '[]'),
-        this.httpGet(`${this.baseUrl}/configs/selected`).catch(() => '[]'),
-      ])
-
-      const allConfigs = JSON.parse(configsRaw) as SonarConfig[]
-      const selectedIds = new Set(
-        (JSON.parse(selectedRaw) as SonarConfig[]).map((c) => c.id)
-      )
-      const configs = allConfigs.map((c) => ({ ...c, isSelected: selectedIds.has(c.id) }))
-
-      this.state = {
-        ...this.state,
-        configs,
-        routing: JSON.parse(routingRaw),
-      }
-
-      // Fetch device data separately so a failure there doesn't block configs/routing
-      await this.fetchDevices()
-
-      this.push()
-    } catch {
-      // non-fatal — keep cached values
     }
   }
 
@@ -462,13 +439,12 @@ export class SonarService {
 
   // ── Post-write refresh ──────────────────────────────────────────────────────
 
-  // Coalescing 100 ms refresh — multiple rapid writes collapse into one poll pair.
+  // Coalescing 100 ms refresh — multiple rapid writes collapse into one poll.
   private scheduleRefresh(delayMs = 100): void {
     if (this.refreshTimer !== null) clearTimeout(this.refreshTimer)
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null
-      this.pollFast().catch(() => {})
-      this.pollSlow().catch(() => {})
+      this.poll().catch(() => {})
     }, delayMs)
   }
 

@@ -48,8 +48,7 @@ export function GGSonarSettings(): JSX.Element {
 
   // ── Polling config ───────────────────────────────────────────────────────────
   const [savedPollingConfig, setSavedPollingConfig] = useState<SonarPollingConfig | null>(null)
-  const [draftFastInterval, setDraftFastInterval] = useState('')
-  const [draftSlowInterval, setDraftSlowInterval] = useState('')
+  const [draftPollingInterval, setDraftPollingInterval] = useState('')
 
   // ── Visible channels ─────────────────────────────────────────────────────────
   const [draftVisibleChannels, setDraftVisibleChannels] = useState(() => new Set(visibleChannels))
@@ -61,13 +60,11 @@ export function GGSonarSettings(): JSX.Element {
 
   // Refs mirror every draft value so the save handler always reads the latest
   // state even if registered before the most recent state update's effect fired.
-  const draftFastIntervalRef = useRef(draftFastInterval)
-  const draftSlowIntervalRef = useRef(draftSlowInterval)
+  const draftPollingIntervalRef = useRef(draftPollingInterval)
   const draftVisibleChannelsRef = useRef(draftVisibleChannels)
   const draftPresetSwitcherEnabledRef = useRef(draftPresetSwitcherEnabled)
 
-  useEffect(() => { draftFastIntervalRef.current = draftFastInterval }, [draftFastInterval])
-  useEffect(() => { draftSlowIntervalRef.current = draftSlowInterval }, [draftSlowInterval])
+  useEffect(() => { draftPollingIntervalRef.current = draftPollingInterval }, [draftPollingInterval])
   useEffect(() => { draftVisibleChannelsRef.current = draftVisibleChannels }, [draftVisibleChannels])
   useEffect(() => { draftPresetSwitcherEnabledRef.current = draftPresetSwitcherEnabled }, [draftPresetSwitcherEnabled])
 
@@ -75,8 +72,7 @@ export function GGSonarSettings(): JSX.Element {
     window.api.sonarGetPollingConfig()
       .then((config) => {
         setSavedPollingConfig(config)
-        setDraftFastInterval(config.fastIntervalMs.toString())
-        setDraftSlowInterval(config.slowIntervalMs.toString())
+        setDraftPollingInterval(config.pollingIntervalMs.toString())
       })
       .catch(console.error)
 
@@ -90,8 +86,7 @@ export function GGSonarSettings(): JSX.Element {
 
   // ── Dirty detection ──────────────────────────────────────────────────────────
   const pollingDirty = savedPollingConfig !== null && (
-    draftFastInterval !== savedPollingConfig.fastIntervalMs.toString() ||
-    draftSlowInterval !== savedPollingConfig.slowIntervalMs.toString()
+    draftPollingInterval !== savedPollingConfig.pollingIntervalMs.toString()
   )
   const channelsDirty = !setsEqual(draftVisibleChannels, visibleChannels)
   const presetSwitcherDirty = savedPresetSwitcherEnabled !== null && draftPresetSwitcherEnabled !== savedPresetSwitcherEnabled
@@ -110,13 +105,11 @@ export function GGSonarSettings(): JSX.Element {
       setDraftPresetSwitcherEnabled(psEnabled)
 
       // Polling config
-      const fastMs = Math.max(100, parseInt(draftFastIntervalRef.current, 10) || 1000)
-      const slowMs = Math.max(100, parseInt(draftSlowIntervalRef.current, 10) || 5000)
-      const newConfig: SonarPollingConfig = { fastIntervalMs: fastMs, slowIntervalMs: slowMs }
+      const pollingMs = Math.max(100, parseInt(draftPollingIntervalRef.current, 10) || 1000)
+      const newConfig: SonarPollingConfig = { pollingIntervalMs: pollingMs }
       await window.api.sonarSetPollingConfig(newConfig)
       setSavedPollingConfig(newConfig)
-      setDraftFastInterval(fastMs.toString())
-      setDraftSlowInterval(slowMs.toString())
+      setDraftPollingInterval(pollingMs.toString())
 
       // Visible channels (persisted via Zustand localStorage middleware)
       const channels = draftVisibleChannelsRef.current
@@ -237,14 +230,14 @@ export function GGSonarSettings(): JSX.Element {
         <div className="space-y-3 max-w-sm">
           <div>
             <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-              Fast Poll Interval (ms)
+              Polling Interval (ms)
             </label>
             <input
               type="number"
               min="100"
               step="100"
-              value={draftFastInterval}
-              onChange={(e) => setDraftFastInterval(e.target.value)}
+              value={draftPollingInterval}
+              onChange={(e) => setDraftPollingInterval(e.target.value)}
               className="w-full px-3 py-2 rounded text-sm"
               style={{
                 background: 'var(--color-surface-raised)',
@@ -253,29 +246,7 @@ export function GGSonarSettings(): JSX.Element {
               }}
             />
             <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Updates mode, volumes, and chat mix
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-              Slow Poll Interval (ms)
-            </label>
-            <input
-              type="number"
-              min="100"
-              step="100"
-              value={draftSlowInterval}
-              onChange={(e) => setDraftSlowInterval(e.target.value)}
-              className="w-full px-3 py-2 rounded text-sm"
-              style={{
-                background: 'var(--color-surface-raised)',
-                color: 'var(--color-text-primary)',
-                border: '1px solid var(--color-border)',
-              }}
-            />
-            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Updates presets and routing
+              Updates all state: mode, volumes, presets, routing, and devices
             </p>
           </div>
         </div>

@@ -332,8 +332,7 @@ export interface SonarState {
 }
 
 export interface SonarPollingConfig {
-  fastIntervalMs: number  // Fast poll interval (ms) — default 1000
-  slowIntervalMs: number  // Slow poll interval (ms) — default 5000
+  pollingIntervalMs: number  // Polling interval (ms) — default 1000
 }
 
 // ─── Preset Switcher ──────────────────────────────────────────────────────────
