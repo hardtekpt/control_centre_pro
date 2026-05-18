@@ -286,7 +286,8 @@ export class ServiceManager {
       case 'event': {
         const eventName = msg.event as string
         const eventData = msg.data as Record<string, unknown>
-        if (this.lastArctisState && eventName === 'ConnectivityEvent') {
+        if (this.lastArctisState) {
+          // Update state for all events that carry state — not just ConnectivityEvent
           this.lastArctisState = { ...this.lastArctisState, ...eventData }
         }
         this.push(IPC_CHANNELS.ARCTIS_EVENT, eventName, eventData)

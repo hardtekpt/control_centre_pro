@@ -30,6 +30,7 @@ let _prevBtConnected: boolean | null = null
 let _prevBatteryHeadset: number | null = null
 let _prevBatteryDock: number | null = null
 let _prevAncMode: ArctisState['ancMode'] | null = null
+let _prevBaseStationConnected: boolean | null = null
 
 /** Seed tracking state without firing a notification — call on app startup if headset already connected */
 export function seedArctisTrackingState(state: ArctisState): void {
@@ -38,6 +39,7 @@ export function seedArctisTrackingState(state: ArctisState): void {
   _prevBatteryHeadset = state.batteryHeadset
   _prevBatteryDock = state.batteryDock
   _prevAncMode = state.ancMode
+  _prevBaseStationConnected = state.baseStationConnected
 }
 
 /** Reset tracked state — call when headset disconnects so reconnect fires correctly */
@@ -47,6 +49,7 @@ export function resetArctisTrackingState(): void {
   _prevBatteryHeadset = null
   _prevBatteryDock = null
   _prevAncMode = null
+  _prevBaseStationConnected = null
 }
 
 // ── Connection events ─────────────────────────────────────────────────────────
@@ -279,6 +282,32 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       } else {
         push({ kind: 'rect', key: 'sidetone', iconId: 'sidetone', title: 'Sidetone', subtitle: levelLabel, ttl: 2400 })
       }
+      break
+    }
+
+    // ── Base Station Connection ────────────────────────────────────────────
+    case 'DeviceDisconnectedEvent':
+    case 'DeviceReconnectedEvent': {
+      const d = data as { baseStationConnected: boolean }
+      // Only notify if state actually changed and prev state is known (avoid notifications on app startup)
+      if (_prevBaseStationConnected !== null && d.baseStationConnected !== _prevBaseStationConnected) {
+        const cfg = getSettings()
+        if (cfg.powerOnOff.enabled) {
+          const connected = d.baseStationConnected
+          if (cfg.powerOnOff.shape === 'circle') {
+            push({ kind: 'circle', key: 'arctis-base-station', iconId: connected ? 'link' : 'unlink', ttl: 2400 })
+          } else {
+            push({
+              kind: 'rect', key: 'arctis-base-station',
+              iconId: 'link',
+              title: 'Arctis Nova Pro',
+              subtitle: connected ? 'Base station reconnected' : 'Base station disconnected',
+              ttl: 2400,
+            })
+          }
+        }
+      }
+      _prevBaseStationConnected = d.baseStationConnected
       break
     }
   }
