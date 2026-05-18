@@ -1,1097 +1,191 @@
 # Control Centre Pro — Claude Code Reference
 
-## What This App Is
+## Overview
 
-**Control Centre Pro** is a Windows desktop application for managing hardware devices and running
-custom background services. Think of it as a personal control panel: monitor connected devices,
-adjust audio and display settings, start/stop services, and get real-time OSD feedback for
-everything connected to your machine.
+**Control Centre Pro** is a Windows desktop app for managing hardware devices and services via a clean sidebar-based UI. Monitor headsets (Arctis Nova Pro), control display settings (DDC/CI), manage audio (GG Sonar), and configure keyboard shortcuts with real-time OSD notifications.
 
-The app is designed as an extensible shell — the MVP establishes the layout, navigation patterns,
-and service infrastructure; device and service plugins are added as sidebar sections over time.
+**Architecture**: Extensible shell pattern. Main process spawns Python subprocesses (services) that emit newline-delimited JSON events. Renderer (React) consumes these via Zustand stores. All state persists to `app.getPath('userData')`.
 
 ---
 
-## Technology Stack
+## Tech Stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| Desktop shell | **Electron 31+** | Code-sharing between web and desktop; Claude can generate Electron code effectively |
-| UI | **React 18 + TypeScript** | Strict mode; component model maps well to the sidebar/pane architecture |
-| Bundler | **electron-vite** | Single config for main + preload + renderer; fast HMR |
-| Styling | **Tailwind CSS** | Utility-first; design tokens via CSS custom properties |
-| State | **Zustand** | Simple store without Redux boilerplate |
-| Packaging | **electron-builder** | Mature Windows NSIS/MSIX packaging + auto-update integration |
-| Services | **Python subprocesses** | Hardware HID services written in Python; communicate via newline-delimited JSON on stdout |
+| Layer | Technology |
+|---|---|
+| **Shell** | Electron 31+, electron-vite, electron-builder |
+| **UI** | React 18 + TypeScript, Tailwind CSS, Zustand |
+| **Services** | Python subprocesses (JSON stdout), Node.js (DDC, Sonar, Discord), worker threads (blocking native calls) |
+| **Styling** | Tailwind (layout/spacing) + CSS custom properties (colors) |
 
 ---
 
-## Project Structure
+## Architecture Rules (Never Break)
 
-```
-resources/
-├── services/
-│   └── arctis_hid_service.py         # Python HID service for Arctis Nova Pro
-├── nircmd/
-│   └── nircmd.exe                    # NirCmd binary (set primary display, no UAC)
-└── *.png                             # App icons
-
-src/
-├── main/                             # Node.js (Electron main process)
-│   ├── index.ts                      # Window creation, IPC handlers, app lifecycle, OSD management
-│   ├── services/
-│   │   ├── serviceManager.ts         # Spawns/monitors Python subprocesses, routes events
-│   │   ├── sonarService.ts           # GG Sonar HTTP REST polling client (Node.js native)
-│   │   ├── activeWindowMonitor.ts    # Foreground window watcher (preset auto-switcher + monitor actions)
-│   │   ├── notifications/
-│   │   │   ├── windowService.ts      # System notification BrowserWindows (HTML inline, no React)
-│   │   │   └── timerService.ts       # Keyed auto-close timer map (debounces rapid events)
-│   │   └── apis/ddc/
-│   │       ├── service.ts            # DDC/CI async wrapper — manages worker lifecycle
-│   │       └── ddcWorker.ts          # Worker thread: PowerShell device queries + ddcci native calls
-│   └── shortcuts/
-│       ├── dispatcher.ts             # Executes shortcut actions; routes to services
-│       └── shortcutRegistry.ts       # Global hotkey registration + handler wiring
-├── preload/
-│   └── index.ts                      # contextBridge — exposes window.api to the renderer
-├── shared/
-│   └── types.ts                      # IPC channel names + ALL shared TS interfaces
-└── renderer/                         # Browser (React)
-    ├── index.html
-    ├── notification.html             # Separate entry point for the OSD BrowserWindow
-    └── src/
-        ├── App.tsx                   # Theme, window state sync, IPC subscriptions, FloatingSidebar
-        ├── NotificationOverlay.tsx   # OSD renderer root (loads in notification.html window)
-        ├── main.tsx                  # ReactDOM entry for main window
-        ├── notification.tsx          # ReactDOM entry for OSD window
-        ├── stores/
-        │   ├── appStore.ts           # Zustand: currentView, sidebarCollapsed, theme, peek panel
-        │   ├── serviceStore.ts       # Zustand: services[], logs[], ArctisState, ddcMonitors[], settings
-        │   ├── sonarStore.ts         # Zustand: SonarState, activePresetIds per channel
-        │   ├── notificationStore.ts  # Zustand: notification queue and stacking state
-        │   └── shortcutStore.ts      # Zustand: shortcuts[], conflict detection
-        ├── lib/
-        │   ├── notifyFromEvent.ts    # Maps hardware events -> SerializedNotification push calls
-        │   └── shortcuts/
-        │       └── catalog.ts         # Action definitions, categories, metadata
-        ├── contexts/
-        │   └── settingsFormContext.tsx  # Dirty state + save-handler registry for settings pages
-        ├── types/electron.d.ts       # window.api type declarations for TS
-        ├── styles/globals.css        # CSS tokens + Tailwind base + animation keyframes
-        ├── components/
-        │   ├── layout/               # TopBar, Sidebar, FloatingSidebar, MainLayout, MainContent
-        │   ├── settings/             # SettingsLayout, SettingsSidebar, UnsavedChangesDialog
-        │   ├── home/                 # HeadsetCard, CompactHeadsetCard, DisplayCard, panel components
-        │   ├── gg-sonar/             # ChannelMixer, ChannelStrip, PresetEditor
-        │   ├── notifications/        # NotificationCircle, NotificationRect, NotificationStack, icons
-        │   └── common/               # ConfirmDialog
-        └── pages/
-            ├── Home.tsx              # Dashboard — CompactHeadsetCard + DisplayCards grid
-            ├── Arctis.tsx            # Full headset control panel
-            ├── GGSonar.tsx           # Audio mixer page (ChannelMixer)
-            ├── Shortcuts.tsx         # Keyboard shortcuts configuration UI
-            ├── Notifications.tsx     # Notification preview and per-type config
-            └── settings/
-                ├── GeneralSettings.tsx   # Theme, tray, Python path, service enable/disable
-                ├── DDCSettings.tsx       # Poll interval, monitor preferences
-                ├── GGSonarSettings.tsx   # Sonar polling config
-                ├── NotificationsSettings.tsx  # Per-notification toggles, shapes, TTL
-                └── About.tsx             # Version info + live service terminal log
-```
-
----
-
-## Architecture Rules (Never Break These)
-
-1. **Never enable `nodeIntegration: true`** — security risk; any XSS becomes full system compromise.
-2. **Never use `ipcRenderer` directly in React components** — always go through `window.api.*`
-   which is exposed by the preload script via `contextBridge`.
-3. **Never use string literals for IPC channels** — all channel names are `IPC_CHANNELS` constants
-   in `src/shared/types.ts`. Typos silently fail; typed constants fail at compile time.
-4. **Never do file I/O in the renderer** — request it via IPC; the main process handles all fs ops.
-5. **Always use `ipcMain.handle` (not `ipcMain.on`)** so the renderer can `await` the result via
-   `ipcRenderer.invoke` (through the preload bridge).
-6. **Worker thread for blocking native calls** — DDC reads (200–400 ms each) and PowerShell
-   `spawnSync` queries run in a `worker_threads.Worker`. Never on the main thread.
+1. **No `nodeIntegration: true`** — security risk; any XSS = full system compromise
+2. **Never use `ipcRenderer` directly in React** — go through `window.api.*` (preload bridge)
+3. **No string literals for IPC channels** — use `IPC_CHANNELS` constants in `src/shared/types.ts`
+4. **No renderer file I/O** — always request via IPC from main process
+5. **Use `ipcMain.handle()` not `ipcMain.on()`** — allows renderer to `await` results
+6. **Worker threads for blocking native calls** — DDC reads (~300ms each), PowerShell queries run in `worker_threads.Worker`, never on main thread
 
 ---
 
 ## Design System
 
-The visual design mirrors the Claude Code desktop app aesthetic — pure neutral grays, clean and minimal.
-All colors use CSS custom properties; **never hardcode colors in components**.
+**Philosophy**: Pure neutral grays (no warm/cool undertones), minimal, matches Claude Code aesthetic.
 
-### Color Tokens
+### Color Tokens (CSS custom properties)
 
 ```css
-/* Reference these in inline styles: style={{ color: 'var(--color-text-primary)' }} */
-
 /* Light mode */
---color-bg:             #F5F5F5   /* Light gray canvas */
---color-surface:        #EBEBEB   /* Sidebar, panel backgrounds */
---color-surface-raised: #E3E3E3   /* Inputs, dropdowns */
---color-text-primary:   #141414   /* Near-black */
---color-text-secondary: #8C8C8C   /* Muted gray */
---color-accent:         #525252   /* Dark gray — the ONLY action color */
+--color-bg:             #F5F5F5    /* Canvas */
+--color-surface:        #EBEBEB    /* Sidebar, panels */
+--color-surface-raised: #E3E3E3    /* Inputs, dropdowns */
+--color-text-primary:   #141414    /* Near-black */
+--color-text-secondary: #8C8C8C    /* Muted gray */
+--color-accent:         #525252    /* ONLY action color */
 --color-border:         #D8D8D8
---color-code-bg:        #E5E5E5   /* Terminal / monospace areas */
+--color-code-bg:        #E5E5E5    /* Terminal areas */
 
-/* Dark mode (toggled via data-theme="dark" on <html>) */
---color-bg:             #1C1C1C   /* Dark charcoal */
+/* Dark mode (toggle via data-theme="dark" on <html>) */
+--color-bg:             #1C1C1C
 --color-surface:        #252525
 --color-surface-raised: #2C2C2C
---color-text-primary:   #EBEBEB   /* Light gray */
+--color-text-primary:   #EBEBEB
 --color-text-secondary: #888888
---color-accent:         #B0B0B0   /* Medium gray in dark mode */
+--color-accent:         #B0B0B0
 --color-border:         #383838
 --color-code-bg:        #252525
 ```
 
-### Design Rules Summary
-
-- **Pure neutral grays** — no warm or cool undertones.
-- **Gray is the only accent** — never orange, never blue, never purple.
-- **No heavy shadows** — depth via background color steps, not `box-shadow`.
-- **No gradients** — especially no purple/brand gradients.
-- **Tailwind for layout/spacing; CSS vars for colors** — never hardcode color hex in components.
-- **Font**: `Segoe UI Variable` / `Segoe UI` for UI chrome; `JetBrains Mono` / `Cascadia Code`
-  for code, paths, version strings (use `.mono` utility class from `globals.css`).
+**Rules**: Reference via `var(--color-*)` in styles. Never hardcode hex. Gray is the only accent. No gradients, no heavy shadows. Fonts: `Segoe UI` for chrome, `JetBrains Mono`/`Cascadia Code` for code (`.mono` utility class).
 
 ---
 
-## Sidebar Behaviour
+## Core Patterns
 
-- Default width: **240px** | Min: **180px** | Max: **320px**
-- **Collapsed state**: sidebar unmounts entirely — no icon-only strip. The toggle button's icon
-  switches between `SidebarOpenIcon` (solid divider) and `SidebarClosedIcon` (dashed divider +
-  filled panel region) to communicate state.
-- **Peek panel**: hovering the sidebar-toggle button while collapsed shows `FloatingSidebar` — a
-  `ReactDOM.createPortal` panel anchored via `getBoundingClientRect()` to the button's position.
-  Mouse entering the panel cancels the hide timer; leaving schedules a 180ms hide. Mounted in
-  `App.tsx` so it works from both main and settings views.
-- Resize handle: 6px-wide invisible div on the right edge of the outer container; turns
-  accent-colored on hover. Lives on the **outer** div, not inside the rounded card, so it isn't
-  clipped by `border-radius` + `overflow: hidden`.
-- During drag: lock `document.body.style.cursor = 'col-resize'` and `userSelect = 'none'`
-  to prevent flickering and text selection — restore both in the `mouseup` cleanup.
-- Width and collapsed state live in Zustand (`appStore.ts`) — add localStorage persistence later.
+### Sidebar Behaviour
+- **Width**: 240px default | 180–320px range | resizable handle on right edge
+- **Collapsed**: sidebar unmounts entirely (no icon strip)
+- **Peek panel**: `FloatingSidebar` (React portal) on collapsed button hover, anchored via `getBoundingClientRect()`
+- **State**: lives in Zustand (`appStore.ts`); add localStorage persistence later
+- **Important**: `FloatingSidebar.tsx` and `Sidebar.tsx` must stay in sync (see feedback memory)
 
-## Floating UI Patterns
+### Floating UI Pattern
+- Use `ReactDOM.createPortal(element, document.body)` for overlays escaping `overflow: hidden`
+- Anchor via `useRef` + `getBoundingClientRect()`
+- Shared timers (e.g. peek panel hide) as module-level vars, never in Zustand state
+- Content-sized panels: use `minHeight`, never `bottom` (stretches incorrectly)
 
-- **Portal rendering**: any overlay that must escape `overflow: hidden` parents uses
-  `ReactDOM.createPortal(element, document.body)` with `position: fixed`.
-- **DOM measurements**: use `useRef` + `getBoundingClientRect()` to anchor floating elements.
-  Child components that expose a ref must be wrapped in `forwardRef`.
-- **Debounce timers shared between siblings**: declare as a module-level variable in the store
-  file (`let _timer = null`) — never put a timer ID in Zustand state.
-- **Content-sized panels**: use `minHeight` with no `bottom` constraint. A `bottom` value
-  stretches the panel to fill the window regardless of content.
+### Service System (Python Subprocesses)
+- **Protocol**: Services emit newline-delimited JSON objects with `type` field
+- **Message types**: `log`, `connected`, `disconnected`, `event`, `fatal`
+- **Persistence**: `app.getPath('userData')/services.json` (python path, enable/disable flags)
+- **Renderer state**: Zustand store (`serviceStore.ts`) holds services[], logs (up to 500), device state
+- **IPC subscriptions**: wired in `App.tsx` via `useEffect` so they're always active
 
-## Settings Button
+### Worker Threads (Blocking Calls)
+- **Pattern**: async wrapper in main process + worker file (separate build entry in `electron.vite.config.ts`)
+- **Message passing**: post `{ id, type, ...args }`, store `{ resolve, reject }` in `Map<id, callbacks>`, resolve when matching reply arrives
+- **Used for**: DDC reads, PowerShell queries (primary display detection), HDMI enumeration
+- **Build config**: add worker as rollup `input` entry so it compiles to separate `.js` file
 
-The bottom of the sidebar uses a chip-style button (not a plain nav row):
-- Left: small icon inside a `rounded-md` badge (`--color-border` bg → `--color-accent` when active)
-- Center: label text
-- Right: chevron-down indicator
-- Border: `1px solid var(--color-border)` gives it the contained/selector look
+### Settings Persistence
+- **System**: all user-configurable settings in global `AppSettings` interface (`src/shared/types.ts`)
+- **Pattern**: use `useSettingsForm()` context to register a save handler; global Save button triggers all
+- **Never** add local Save/Apply buttons to settings pages
+- **File**: `app.getPath('userData')/settings.json` (loaded/saved via `SETTINGS_GET`/`SETTINGS_SET` IPC)
 
----
-
-## Service System
-
-### Overview
-
-Background services run as Python subprocesses managed by `ServiceManager` (main process).
-Each service is a Python script in `resources/services/` that communicates exclusively via
-newline-delimited JSON on **stdout**. Stderr is forwarded as error-level log entries.
-
-Native services (DDC, Sonar) are registered differently via `registerNativeService()` — they run
-in the main process but follow the same start/stop lifecycle contract.
-
-### Message Protocol (Python → Electron)
-
-Every line written to stdout must be a valid JSON object with a `type` field:
-
-```json
-{ "type": "log",         "level": "info|warn|error", "message": "..." }
-{ "type": "connected",   "data": { ...ArctisState fields... } }
-{ "type": "disconnected" }
-{ "type": "event",       "event": "EventClassName",  "data": { ... } }
-{ "type": "fatal",       "message": "..." }
-```
-
-`fatal` causes the process to call `sys.exit(1)` — use it only for unrecoverable errors
-(e.g. missing Python package). `log` entries appear in the About page terminal log.
-
-### Adding a New Service
-
-1. Create `resources/services/<id>_service.py` following the JSON message protocol above.
-   Use an internal reconnect loop so the process stays alive across device disconnects.
-2. Add an entry to `SERVICE_DEFS` in [serviceManager.ts](src/main/services/serviceManager.ts):
-   ```typescript
-   { id: 'my-service', name: 'My Service', description: '...', script: 'my_service.py' }
-   ```
-3. Add any device-specific IPC channels to `IPC_CHANNELS` in [shared/types.ts](src/shared/types.ts).
-4. Handle the new message types in `ServiceManager.handleMessage()`.
-5. Expose new IPC channels through [preload/index.ts](src/preload/index.ts) and declare them
-   in [electron.d.ts](src/renderer/src/types/electron.d.ts).
-6. Subscribe to the new IPC push events in `App.tsx` and update the relevant Zustand store.
-
-### Service Config Persistence
-
-`ServiceManager` persists its config to `app.getPath('userData')/services.json`:
-
-```json
-{
-  "pythonPath": "python",
-  "services": {
-    "arctis-hid": true
-  }
-}
-```
-
-`pythonPath` is the executable used for all Python services (configurable in General Settings).
-Each service id maps to a boolean (enabled/disabled). Defaults: all enabled, `pythonPath = "python"`.
-
-### Renderer-side Service State
-
-`serviceStore.ts` (Zustand) holds:
-- `services: ServiceInfo[]` — populated on startup via `window.api.servicesList()`, kept live
-  via `onServicesStateChange` push events.
-- `logs: LogEntry[]` — up to 500 entries, displayed in the About page terminal log.
-- `arctisState: ArctisState | null` — `null` when headset is disconnected.
-- `ddcMonitors: DdcMonitor[]` — current DDC monitor list.
-- `settings: AppSettings` — loaded on startup, kept live via settings change push.
-
-All IPC subscriptions are wired in `App.tsx` via `useEffect` so they're active globally.
+### Notifications (Two Surfaces)
+- **System surface**: spawned `BrowserWindow` (340×108px, frameless, non-focusable) for messages
+- **OSD surface**: persistent window with React `NotificationOverlay`, stacks hardware events
+- **Deduplication**: same `key` replaces existing notification (no stacking)
+- **Pattern**: `notifyFromEvent.ts` maps hardware events → `window.api.notifPush(spec)` → main process → OSD window
 
 ---
 
-## Arctis Nova Pro HID Service
+## Key Architectural Lessons
 
-**Package**: [`arctis_nova_pro_hid`](https://github.com/hardtekpt/arctis_nova_pro_hid/tree/development)
-(import name: `arctis_hid`) — direct USB HID control, no SteelSeries GG required.
-Full API reference: [DOCUMENTATION.md](https://github.com/hardtekpt/arctis_nova_pro_hid/blob/development/src/package/DOCUMENTATION.md)
-
-**Script**: [resources/services/arctis_hid_service.py](resources/services/arctis_hid_service.py)
-
-**Behaviour**:
-- Calls `discover()` to find the headset; on `DeviceNotFoundError` emits `disconnected` and
-  retries every 3 seconds.
-- On connect: reads initial state via `get_status()` + `get_mic_eq()`, emits `connected` with
-  the full `ArctisState` snapshot, then calls `listen()` (blocks, fires event callbacks).
-- On `DeviceIOError` (USB pulled): emits `disconnected`, closes handles, sleeps 2 s, retries.
-- Subprocess stays alive indefinitely — it only exits on `fatal` (missing package).
-- Supports write commands via stdin JSON: volume, ANC mode, mic mute, sidetone.
-
-**ArctisState shape** (shared type in `types.ts`):
-```typescript
-{ batteryHeadset: number, batteryDock: number, ancMode: 'OFF'|'TRANSPARENCY'|'ANC',
-  micMuted: boolean, volume: number, wirelessConnected: boolean, btConnected: boolean,
-  sidetone: 'OFF'|'LOW'|'MEDIUM'|'HIGH' }
-```
-
-**Events handled** (update `arctisState` in `serviceStore` via `updateArctisState`):
-`VolumeEvent`, `BatteryEvent`, `AncModeEvent`, `MicMuteEvent`, `ConnectivityEvent`,
-`SidetoneEvent`, `ChatMixEvent`
-
-**Home page widget**: `CompactHeadsetCard` in [components/home/](src/renderer/src/components/home/)
-mounts/unmounts automatically based on `arctisState !== null`.
+1. **Optimistic UI beats waiting for hardware** — update local state immediately, ignore stale echoed events via write-lock timestamps
+2. **Command coalescing** — rapid slider drags queued + `setImmediate` so hardware only writes once per gesture
+3. **Event-driven > polling** — Discord RPC and Sonar work best with subscriptions, not polls
+4. **Don't trust monitor capabilities** — use fixed common input code list; always include current input
+5. **Separate IPC protocol from business logic** — JSON schema for subprocesses makes them swappable
+6. **Immutable state updates** — use spread operator; enables debuggability and prevents subtle mutations
 
 ---
 
-## DDC/CI Display Control Service
-
-**Why native service instead of Python subprocess?** DDC/CI calls are Windows-only via
-`@hensm/ddcci`. Native registration simplifies the caching layer and state management — no
-subprocess protocol overhead.
-
-> **Important**: DDC calls are synchronous and slow (200–400 ms per call) and the PowerShell
-> queries used to map device paths block for seconds. All of this runs in a dedicated
-> `worker_threads` Worker so the main process event loop is never blocked. Do **not** move these
-> operations back to the main thread.
-
-**Package**: [`@hensm/ddcci`](https://www.npmjs.com/package/@hensm/ddcci) — Windows DDC/CI library.
-Add to `package.json` with `electron-builder` ASAR unpack config:
-```json
-"@hensm/ddcci": "*",
-"build": { "asarUnpack": ["**/node_modules/@hensm/ddcci/**"] }
-```
-
-**Key API**:
-- `getMonitorList(): string[]` — array of device paths (e.g., `"\\\\?\\DISPLAY#...\\Monitor#1"`)
-- `getBrightness(devicePath: string): number` — 0–100
-- `setBrightness(devicePath: string, value: number): void`
-- `_getVCP(devicePath: string, code: number): number[]` — raw VCP value (used for input source)
-- `_setVCP(devicePath: string, code: number, value: number): void` — raw VCP write
-
-**VCP codes** (Virtual Control Panel codes per DDC-CI spec):
-- `0x10` — brightness
-- `0x12` — contrast
-- `0x60` — input source (values: `0x01`–`0x04` VGA/DVI, `0x0f`–`0x10` DisplayPort, `0x11`–`0x12` HDMI, `0x1b` USB-C)
-
-**Worker thread architecture** (`src/main/services/apis/ddc/`):
-
-Two files work together:
-
-- **`ddcWorker.ts`** — runs in a `worker_threads` Worker. Contains all blocking work: the two
-  PowerShell `spawnSync` queries (primary display detection via `EnumDisplayDevices`, GDI device
-  map) and all `ddcci` native calls. Communicates via `parentPort` messages.
-- **`service.ts`** — thin async wrapper. Spawns the worker on `start()`, posts messages, and
-  resolves Promises when the worker responds. Maintains `devicePaths` and `cachedMonitors` locally,
-  updated after each `refreshDone`/`setPrimaryDone` response.
-
-Worker message protocol (main → worker):
-```typescript
-{ id: number; type: 'refresh' }
-{ type: 'setBrightness'; devicePath: string; value: number }   // fire-and-forget
-{ type: 'setInputSource'; devicePath: string; vcpCode: number } // fire-and-forget
-{ id: number; type: 'setPrimary'; monitorId: number; multiMonitorToolPath: string }
-```
-
-Worker message protocol (worker → main):
-```typescript
-{ type: 'refreshDone';    id: number; monitors: DdcMonitor[]; devicePaths: [number, string][] }
-{ type: 'setPrimaryDone'; id: number; monitors: DdcMonitor[]; devicePaths: [number, string][] }
-{ type: 'error';          id: number; message: string }
-{ type: 'log';            level: 'info'|'warn'|'error'; message: string }
-```
-
-Async requests use a `pendingCallbacks: Map<id, { resolve, reject }>` in the service — post the
-message with an `id`, store the callbacks, resolve/reject when the matching response arrives.
-
-**Adding the worker as a build entry** (`electron.vite.config.ts`):
-```typescript
-main: {
-  build: {
-    rollupOptions: {
-      input: {
-        index:     resolve('src/main/index.ts'),
-        ddcWorker: resolve('src/main/services/apis/ddc/ddcWorker.ts'),
-      },
-      output: { entryFileNames: '[name].js' },
-    },
-  },
-}
-```
-This compiles the worker to `out/main/ddcWorker.js` alongside `out/main/index.js`. Reference it
-at runtime with `join(__dirname, 'ddcWorker.js')`.
-
-**DdcService public API** (`src/main/services/apis/ddc/service.ts`):
-- `start() / stop()` — spawns/terminates the worker
-- `refreshMonitors(): Promise<DdcMonitor[]>` — non-blocking; resolves when worker finishes
-- `setBrightness(monitorId, value)` — posts to worker + optimistic cache update
-- `setInputSource(monitorId, inputValue)` — posts to worker + optimistic cache update
-- `setPrimaryMonitor(monitorId, toolPath): Promise<void>` — delegates to worker
-- `getCachedMonitors(): DdcMonitor[]` — synchronous; returns last known state
-- `isAvailable(): boolean` — true if worker is running
-- `setLogEmitter(fn)` / `setStateChangedCallback(fn)` — wiring hooks
-
-**DdcMonitor interface** (shared type in `types.ts`):
-```typescript
-export interface DdcMonitor {
-  monitor_id: number                 // 1-indexed
-  name: string                       // extracted from device path
-  brightness: number                 // 0–100
-  contrast: number                   // 0–100
-  input_source: string               // hex like "0x11" (lowercase)
-  available_inputs: string[]         // sorted list of detected input codes
-  supports: string[]                 // ['brightness', 'contrast', 'input_source']
-  is_primary: boolean                // detected via EnumDisplayDevices Win32 API
-}
-```
-
-**Primary display detection**:
-- PowerShell script uses `EnumDisplayDevices` with `EDD_GET_DEVICE_INTERFACE_NAME` flag, returning
-  the same `\\?\DISPLAY#...` path format that `@hensm/ddcci` produces — enabling reliable matching.
-- Script must be written to a temp `.ps1` file and run with `-File` (not `-Command`) because the
-  PowerShell `@'...'@` here-string requires its closing marker at column 0 in the source file.
-
-**Primary display switching**:
-- NirCmd's `setprimarydisplay <adapterName>` is called with the cached adapter name from the last
-  `EnumDisplayDevices` run (e.g. `\\.\DISPLAY2`).
-- No UAC elevation required — modifies per-user display settings.
-- NirCmd path resolves via `app.isPackaged` check at runtime.
-
-**IPC channels**:
-- `DDC_GET_MONITORS` — invoke to get monitors (forces refresh if cache >60s old)
-- `DDC_SET_BRIGHTNESS` — invoke(monitorId, value) — queued + coalesced
-- `DDC_SET_INPUT_SOURCE` — invoke(monitorId, inputValue) — direct write + refresh
-- `DDC_SET_PRIMARY_MONITOR` — invoke(monitorId) — calls NirCmd + refresh
-- `DDC_UPDATE` — push event (broadcast on state change or periodic poll)
-
-**Smart refresh strategy** (minimize slow DDC calls):
-1. **Startup**: after `serviceManager.startAll()`, schedule refresh with 5 retries (5s delays)
-2. **Navigation**: `App.tsx` refreshes when navigating to home page or DDC settings tab
-3. **Periodic**: configurable interval (default 60s)
-4. **Post-change**: refresh after `setBrightness` or `setInputSource` to read back actual values
-5. **Cache**: return cached data if <60s old; otherwise refresh
-
-**DisplayCard component** (`src/renderer/src/components/home/DisplayCard.tsx`):
-- **Props**: `monitor: DdcMonitor`
-- **Local state**:
-  - `draftBrightness: number | null` — user's slider drag value (optimistic UI)
-  - `lockedUntilRef: useRef<number>` — timestamp to ignore stale `DDC_UPDATE` events during drag
-- **Brightness slider**:
-  - `onChange` → update draft only (visual feedback without waiting for hardware)
-  - `onPointerUp` / `onKeyUp('Enter'|' ')` → fire IPC + clear draft after 1200ms lock
-  - Display value = `draftBrightness ?? monitor.brightness` (draft takes precedence)
-- **Input selector**: dropdown showing `available_inputs`, calls `window.api.ddcSetInputSource`
-- **Primary badge**: shown when `monitor.is_primary`; "Set as primary" button otherwise
-- **Pattern**: write-lock prevents echoed `DDC_UPDATE` from clobbering user's in-flight drag
-
-**Input source mapping** (case-insensitive lookup via `INPUT_NAME_MAP: Record<string, string>`):
-- Keys are lowercase hex: `'0x01'`, `'0x02'`, `'0x0f'`, etc.
-- Values: `'VGA 1'`, `'DVI 1'`, `'DisplayPort 1'`, `'HDMI 1'`, `'USB-C'`
-- Padding: always `padStart(2, '0')` and `.toLowerCase()` on hex strings to ensure consistency
-
-**Architectural lessons**:
-1. **Worker thread for blocking native calls**: DDC reads (200–400 ms each) and PowerShell
-   `spawnSync` queries (up to 10 s) run in a `worker_threads` Worker.
-2. **electron-vite worker build entries**: worker files need a separate rollup `input` entry in
-   `electron.vite.config.ts` so they compile to their own `.js` file alongside `index.js`.
-3. **Promise map for async worker communication**: post a message with a unique `id`, store
-   `{ resolve, reject }` in a `Map<id, callbacks>`, resolve/reject when the matching reply arrives.
-4. **Optimistic UI**: local draft state in DisplayCard + write-lock pattern avoids flashing
-   old values when echoed updates arrive from the backend.
-5. **Command coalescing**: rapid slider drags produce many `DDC_SET_BRIGHTNESS` calls. Queue
-   + `setImmediate` ensures we only write to hardware once per gesture, not once per tick.
-6. **Input discovery**: Rather than querying monitor capabilities (slow + unreliable), use a
-   fixed list of common input codes. Always include the current input in `available_inputs`.
-7. **PowerShell here-string delivery**: must use a temp `.ps1` file with `-File` flag — the
-   `@'...'@` closing marker must be at column 0 which only works in a real file, not `-Command`.
-
----
-
-## GG Sonar Integration
-
-**Service**: `src/main/services/sonarService.ts` — Node.js HTTP polling client (no subprocess).
-
-**Discovery**: `GET https://127.0.0.1:6327/subApps` (HTTPS, `rejectUnauthorized: false`) →
-parse `subApps.sonar.metadata.webServerAddress` for the dynamic Sonar HTTP port.
-The port changes on every GG restart; discovery is retried on every failed poll.
-
-**Polling strategy**:
-- **Fast poll (1s)**: `/mode`, `/volumeSettings/classic`, `/volumeSettings/streamer`, `/chatMix`
-- **Slow poll (5s)**: `/configs`, `/configs/selected`, `/AudioDeviceRouting`,
-  `/audioDevices`, `/classicRedirections`, `/streamRedirections`
-- On failure: clear `baseUrl`, set `available: false`, retry discovery on next poll cycle.
-
-**Write commands** (all optimistic — update local state first, then send HTTP):
-- `PUT /volumeSettings/classic/{channelKey}/Volume/{value}` — volume (0.0–1.0)
-- `PUT /volumeSettings/classic/{channelKey}/Mute/{true|false}` — mute
-- `PUT /volumeSettings/streamer/{mix}/{channelKey}/volume/{value}` — streamer volume
-- `PUT /configs/{configId}/select` — activate preset for a channel
-- `PUT /mode/{classic|stream}` — mode switch
-- `PUT /classicRedirections/{channelDictKey}/deviceId/{deviceId}` — channel redirection
-
-**Important channel key distinction** — Sonar uses three different key formats:
-
-| Channel | JSON/devices key | HTTP volume path key | ChannelDict (redirection path) |
-|---|---|---|---|
-| Master | `masters` | `Master` | `master` |
-| Game | `game` | `game` | `game` |
-| Chat (render) | `chatRender` | `chatRender` | `chat` |
-| Mic (capture) | `chatCapture` | `chatCapture` | `mic` |
-| Media | `media` | `media` | `media` |
-| Aux | `aux` | `aux` | `aux` |
-
-**Preset limitations**: The Sonar HTTP API only supports reading + selecting presets.
-Creating, editing, and deleting presets must be done via the SteelSeries GG application.
-Only `PUT /configs/{configId}/select` is writable; no POST/DELETE/edit endpoints exist.
-Source: [SteelSeries-NET-API](https://github.com/DataNext27/SteelSeries-NET-API)
-
-**IPC channels**:
-```
-SONAR_GET_STATE, SONAR_STATE_CHANGE, SONAR_SET_VOLUME, SONAR_SET_MUTE,
-SONAR_SELECT_PRESET, SONAR_SET_MODE, SONAR_GET_POLLING_CONFIG, SONAR_SET_POLLING_CONFIG,
-SONAR_SET_REDIRECTION, SONAR_ROUTE_PROCESS, SONAR_REFRESH_DEVICES
-```
-
-**Renderer state** (`sonarStore.ts`):
-```typescript
-interface SonarStoreState {
-  sonarState: SonarState | null       // null until first successful poll
-  activePresetIds: Record<string, string>  // virtualAudioDevice -> configId
-}
-```
-
----
-
-## Discord RPC Voice Integration
-
-**Service**: `src/main/services/discordService.ts` — Event-driven RPC client (no HTTP polling).
-
-**Why native service instead of subprocess?**: Discord RPC is IPC-based (Windows named pipe
-`\\.\pipe\discord-ipc-{0-9}`), not HTTP. RPC client must run in Node.js main process. Native
-registration simplifies the connection lifecycle — no subprocess protocol overhead, direct
-event subscription, immediate state updates.
-
-**Architecture**: Event-driven rather than polling. Direct IPC transport speaks the Discord RPC
-wire protocol (8-byte header + JSON frames over Windows named pipes `\\.\pipe\discord-ipc-{0-9}`).
-Subscribes to voice events; emits state changes to renderer immediately when they arrive.
-
-**Connection flow**:
-1. `connect()` → `DiscordRpcTransport.connect(clientId)` tries pipes 0–9 sequentially, sends HANDSHAKE, waits for READY
-2. State: `available: true, authenticated: false`
-3. Check `loadCachedToken()` — if found, skip to authenticate; if not, send AUTHORIZE command
-4. AUTHORIZE fires OAuth browser popup → user grants scopes `rpc`, `rpc.voice.read`, `rpc.voice.write` → receives authorization code
-5. Exchange code via `POST /oauth2/token` with `client_secret` → get access token + expiration
-6. Save token to `userData/discord-token.json` (expires in ~10 hours)
-7. Send AUTHENTICATE with access token → state: `authenticated: true`
-8. Fetch initial voice settings; check if in a voice channel; subscribe to events
-9. On disconnect: emit `available: false`, schedule 10-second reconnect timer
-10. `stopped` flag prevents reconnect after explicit `stop()`
-
-**DiscordState interface** (shared type in `types.ts`):
-```typescript
-export interface DiscordState {
-  available: boolean                           // RPC socket connected
-  authenticated: boolean                       // OAuth token valid
-  error: string | null                         // last connection error, or null
-  voiceChannel: { id: string; name: string; guildName: string } | null  // null when not in voice
-  participants: DiscordParticipant[]
-  selfMuted: boolean
-  selfDeafened: boolean
-  inputVolume: number                          // 0–100
-  outputVolume: number                         // 0–100
-}
-
-export interface DiscordParticipant {
-  userId: string
-  username: string
-  nick: string                                 // display name or username
-  muted: boolean                               // their self-mute
-  deafened: boolean
-  localMuted: boolean                          // we've locally muted them
-  localVolume: number                          // 0–200 (100 = normal)
-  speaking: boolean
-  avatar: string | null                        // Discord CDN URL
-}
-```
-
-**DiscordService public API** (`src/main/services/discordService.ts`):
-- `start() / stop()` — opens/closes RPC socket and event subscriptions
-- `getState()` — synchronous; returns current `DiscordState` snapshot
-- `isAvailable()` — true if RPC connected and authenticated
-- `setSelfMute(muted)` → `SET_VOICE_SETTINGS { mute }`
-- `setSelfDeaf(deafened)` → `SET_VOICE_SETTINGS { deaf }`
-- `setInputVolume(0-100)` → `SET_VOICE_SETTINGS { input: { volume } }`
-- `setOutputVolume(0-100)` → `SET_VOICE_SETTINGS { output: { volume } }`
-- `setLocalVolume(userId, 0-200)` → `SET_USER_VOICE_SETTINGS { user_id, volume }`
-- `setLocalMute(userId, muted)` → `SET_USER_VOICE_SETTINGS { user_id, mute }`
-- `reconnect()` — destroy and re-open RPC connection (clears cached token)
-- `setClientId(clientId)` — set Discord app client ID for auth
-- `setClientSecret(secret)` — set Discord app client secret for OAuth token exchange
-- `setWindow(window)`, `setLogEmitter(fn)`, `setStateChangeNotifier(fn)` — wiring hooks
-
-**Event subscriptions** (after login):
-- `VOICE_CHANNEL_SELECT` — fired when user joins/leaves/switches voice channel
-  - Re-subscribe to per-channel events when channel changes
-  - Channel ID determines which participants we monitor
-- `VOICE_STATE_CREATE` — fired when a participant joins the channel (per-channel)
-  - Adds participant to list
-- `VOICE_STATE_UPDATE` — fired per participant when mute/deafen status changes (per-channel)
-  - Updates existing participant; if not found, adds (same as CREATE)
-- `VOICE_STATE_DELETE` — fired when a participant leaves the channel (per-channel) — **bug fix**
-  - Removes participant by `user.id` from list
-- `SPEAKING_START` — fires when a participant starts speaking (per-channel)
-- `SPEAKING_STOP` — fires when a participant stops speaking (per-channel)
-
-**IPC channels** (defined in `src/shared/types.ts`):
-| Channel | Direction | Payload |
-|---------|-----------|---------|
-| `DISCORD_GET_STATE` | invoke | — returns `DiscordState` |
-| `DISCORD_STATE_CHANGE` | push | `DiscordState` |
-| `DISCORD_SET_SELF_MUTE` | invoke | `muted: boolean` |
-| `DISCORD_SET_SELF_DEAF` | invoke | `deafened: boolean` |
-| `DISCORD_SET_INPUT_VOLUME` | invoke | `volume: 0-100` |
-| `DISCORD_SET_OUTPUT_VOLUME` | invoke | `volume: 0-100` |
-| `DISCORD_SET_LOCAL_VOLUME` | invoke | `userId: string, volume: 0-200` |
-| `DISCORD_SET_LOCAL_MUTE` | invoke | `userId: string, muted: boolean` |
-| `DISCORD_RECONNECT` | invoke | — |
-
-**Settings integration** (`src/renderer/src/pages/settings/DiscordSettings.tsx`):
-- Client ID text input (persisted to `AppSettings.discordClientId`)
-- Client Secret password input (persisted to `AppSettings.discordClientSecret`, masked)
-- Connection status indicator (colored dot + text)
-- Reconnect button (manual force-reconnect, clears cached token)
-- Self voice controls: Mute Mic / Deafen buttons (toggle red when active)
-- Input/Output volume sliders (0-100)
-- Live participant list (when in voice channel):
-  - Avatar, nick (green when speaking), muted/deafened badges
-  - Per-participant volume slider (0-200) with live value display
-  - Per-participant local mute toggle (red when active)
-
-**Optimistic writes**: All write commands patch `this.state` immediately in `DiscordService`,
-then call `push()` to emit to renderer without waiting for Discord RPC acknowledgment. No
-confirmation polling — Discord events (`VOICE_STATE_UPDATE`, etc.) confirm the actual new
-state asynchronously, and any divergence (user reverted in Discord app) is corrected by
-the next event.
-
-**Auto-reconnect strategy**:
-- On `client.on('disconnected')`: emit `available: false`, schedule 10-second reconnect
-- Timer respects `stopped` flag — no reconnect after explicit `stop()`
-- Used when Discord desktop app closes/restarts or network drops
-- Requires no explicit action from user
-
-**Authentication & token persistence**:
-- First connect: AUTHORIZE command opens browser OAuth popup
-- User grants scopes `rpc`, `rpc.voice.read`, `rpc.voice.write`; browser redirects to `http://127.0.0.1` with authorization code
-- Service exchanges code via `POST /oauth2/token` with both `client_id` and `client_secret`
-- Access token persisted to `userData/discord-token.json` with expiration time (~10 hours)
-- On next app start: cached token reused, OAuth popup skipped (unless token expired or revoked)
-- Both Client ID and Secret stored in `AppSettings`, persisted to `settings.json`
-- If either Client ID or Secret not set: service emits error state, stays in `available: false`
-- If cached token rejected on reconnect: cleared from disk, next connect re-runs AUTHORIZE
-
-**Renderer integration** (`App.tsx`):
-```typescript
-const { setDiscordState } = useDiscordStore()
-// Load initial state + subscribe to push events
-useEffect(() => {
-  window.api.discordGetState().then(setDiscordState)
-  const cleanup = window.api.onDiscordStateChange(setDiscordState)
-  return cleanup
-}, [setDiscordState])
-```
-
-**Store pattern** (`src/renderer/src/stores/discordStore.ts`):
-- `discordState: DiscordState | null` — `null` until first connection
-- `setDiscordState(state)` — full replace on push events
-- `patchParticipantVolume(userId, volume)` — optimistic UI patch during slider drag
-- `patchParticipantMute(userId, muted)` — optimistic UI patch on mute click
-
-**Architectural lessons**:
-1. **Event-driven over polling**: RPC is naturally event-based — Discord sends you changes,
-   you don't query. Much lower latency and CPU usage than HTTP polling.
-2. **Per-channel subscriptions**: Discord RPC requires channel ID when subscribing to
-   voice events. Must re-subscribe when user changes channels.
-3. **VOICE_STATE_DELETE subscription**: Previous implementations missed this event, causing
-   participants to accumulate forever when they left. Must explicitly subscribe and handle
-   to remove participants by `user.id`.
-4. **Direct pipe transport**: The Discord RPC wire protocol is simple — 8-byte header (opcode + length)
-   + JSON body, delivered over Windows named pipes. Implementing it directly eliminates the need
-   for a package wrapper, avoids relying on undocumented internal commands (`SET_LOCAL_VOLUME`),
-   and enables token persistence (the package cached tokens in memory only).
-5. **Immutable state updates**: All state changes use spread operator (`{ ...this.state, ...patch }`).
-   Ensures predictable, traceable updates and simplifies debugging.
-6. **Token persistence for UX**: Persisting tokens to `userData/discord-token.json` with expiration
-   time eliminates the OAuth popup on every app start. Requires standard OAuth2 `client_secret`
-   (not the undocumented `/oauth2/token/rpc` bypass), which users copy from the Developer Portal.
-7. **Local mute is separate from mute**: `muted` (their self-mute state) vs `localMuted`
-   (we've suppressed them). Both are user-controllable but represent different things.
-
----
-
-## Preset Auto-Switcher & App-Triggered Actions
-
-**Service**: `src/main/services/activeWindowMonitor.ts`
-
-Polls the Windows foreground window at a 500ms interval. When the active process name matches
-a `PresetSwitcherRule`, fires zero or more actions:
-- Optionally switch a GG Sonar preset for a channel
-- Optionally change monitor input sources via DDC/CI
-
-**Manual override tracking**: when the user manually selects a preset in the GG Sonar page,
-the switcher records this and skips re-applying auto-presets for that channel until the
-foreground app changes away and back. Monitor actions are one-shot per rule per app focus
-(cleared on app change).
-
-**IPC channels**:
-```
-ACTIVE_WINDOW_CHANGE, ACTIVE_WINDOW_GET_OPEN_APPS,
-PRESET_SWITCHER_GET_RULES, PRESET_SWITCHER_SET_RULES,
-PRESET_SWITCHER_GET_ENABLED, PRESET_SWITCHER_SET_ENABLED, PRESET_SWITCHER_ENABLED_CHANGE
-```
-
-**Rule structure** (`PresetSwitcherRule` in `types.ts`):
-```typescript
-{
-  id: string
-  appProcessName: string                    // Windows process name (no .exe)
-  displayName: string                       // Shown in UI
-  enabled: boolean
-  channel?: string                          // SonarConfig.virtualAudioDevice (optional)
-  presetId?: string                         // SonarConfig.id (optional)
-  monitorActions?: MonitorInputAction[]     // DDC/CI input switches (optional)
-}
-
-// Monitor action: sets display input on focus
-interface MonitorInputAction {
-  monitorId: number   // DdcMonitor.monitor_id
-  inputValue: string  // hex string, e.g. "0x11" (HDMI 1)
-}
-```
-
-A rule must have **at least one action** (Sonar preset or monitor action). A rule can have both.
-
-**UI**: `src/renderer/src/components/gg-sonar/PresetSwitcherSection.tsx`
-- Add Rule form has two optional sections: **Sonar preset** (channel + preset dropdowns) and
-  **Monitor inputs** (accumulate multiple input switches).
-- Existing rules display both types of actions in summary form with icons (🔊 for Sonar, 🖥️ for monitor).
-- Rules can be enabled/disabled or deleted.
-
----
-
-## Keyboard Shortcuts System
-
-**Pages**: `src/renderer/src/pages/Shortcuts.tsx` — the main UI
-**Store**: `src/renderer/src/stores/shortcutStore.ts` — Zustand state for shortcuts list
-**Dispatcher**: `src/main/shortcuts/dispatcher.ts` — execution engine for shortcut actions
-**Registry**: `src/main/shortcuts/shortcutRegistry.ts` — global + app-focused hotkey registration
-**Catalog**: `src/renderer/src/lib/shortcuts/catalog.ts` — action definitions and metadata
-
-### Overview
-
-Users define **Shortcuts** — keyboard combinations bound to **Actions**. Actions span hardware
-control (headset volume, display brightness), Sonar preset selection, monitor input switching,
-preset auto-switcher toggles, and notifications.
-
-**Shortcut scope**:
-- **global**: fired in all contexts (wired to `registerGlobalShortcuts()` via `globalShortcut.register()`)
-- **focused**: fired only when the app window has focus (event listeners on the renderer)
-
-### Shortcut interface (`src/shared/types.ts`)
-
-```typescript
-export interface Shortcut {
-  id: string
-  actionId: string              // Identifies the action (e.g. 'headset.volume.up')
-  value?: string | number       // Optional parameter (e.g. volume delta, preset ID)
-  keys: string[]                // Key combo, e.g. ['ctrl', 'shift', 'a']
-  scope: ShortcutScope          // 'global' | 'focused'
-  enabled: boolean
-}
-```
-
-### Action Catalog
-
-Actions are declared in `src/renderer/src/lib/shortcuts/catalog.ts` with:
-- `id`: unique identifier
-- `label`: display name
-- `cat`: category ('headset', 'display', 'sonar', 'switcher', etc.)
-- `schema`: optional validator for the `value` parameter (e.g. enum of preset IDs)
-- `valueLabel`: UI label for the parameter field (e.g. "Delta" for volume)
-
-Example categories:
-- **Headset**: volume up/down, mute, ANC mode, sidetone level
-- **Display**: brightness up/down, input source select, primary monitor set
-- **Sonar**: channel volume, mute, preset select, mode switch
-- **Preset Switcher**: enable/disable auto-switcher
-- **Notifications**: toggle notification types
-
-### Dispatcher Flow
-
-**Global scope** (main process):
-1. User defines a global shortcut (e.g. `Ctrl+Alt+V` → "headset volume up")
-2. `src/main/shortcuts/shortcutRegistry.ts` registers it with `globalShortcut.register()`
-3. On key press, the handler calls `initDispatcher()`'s `dispatch(shortcut)` function
-4. Dispatcher resolves action type and invokes the appropriate service method (e.g. `arctisService.setVolume()`)
-
-**Focused scope** (renderer):
-1. Keyboard event fires on the renderer window
-2. `Shortcuts.tsx` uses a `keydown` listener to detect key combos
-3. Matches combo against `items` in `shortcutStore`
-4. Finds matching focused shortcut and calls `window.api.shortcutsDispatch(actionId, value)`
-5. Main process dispatcher receives it and executes
-
-### Shortcut Persistence
-
-Shortcuts are persisted to `app.getPath('userData')/shortcuts.json`:
-
-```json
-[
-  {
-    "id": "uuid",
-    "actionId": "headset.volume.up",
-    "value": 5,
-    "keys": ["ctrl", "alt", "up"],
-    "scope": "global",
-    "enabled": true
-  }
-]
-```
-
-**Conflict detection**: `shortcutStore.findConflict(combo, excludeId?)` checks if a key combo
-is already bound (ignores disabled shortcuts). Called before saving a new shortcut.
-
-### UI Pattern
-
-**Shortcuts page**:
-- Search + filter chips by category
-- Editable rows showing keybind, action label, value (if any)
-- Click to edit: opens an inline form with key recorder + action/value dropdowns
-- Delete button per row
-
-**Key recorder**: listens for a single key press, normalizes to `['ctrl', 'shift', 'a']` format.
-Handles system keys (Enter, Escape, Delete) and ignores modifiers-only presses.
-
-### Adding a New Action
-
-1. Add entry to `ACTIONS` in `src/renderer/src/lib/shortcuts/catalog.ts`:
-   ```typescript
-   {
-     id: 'myaction.foo',
-     label: 'My Action Label',
-     cat: 'headset',
-     schema: { type: 'enum', values: ['val1', 'val2'] },  // or omit for no-param actions
-     valueLabel: 'Option'
-   }
-   ```
-2. In `src/main/shortcuts/dispatcher.ts`, add a case to `dispatch()` that calls the service:
-   ```typescript
-   case 'myaction.foo':
-     serviceManager.getService('my-service').foo(value as string)
-     break
-   ```
-3. If it's a **global** action that needs main-process handling, ensure the dispatcher case is covered.
-4. If it's a **focused** action only, the renderer-side dispatch is sufficient.
-
-### Validation Rules
-
-- **Conflict detection**: no two enabled shortcuts may use the same key combo (per scope).
-- **Scope isolation**: focused shortcuts take precedence in the renderer; global shortcuts fire regardless.
-- **Disabled shortcuts**: do not reserve key combos; conflicts are only with enabled shortcuts.
-
----
-
-## Notification System
-
-### Two Surfaces
-
-The app uses two parallel notification surfaces. The OS `Notification` API is intentionally
-avoided — it creates Action Center entries, loses styling control, and causes focus interruptions.
-
-### Surface 1: System Notifications
-
-**File**: `src/main/services/notifications/windowService.ts`
-
-Used for informational messages (service errors, preset failures, debug messages).
-
-- Each call spawns a **new** `BrowserWindow` (340×108 px, frameless, transparent, `alwaysOnTop`,
-  non-focusable, skip taskbar).
-- HTML content is built as an inline string and loaded via `loadURL('data:text/html,...')` —
-  no React, no IPC round-trip.
-- `setIgnoreMouseEvents(true)` — purely visual, never steals focus.
-- `setTimeout` auto-closes using `notificationTimeout` from settings (enforced ≥ 2s).
-- `relayout()` stacks windows top-right, 12px from work area edge, 10px gap, collapses on close.
-- `escapeHtml()` is applied to all user-visible strings before embedding in HTML (XSS prevention).
-
-### Surface 2: Hardware OSD Overlays
-
-A persistent `BrowserWindow` loads `notification.html` which mounts `NotificationOverlay.tsx`.
-This React component receives `SerializedNotification` objects and manages a visible stack.
-
-**How notifications fire** (renderer-driven flow):
-1. Hardware event arrives in `App.tsx` (e.g. `ARCTIS_EVENT` push from main process).
-2. `App.tsx` calls the appropriate function from `notifyFromEvent.ts`.
-3. `notifyFromEvent.ts` reads notification settings from `serviceStore` and calls
-   `window.api.notifPush(spec)`.
-4. Main process receives `NOTIF_PUSH`, forwards to the OSD BrowserWindow.
-5. `NotificationOverlay.tsx` adds the notification to its stack with the given TTL.
-
-**Notification shapes** (`SerializedNotification.kind`):
-- `'circle'` — icon only (small square)
-- `'ring'` — icon + circular progress arc (0–100 value)
-- `'volume'` — icon + horizontal bar + label (wide pill)
-- `'rect'` — icon + title + optional subtitle + optional tail text
-
-**Key deduplication**: each notification has a `key` string. A new notification with the same
-`key` replaces any currently-visible notification with that key — no stacking for the same event.
-Example: `'headset-volume'` — scrolling replaces rather than piles up.
-
-**TTL**: `ttl` field in milliseconds. Notifications are removed when their TTL expires.
-
-**Timer management** (`src/main/services/notifications/timerService.ts`): a `Map<key, Timeout>`.
-Calling `schedule(key, delay, cb)` **replaces** any existing timer for that key, so rapid events
-extend the timeout rather than stacking closures.
-
-**OSD position**: center-bottom of the primary display (above taskbar), matching system volume
-overlays. Respects `screen.getPrimaryDisplay().workAreaSize`.
-
-**Adding a new OSD notification**:
-1. Add a `notifyXxx()` function to `notifyFromEvent.ts` — check settings, call `push(spec)`.
-2. Add the notification config type to `AppSettings.notifications` in `types.ts`.
-3. Add the corresponding UI toggle/shape selector to `NotificationsSettings.tsx`.
-4. Wire the call from the appropriate IPC subscription in `App.tsx`.
-
----
-
-## Persisting User-Configurable Settings
-
-**All user-configurable settings must use the global `AppSettings` system** — never add a local
-"Save" button to a settings page. The global Save button in the settings layout handles all saves.
-
-### AppSettings (`src/shared/types.ts`)
-
-Add new fields to the `AppSettings` interface and a default in `DEFAULT_SETTINGS`. The file is
-persisted to `app.getPath('userData')/settings.json` and loaded/saved via `SETTINGS_GET` /
-`SETTINGS_SET` IPC channels.
-
-```typescript
-// In AppSettings interface:
-myNewSetting: number
-
-// In DEFAULT_SETTINGS:
-myNewSetting: 42
-```
-
-If the new setting requires the main process to react immediately (e.g. restart a timer), add a
-dedicated `MY_FEATURE_SET_FOO` IPC channel that writes to `settings.json` itself and applies the
-change. The IPC handler should call `loadAppSettings()`, update the field, write back, then apply.
-
-### Settings page pattern (`useSettingsForm` context)
-
-Every settings page must use the `useSettingsForm()` context from
-`src/renderer/src/contexts/settingsFormContext.tsx`:
-
-```typescript
-const { setDirty, registerSave } = useSettingsForm()
-
-// Mark the form dirty whenever a draft value differs from the saved value
-useEffect(() => { setDirty(draftValue !== savedValue) }, [draftValue, savedValue, setDirty])
-
-// Register the save handler — re-register whenever draft values change
-useEffect(() => {
-  registerSave(async () => {
-    const current = await window.api.getSettings()
-    await window.api.setSettings({ ...current, myNewSetting: draftValue })
-    setSavedValue(draftValue)
-  })
-  return () => registerSave(null)
-}, [draftValue, registerSave])
-```
-
-If the setting goes through a dedicated IPC channel rather than `setSettings`, call that instead
-inside `registerSave`.
-
-**Never add a local Save/Apply button to a settings page.** The global button is the only save trigger.
-
----
-
-## Adding a New Page / Section
-
-1. Add a new `NavItemDef` entry to the `MAIN_NAV` array in [Sidebar.tsx](src/renderer/src/components/layout/Sidebar.tsx).
-2. Add the `id` to the `AppView` union in [shared/types.ts](src/shared/types.ts).
-3. Create a page component in `src/renderer/src/pages/`.
-4. Add a case in [MainContent.tsx](src/renderer/src/components/layout/MainContent.tsx).
-
-**Important**: `FloatingSidebar.tsx` duplicates the nav item list and must always be updated
-in sync with `Sidebar.tsx`. See the feedback memory for the floating-sidebar sync rule.
-
----
-
-## Adding a New Settings Tab
-
-1. Add the tab id to `SettingsTab` union in [shared/types.ts](src/shared/types.ts).
-2. Add an entry to `SETTINGS_NAV` in [SettingsSidebar.tsx](src/renderer/src/components/settings/SettingsSidebar.tsx).
-3. Create a page in `src/renderer/src/pages/settings/`.
-4. Add a case in [SettingsLayout.tsx](src/renderer/src/components/settings/SettingsLayout.tsx).
-
----
-
-## Adding a New IPC Channel
-
-1. Add the channel name to `IPC_CHANNELS` in [shared/types.ts](src/shared/types.ts).
-2. Add `ipcMain.handle(IPC_CHANNELS.YOUR_CHANNEL, handler)` in [main/index.ts](src/main/index.ts).
-3. Expose a method in [preload/index.ts](src/preload/index.ts) via `contextBridge`.
-4. Declare the method on the `Window['api']` interface in [electron.d.ts](src/renderer/src/types/electron.d.ts).
+## Common Tasks
+
+### Adding a New Page
+1. Add `NavItemDef` to `MAIN_NAV` in `Sidebar.tsx`
+2. Add `id` to `AppView` union in `shared/types.ts`
+3. Create component in `src/renderer/src/pages/`
+4. Add case in `MainContent.tsx`
+5. **Keep `Sidebar.tsx` and `FloatingSidebar.tsx` in sync** (duplicate nav items)
+
+### Adding a New Settings Tab
+1. Add `id` to `SettingsTab` union in `shared/types.ts`
+2. Add entry to `SETTINGS_NAV` in `SettingsSidebar.tsx`
+3. Create page in `src/renderer/src/pages/settings/`
+4. Add case in `SettingsLayout.tsx`
+5. Use `useSettingsForm()` context for save handler (not a local Save button)
+
+### Adding a New IPC Channel
+1. Add name to `IPC_CHANNELS` in `shared/types.ts`
+2. Add `ipcMain.handle(IPC_CHANNELS.YOUR_CHANNEL, handler)` in `main/index.ts`
+3. Expose method in `preload/index.ts` via `contextBridge`
+4. Declare on `Window['api']` interface in `electron.d.ts`
+
+### Adding a New Python Service
+1. Create `resources/services/<id>_service.py` following JSON protocol (type: log|connected|disconnected|event|fatal)
+2. Add entry to `SERVICE_DEFS` in `serviceManager.ts`
+3. Add IPC channels to `IPC_CHANNELS`
+4. Handle messages in `ServiceManager.handleMessage()`
+5. Subscribe to push events in `App.tsx`
 
 ---
 
 ## Git Workflow
 
-- **`master`** — stable, production-ready snapshots
-- **`development`** — integration branch; all features merge here first
-- **Feature branches** — `feat/<name>` branched from `development`; merged back via `--no-ff`
-- **Docs branches** — `docs/<name>` for documentation-only changes
+- **`master`** — stable production releases
+- **`development`** — integration branch (default)
+- **`feat/<name>`** — feature branches from development, merged back via `--no-ff`
+- **`fix/<name>`, `docs/<name>`** — bugfix and documentation branches
 
-Commit format: `type: short description` where type is `feat`, `fix`, `chore`, `docs`, `refactor`.
+**Commit format**: `type: description` where type is `feat`, `fix`, `chore`, `docs`, `refactor`
 
-**Auto-commit:** After completing any set of code changes, commit them to the current branch
-immediately without waiting for the user to ask. Stage only the files that were modified as part
-of the task — never include `.claude/`, `tsconfig.*.tsbuildinfo`, or other build/tooling artifacts.
+**Auto-commit rule**: after completing code changes, commit immediately (stage only modified files, skip `.claude/`, `*.tsbuildinfo`).
 
-## Automated Feature Development Workflow
-
-**For complex features (multi-file, multi-step implementation), Claude should:**
-
-1. **Automatically create a feature branch** when starting a significant feature:
-   - If on `development`, create `feat/<feature-name>` via `git checkout -b feat/<feature-name>`
-   - Example: `git checkout -b feat/discord-voice-control`
-   - Include a description-based slug (e.g., `discord-voice-control`, not `feature-1`)
-
-2. **Commit incrementally** after each logical step or component:
-   - After types/interfaces are added
-   - After service class is created
-   - After IPC wiring is complete
-   - After renderer integration is done
-   - Keep commits small and atomic — each should be reviewable independently
-
-3. **Merge back to `development`** once the feature is complete:
-   - Ensure `npm run typecheck` passes (fix any pre-existing codebase issues)
-   - Use `git merge --no-ff feat/<feature-name>` to preserve branch history
-   - Delete the feature branch: `git branch -d feat/<feature-name>`
-   - Do **not** push to remote unless explicitly requested by the user
-
-4. **Create supporting documentation**:
-   - Export implementation plan to `agents/` folder for future reference
-   - Create a quick-reference guide for the feature (e.g., `agents/FEATURE_REFERENCE.md`)
-   - Update CLAUDE.md if the feature introduces new patterns or architectural decisions
-
-5. **Example: Discord Voice Control Service** (2026-05-18):
-   - Created `feat/discord-voice-control` from `development`
-   - Committed progressively: types → service → IPC → store → settings page → integration
-   - Final commit message detailed all files and architectural choices
-   - Exported plan and reference guides to `agents/` folder
-   - Merged back to `development` via `git merge --no-ff`
-   - Deleted feature branch
-
-**When to NOT create a branch:**
-- Bug fixes to a single file or localized component
-- Typo fixes or documentation-only changes
-- Small enhancements (< 3 files modified)
-- These can commit directly to `development`
-
-**Branch naming conventions:**
-- `feat/` — new features (e.g., `feat/discord-voice-control`)
-- `fix/` — bug fixes (e.g., `fix/sonar-slider-race-condition`)
-- `docs/` — documentation (e.g., `docs/shortcuts-system`)
-- `refactor/` — code reorganization (e.g., `refactor/extract-notification-components`)
+**Complex features**: create branch → commit incrementally → merge back → update CLAUDE.md if new patterns added.
 
 ---
 
-## Running the App (once `npm install` is done)
+## Quick Commands
 
 ```powershell
-npm install          # Install all dependencies
-npm run dev          # Start Electron with Vite HMR (renderer hot-reloads on save)
-npm run build        # Build all processes for production
-npm run package      # Build + package as Windows installer
-npm run typecheck    # TypeScript validation without a full build
-```
+npm install              # Install dependencies
+npm run dev              # Electron + Vite HMR (renderer hot-reloads)
+npm run build            # Build for production
+npm run package          # Build + Windows installer
+npm run typecheck        # TypeScript validation
 
-The Arctis HID service requires the `arctis_hid` Python package. Install it with:
-```powershell
+# Arctis HID service setup
 python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development
 ```
-If you use a non-default Python environment, set the executable path in **General Settings → Services → Python executable**.
 
 ---
 
 ## Known Gaps / Next Steps
 
-- [ ] Sidebar width + collapsed state not persisted — wire up `localStorage` or `electron-store`
-- [ ] JetBrains Mono loaded from Google Fonts — bundle the font files for offline use
-- [ ] `FloatingSidebar` and `Sidebar` duplicate nav item definitions — extract shared `MAIN_NAV`
-      and icon components into a `src/renderer/src/components/layout/nav.tsx` shared module
-- [ ] HeadsetCard updates on events only — add periodic state polling for initial sync on late attach
-- [ ] Arctis write commands — full EQ and sidetone adjustment UI still TBD
-- [ ] Service log in About tab not clearable — add a Clear button
-- [ ] Home page has no empty state when no devices are connected (Audio section shows blank)
-- [ ] Auto-updater (`electron-updater`) not configured — needs a release server URL
-- [ ] No test suite yet — add Vitest for renderer, Vitest + mocks for main process services
-- [ ] GG Sonar: chatMix balance control not exposed in UI
-- [ ] GG Sonar: stream monitoring toggle not exposed in UI
-- [ ] Settings chevron in sidebar is decorative — could navigate directly to settings
+- [ ] Sidebar width/collapsed state not persisted (add localStorage/electron-store)
+- [ ] Duplicate nav definitions in `Sidebar.tsx` and `FloatingSidebar.tsx` (extract shared module)
+- [ ] No test suite (add Vitest for renderer, mocks for main process)
+- [ ] Arctis write commands — full EQ/sidetone UI TBD
+- [ ] Auto-updater not configured (needs release server URL)
+- [ ] Service log not clearable (add Clear button)
+- [ ] Home page no empty state when devices disconnected
+
+---
+
+**For detailed service documentation** (Arctis HID, DDC/CI, GG Sonar, Discord RPC, shortcuts, preset auto-switcher), see `agents/` folder or search the codebase directly.
