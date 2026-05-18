@@ -168,6 +168,50 @@ def _warn_defaults(state, mic_eq, status, display) -> None:
         log("warn", "Some fields fell back to defaults — attr names may differ: " + ", ".join(missing))
 
 
+def _get_default_state() -> dict:
+    """Return a minimal default ArctisState when the headset can't be discovered.
+    This allows the UI to show the disconnected card even on startup.
+    """
+    return {
+        "batteryHeadset": 0,
+        "batteryDock": 0,
+        "micMuted": False,
+        "volume": 0,
+        "wirelessConnected": False,
+        "wirelessLinkState": "SEARCHING",
+        "headsetPowered": False,
+        "btActive": False,
+        "btConnected": False,
+        "btPairing": False,
+        "ancMode": "OFF",
+        "transparencyLevel": 5,
+        "micGain": "LOW",
+        "sidetone": "OFF",
+        "micVolume": 5,
+        "wirelessMode": "PERFORMANCE",
+        "btDefault": False,
+        "btAutoMute": "OFF",
+        "chatmixEnabled": True,
+        "chatmixGame": 50,
+        "chatmixChat": 50,
+        "audioOutput": "SPEAKERS",
+        "streamMain": 100,
+        "streamAux": 100,
+        "streamMic": 100,
+        "baseStationConnected": False,
+        "oledBrightness": 5,
+        "dimTimeout": "OFF",
+        "homescreenMode": "DETAILED",
+        "micLedBrightness": 5,
+        "autoOffTimeout": "OFF",
+        "eqPresetIndex": 0,
+        "eqBands": [20] * 10,
+        "sonarConnected": False,
+        "usbInput": "INPUT_1",
+        "volumeLimiterOn": False,
+    }
+
+
 # ─── Write command dispatch ────────────────────────────────────────────────────
 
 def _handle_cmd(cmd: str, value) -> None:
@@ -327,17 +371,29 @@ def main() -> None:
     # Start stdin command reader (daemon — dies with main thread)
     threading.Thread(target=_stdin_reader, daemon=True).start()
 
+    # Track if we've already sent the default disconnected state to the renderer.
+    # This ensures the renderer always has a state to work with, even when the
+    # headset can't be discovered.
+    _default_state_sent = False
+
     while True:
         headset = None
         try:
             headset = discover()
         except DeviceNotFoundError:
-            emit({"type": "disconnected"})
+            # On initial startup, send a default disconnected state so the UI can render.
+            # Once we've sent it once, just keep retrying without spamming state updates.
+            if not _default_state_sent:
+                default_state = _get_default_state()
+                emit({"type": "connected", "data": default_state})
+                log("info", "Headset not found, showing disconnected state")
+                _default_state_sent = True
             time.sleep(3)
             continue
 
         try:
             _set_headset(headset)
+            _default_state_sent = False  # Reset flag when headset is successfully discovered
 
             # Enable ChatMix events so the hardware dial fires ChatMixEvent
             try:
