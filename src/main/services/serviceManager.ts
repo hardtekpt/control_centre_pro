@@ -3,7 +3,7 @@ import type { ChildProcess } from 'child_process'
 import { join } from 'path'
 import { app } from 'electron'
 import type { BrowserWindow } from 'electron'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'fs'
 import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../../shared/types'
 import type { ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../../shared/types'
@@ -51,6 +51,7 @@ export class ServiceManager {
   private enabled: Record<string, boolean> = {}
   private pythonPath = 'python'
   private configPath: string
+  private logFilePath: string
   private window: BrowserWindow | null = null
   private lastArctisState: ArctisState | null = null
   private nativeServices: NativeServiceRegistration[] = []
@@ -59,7 +60,9 @@ export class ServiceManager {
 
   constructor() {
     this.configPath = join(app.getPath('userData'), 'services.json')
+    this.logFilePath = join(app.getPath('userData'), 'service-logs.txt')
     this.loadConfig()
+    this.clearLogFile()
   }
 
   setWindow(window: BrowserWindow): void {
@@ -106,6 +109,28 @@ export class ServiceManager {
     writeFileSync(this.configPath, JSON.stringify(payload, null, 2), 'utf-8')
   }
 
+  private clearLogFile(): void {
+    try {
+      writeFileSync(this.logFilePath, '', 'utf-8')
+    } catch (err) {
+      console.error('[ServiceManager] Failed to clear log file:', err)
+    }
+  }
+
+  private writeLogFile(entry: LogEntry): void {
+    try {
+      const time = new Date(entry.timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+      const line = `${time} [${entry.serviceName}] ${entry.message}\n`
+      appendFileSync(this.logFilePath, line, 'utf-8')
+    } catch (err) {
+      console.error('[ServiceManager] Failed to write log file:', err)
+    }
+  }
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
   /**
@@ -126,6 +151,11 @@ export class ServiceManager {
   /** Get cached logs (used to populate terminal on renderer startup) */
   getCachedLogs(): LogEntry[] {
     return [...this.logCache]
+  }
+
+  /** Get the path to the service log file */
+  getLogFilePath(): string {
+    return this.logFilePath
   }
 
   /** Re-broadcast the service list (call when a native service's running state changes) */
@@ -326,6 +356,8 @@ export class ServiceManager {
     if (this.logCache.length > this.MAX_CACHED_LOGS) {
       this.logCache.shift()
     }
+    // Write to file
+    this.writeLogFile(entry)
     // Send to renderer if window is ready
     this.push(IPC_CHANNELS.SERVICE_LOG, entry)
   }

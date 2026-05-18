@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import type { LogEntry } from '@shared/types'
 
@@ -47,11 +47,17 @@ function LogRow({ entry }: { entry: LogEntry }): JSX.Element {
 export function About(): JSX.Element {
   const { logs } = useServiceStore()
   const logEndRef = useRef<HTMLDivElement>(null)
+  const [logFilePath, setLogFilePath] = useState<string>('')
 
   // Auto-scroll to the latest entry whenever logs update
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
+
+  // Load log file path
+  useEffect(() => {
+    window.api.getServiceLogFilePath().then(setLogFilePath).catch(console.error)
+  }, [])
 
   return (
     <div>
@@ -124,6 +130,17 @@ export function About(): JSX.Element {
               <div ref={logEndRef} />
             </>
           )}
+        </div>
+
+        {/* Log file path */}
+        <div className="mt-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          <span>Log file: </span>
+          <span className="mono" style={{ color: 'var(--color-text-secondary)', wordBreak: 'break-all' }}>
+            {logFilePath || 'Loading…'}
+          </span>
+        </div>
+        <div className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)', opacity: 0.7 }}>
+          Logs are cleared and a new file is created each time the app starts
         </div>
       </section>
     </div>

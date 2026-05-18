@@ -419,6 +419,8 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('SERVICES_GET_LOG_HISTORY', () => serviceManager.getCachedLogs())
 
+  ipcMain.handle('SERVICES_GET_LOG_FILE_PATH', () => serviceManager.getLogFilePath())
+
   ipcMain.handle(IPC_CHANNELS.SERVICES_SET_ENABLED, (_, id: string, enabled: boolean) => {
     serviceManager.setEnabled(id, enabled)
   })

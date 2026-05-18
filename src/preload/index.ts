@@ -79,6 +79,9 @@ const api = {
   getServiceLogHistory: (): Promise<LogEntry[]> =>
     ipcRenderer.invoke('SERVICES_GET_LOG_HISTORY'),
 
+  getServiceLogFilePath: (): Promise<string> =>
+    ipcRenderer.invoke('SERVICES_GET_LOG_FILE_PATH'),
+
   onServiceLog: (callback: (entry: LogEntry) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, entry: LogEntry): void => callback(entry)
     ipcRenderer.on(IPC_CHANNELS.SERVICE_LOG, handler)
