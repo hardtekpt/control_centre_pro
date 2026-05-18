@@ -1,5 +1,7 @@
 import { useServiceStore } from '../stores/serviceStore'
+import { useSonarStore } from '../stores/sonarStore'
 import { CompactHeadsetCard } from '../components/home/CompactHeadsetCard'
+import { CompactSonarCard } from '../components/home/CompactSonarCard'
 import { DisplayCard } from '../components/home/DisplayCard'
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -28,17 +30,29 @@ function HomeSection({
 
 export function Home(): JSX.Element {
   const { arctisState, ddcMonitors, settings } = useServiceStore()
+  const { sonarState } = useSonarStore()
 
   const sortedMonitors = [...ddcMonitors].sort((a, b) => {
     if (a.is_primary === b.is_primary) return 0
     return a.is_primary ? -1 : 1
   })
 
+  const showAudio = arctisState || sonarState?.available
+
   return (
     <div className="flex flex-col gap-6 p-6">
-      {arctisState && (
+      {showAudio && (
         <HomeSection title="Audio">
-          <CompactHeadsetCard state={arctisState} />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '12px',
+            }}
+          >
+            {arctisState && <CompactHeadsetCard state={arctisState} />}
+            {sonarState?.available && <CompactSonarCard />}
+          </div>
         </HomeSection>
       )}
       {ddcMonitors.length > 0 && (
