@@ -210,23 +210,23 @@ export function DiscordSettings(): JSX.Element {
   return (
     <div>
       <h1
-        className="text-xl font-semibold mb-7 tracking-tight"
+        className="text-xl font-semibold mb-5 tracking-tight"
         style={{ color: 'var(--color-text-primary)' }}
       >
         Discord
       </h1>
 
       {/* Connection status */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2
-          className="text-sm font-semibold mb-4 uppercase tracking-wider"
+          className="text-sm font-semibold mb-3 uppercase tracking-wider"
           style={{ color: 'var(--color-text-secondary)' }}
         >
           Status
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-stretch gap-3">
           <div
-            className="flex items-center gap-3 p-4 rounded flex-1"
+            className="flex items-center gap-3 px-3 py-2 rounded flex-1"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
             {/* Connection indicator */}
@@ -255,13 +255,14 @@ export function DiscordSettings(): JSX.Element {
           </div>
           <button
             onClick={() => window.api.discordReconnect().catch(console.error)}
-            className="text-xs px-3 py-1.5 rounded transition-colors"
+            className="text-xs px-3 rounded transition-colors"
             style={{
               background: 'var(--color-surface-raised)',
               border: '1px solid var(--color-border)',
               color: 'var(--color-text-secondary)',
               cursor: 'pointer',
               flexShrink: 0,
+              alignSelf: 'stretch',
             }}
           >
             Reconnect
@@ -270,7 +271,7 @@ export function DiscordSettings(): JSX.Element {
       </section>
 
       {/* Client ID */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2
           className="text-sm font-semibold mb-1 uppercase tracking-wider"
           style={{ color: 'var(--color-text-secondary)' }}
@@ -408,7 +409,7 @@ export function DiscordSettings(): JSX.Element {
 
       {/* Self voice controls */}
       {connected && (
-        <section className="mb-8">
+        <section className="mb-6">
           <h2
             className="text-sm font-semibold mb-4 uppercase tracking-wider"
             style={{ color: 'var(--color-text-secondary)' }}
