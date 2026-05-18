@@ -208,6 +208,7 @@ export class DiscordService {
         await client.login({
           clientId: this.clientId,
           scopes: ['rpc', 'rpc.voice.read', 'rpc.voice.write'],
+          redirectUri: 'http://127.0.0.1',
         })
 
         const settings = (await client.request('GET_VOICE_SETTINGS', {})) as {

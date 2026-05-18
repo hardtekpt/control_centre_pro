@@ -116,30 +116,66 @@ export function DiscordSettings(): JSX.Element {
         >
           Discord Application
         </h2>
-        <p className="text-xs mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-          Create an application at{' '}
-          <button
-            className="underline"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--color-accent)',
-              padding: 0,
-            }}
-            onClick={() =>
-              window.api.openExternal('https://discord.com/developers/applications')
-            }
-          >
-            discord.com/developers/applications
-          </button>
-          , enable Rich Presence, then paste the Client ID below. Redirect URL is not required
-          for local RPC. Scopes granted:{' '}
-          <code className="mono" style={{ fontSize: '0.75rem' }}>
-            rpc rpc.voice.read rpc.voice.write
-          </code>
-          .
-        </p>
+        <div className="mb-4 space-y-1.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+            Setup (one-time):
+          </p>
+          <ol className="space-y-1 list-none">
+            {[
+              <>
+                Open{' '}
+                <button
+                  className="underline"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--color-accent)',
+                    padding: 0,
+                    fontSize: 'inherit',
+                  }}
+                  onClick={() =>
+                    window.api.openExternal('https://discord.com/developers/applications')
+                  }
+                >
+                  discord.com/developers/applications
+                </button>{' '}
+                and create a new application.
+              </>,
+              <>
+                Go to <strong>OAuth2</strong> → <strong>Redirects</strong> and add exactly:{' '}
+                <code className="mono" style={{ fontSize: '0.75rem' }}>
+                  http://127.0.0.1
+                </code>
+                . This is required for the OAuth popup to work.
+              </>,
+              <>
+                Copy the <strong>Client ID</strong> from the <strong>General Information</strong>{' '}
+                tab and paste it below.
+              </>,
+              <>
+                Make sure Discord desktop is running, then click <strong>Save</strong>. A browser
+                popup will ask you to authorise the app — click <strong>Authorise</strong>.
+              </>,
+            ].map((step, i) => (
+              <li key={i} className="flex gap-2">
+                <span
+                  className="mono shrink-0"
+                  style={{ color: 'var(--color-text-secondary)', minWidth: '1.25rem' }}
+                >
+                  {i + 1}.
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="pt-1">
+            Scopes requested:{' '}
+            <code className="mono" style={{ fontSize: '0.75rem' }}>
+              rpc rpc.voice.read rpc.voice.write
+            </code>
+          </p>
+        </div>
         <div>
           <label
             className="block text-xs mb-1.5"
@@ -163,9 +199,8 @@ export function DiscordSettings(): JSX.Element {
             spellCheck={false}
           />
           <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-            On first connect Discord will prompt for permission via an OAuth popup in your
-            browser. The token is held in memory — you will be prompted again the next time the
-            app starts.
+            On first connect a browser popup will ask you to authorise the app. The token is
+            held in memory — you will be prompted again each time the app starts.
           </p>
         </div>
       </section>
