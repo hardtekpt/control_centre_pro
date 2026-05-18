@@ -89,30 +89,32 @@ export function DiscordSettings(): JSX.Element {
         >
           Status
         </h2>
-        <div
-          className="flex items-center gap-3 p-4 rounded"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-        >
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: statusColor,
-              flexShrink: 0,
-            }}
-          />
-          <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-            {statusText}
-          </span>
-          {discordState?.error && (
-            <span className="text-xs" style={{ color: '#ef4444' }}>
-              {discordState.error}
+        <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3 p-4 rounded flex-1"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: statusColor,
+                flexShrink: 0,
+              }}
+            />
+            <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+              {statusText}
             </span>
-          )}
+            {discordState?.error && (
+              <span className="text-xs ml-auto" style={{ color: '#ef4444' }}>
+                {discordState.error}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => window.api.discordReconnect().catch(console.error)}
-            className="ml-auto text-xs px-3 py-1.5 rounded transition-colors"
+            className="text-xs px-3 py-1.5 rounded transition-colors"
             style={{
               background: 'var(--color-surface-raised)',
               border: '1px solid var(--color-border)',
@@ -209,61 +211,58 @@ export function DiscordSettings(): JSX.Element {
             . To revoke access later, open Discord → User Settings → Authorised Apps.
           </p>
         </div>
-        <div>
-          <label
-            className="block text-xs mb-1.5"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            Client ID
-          </label>
-          <input
-            type="text"
-            value={draftClientId}
-            onChange={(e) => setDraftClientId(e.target.value)}
-            placeholder="e.g. 1234567890123456789"
-            className="text-sm mono px-3 py-2 rounded"
-            style={{
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              outline: 'none',
-              width: 320,
-            }}
-            spellCheck={false}
-          />
-          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-            The token is saved locally and reused. You will only be prompted in the browser once,
-            unless you revoke access in Discord's Authorised Apps settings.
-          </p>
+        <div className="flex gap-4">
+          <div>
+            <label
+              className="block text-xs mb-1.5"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Client ID
+            </label>
+            <input
+              type="text"
+              value={draftClientId}
+              onChange={(e) => setDraftClientId(e.target.value)}
+              placeholder="e.g. 1234567890123456789"
+              className="text-sm mono px-3 py-2 rounded"
+              style={{
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                width: 240,
+              }}
+              spellCheck={false}
+            />
+          </div>
+          <div>
+            <label
+              className="block text-xs mb-1.5"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Client Secret
+            </label>
+            <input
+              type="password"
+              value={draftClientSecret}
+              onChange={(e) => setDraftClientSecret(e.target.value)}
+              placeholder="OAuth2 client secret"
+              className="text-sm mono px-3 py-2 rounded"
+              style={{
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                width: 240,
+              }}
+              spellCheck={false}
+            />
+          </div>
         </div>
-        <div className="mt-3">
-          <label
-            className="block text-xs mb-1.5"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            Client Secret
-          </label>
-          <input
-            type="password"
-            value={draftClientSecret}
-            onChange={(e) => setDraftClientSecret(e.target.value)}
-            placeholder="Your app's OAuth2 client secret"
-            className="text-sm mono px-3 py-2 rounded"
-            style={{
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              outline: 'none',
-              width: 320,
-            }}
-            spellCheck={false}
-          />
-          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-            Found in the <strong>OAuth2</strong> tab of your Discord application. Stored locally
-            in app settings — never sent anywhere except discord.com during the one-time token
-            exchange.
-          </p>
-        </div>
+        <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+          The token is saved locally — you will only be prompted in the browser once, unless you
+          revoke access in Discord's Authorised Apps settings.
+        </p>
       </section>
 
       {/* Self voice controls */}
