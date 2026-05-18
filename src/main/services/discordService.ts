@@ -127,15 +127,13 @@ class DiscordRpcTransport extends EventEmitter {
       return
     }
 
-    // Handle dispatch events
+    // Handle dispatch events — READY is a special dispatch that unblocks connect()
     if (frame.cmd === 'DISPATCH') {
-      this.emit(`event:${frame.evt}`, frame.data)
-      return
-    }
-
-    // Handle READY event (no nonce)
-    if (frame.evt === 'READY') {
-      this.emit('ready')
+      if (frame.evt === 'READY') {
+        this.emit('ready')
+      } else {
+        this.emit(`event:${frame.evt}`, frame.data)
+      }
       return
     }
   }
