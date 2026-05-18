@@ -133,6 +133,7 @@ function createTray(): void {
     {
       label: 'Show',
       click: () => {
+        applyWindowIcon()
         mainWindow?.show()
         mainWindow?.focus()
       },
@@ -146,6 +147,7 @@ function createTray(): void {
 
   tray.setContextMenu(contextMenu)
   tray.on('click', () => {
+    applyWindowIcon()
     mainWindow?.show()
     mainWindow?.focus()
   })
@@ -181,6 +183,26 @@ async function openSteelSeriesGG(): Promise<void> {
 // ─── Window ───────────────────────────────────────────────────────────────────
 
 /**
+ * Get the path to the main app icon.
+ */
+function getIconPath(): string {
+  return join(__dirname, '../../resources/mission-control-terracotta-1024.png')
+}
+
+/**
+ * Apply the app icon to the window (called on creation and when shown to ensure persistence).
+ */
+function applyWindowIcon(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const iconPath = getIconPath()
+  try {
+    mainWindow.setIcon(nativeImage.createFromPath(iconPath))
+  } catch (err) {
+    console.error('[Window] Failed to apply icon:', err)
+  }
+}
+
+/**
  * Creates the frameless main window.
  * frame:false lets us draw our own title bar in React.
  * backgroundColor matches --color-bg dark mode to prevent white flash on load.
@@ -195,7 +217,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     frame: false,
     backgroundColor: '#141413',
-    icon: join(__dirname, '../../resources/mission-control-terracotta-1024.png'),
+    icon: nativeImage.createFromPath(getIconPath()),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -204,7 +226,10 @@ function createWindow(): void {
     },
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('ready-to-show', () => {
+    applyWindowIcon()
+    mainWindow?.show()
+  })
 
   mainWindow.on('close', (e) => {
     if (minimizeToTray && !isQuitting) {
@@ -795,7 +820,13 @@ app.whenReady().then(() => {
   }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    } else {
+      applyWindowIcon()
+      mainWindow?.show()
+      mainWindow?.focus()
+    }
   })
 })
 
