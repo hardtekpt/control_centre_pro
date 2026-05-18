@@ -281,6 +281,7 @@ async function exchangeCode(
       logFn?.('error', `Discord: OAuth HTTP request error: ${e instanceof Error ? e.message : String(e)}`)
       reject(e)
     })
+    req.setHeader('Content-Type', 'application/x-www-form-urlencoded')
     req.write(params.toString())
     req.end()
   })
