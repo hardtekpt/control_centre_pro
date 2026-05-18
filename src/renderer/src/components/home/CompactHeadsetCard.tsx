@@ -457,16 +457,6 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
             onChange={(v) => cmd('setSidetone', v, { sidetone: v })}
           />
         </ControlRow>
-
-        {/* Mic Volume */}
-        <ControlRow label="Mic Volume">
-          <Slider
-            value={state.micVolume}
-            min={1}
-            max={10}
-            onChange={(v) => cmd('setMicVolume', v, { micVolume: v })}
-          />
-        </ControlRow>
       </div>
     </div>
   )
