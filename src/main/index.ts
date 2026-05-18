@@ -120,8 +120,8 @@ function navigate(target: NavigateTarget): void {
 
 function createTray(): void {
   const iconPath = app.isPackaged
-    ? join(process.resourcesPath, 'mission-control-terracotta-1024.png')
-    : join(__dirname, '../../resources/mission-control-terracotta-1024.png')
+    ? join(process.resourcesPath, 'tray-icon.png')
+    : join(__dirname, '../../resources/tray-icon.png')
 
   const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
   tray = new Tray(icon)

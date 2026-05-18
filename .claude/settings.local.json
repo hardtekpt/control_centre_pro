@@ -67,7 +67,11 @@
       "Bash(Test-Path \"c:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\\\\resources\\\\nircmd\" -PathType Container)",
       "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\\\\resources\\\\nircmd\" -Force)",
       "PowerShell(Remove-Item -Recurse -Force \"$env:LOCALAPPDATA\\\\electron-builder\\\\Cache\" -ErrorAction SilentlyContinue; Write-Host \"Cleared electron-builder cache\")",
-      "PowerShell(npm run build 2>&1)"
+      "PowerShell(npm run build 2>&1)",
+      "PowerShell(head -100)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\" -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.FullName.Contains\\(\".git\"\\) -and -not $_.FullName.Contains\\(\".claude\"\\) -and -not $_.FullName.Contains\\(\"node_modules\"\\) -and -not $_.FullName.Contains\\(\"dist\"\\) } | Select-Object FullName | Sort-Object FullName | Select-Object -First 150)",
+      "Bash(python)",
+      "Bash(python -m py_compile \"resources/services/arctis_hid_service.py\")"
     ]
   }
 }
