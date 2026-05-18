@@ -543,32 +543,34 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
           <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             Arctis Nova Pro Wireless
           </span>
-          <SonarIndicator connected={state.sonarConnected} />
-          <VolumeLimiterIndicator on={state.volumeLimiterOn} />
-          <UsbInputTag
-            value={state.usbInput}
-            onChange={(v) => cmd('setUsbInput', v, { usbInput: v })}
-          />
+          {state.baseStationConnected && (
+            <>
+              <SonarIndicator connected={state.sonarConnected} />
+              <VolumeLimiterIndicator on={state.volumeLimiterOn} />
+              <UsbInputTag
+                value={state.usbInput}
+                onChange={(v) => cmd('setUsbInput', v, { usbInput: v })}
+              />
+            </>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
-          <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
-          <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
-          <div className="flex items-center gap-1.5">
-            {state.baseStationConnected ? (
-              <>
-                <ConnectivityDot
-                  icon={<WirelessIcon />}
-                  dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
-                  title={`2.4 GHz Wireless — ${state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
-                />
-                <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
-              </>
-            ) : (
-              <ConnectivityDot icon={<UsbIcon />} dotState="off" title="Base station USB disconnected" />
-            )}
+        {state.baseStationConnected ? (
+          <div className="flex items-center gap-2">
+            <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
+            <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
+            <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
+            <div className="flex items-center gap-1.5">
+              <ConnectivityDot
+                icon={<WirelessIcon />}
+                dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
+                title={`2.4 GHz Wireless — ${state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
+              />
+              <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
+            </div>
           </div>
-        </div>
+        ) : (
+          <ConnectivityDot icon={<UsbIcon />} dotState="off" title="Base station USB disconnected" />
+        )}
       </div>
 
       {/* ── Volume (always visible, controllable) ── */}
