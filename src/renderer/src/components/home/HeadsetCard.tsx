@@ -555,18 +555,24 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
           <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
           <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
           <div className="flex items-center gap-1.5">
-            <ConnectivityDot
-                icon={<WirelessIcon />}
-                dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
-                title={`2.4 GHz Wireless — ${state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
-              />
-            <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
+            {state.baseStationConnected ? (
+              <>
+                <ConnectivityDot
+                  icon={<WirelessIcon />}
+                  dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
+                  title={`2.4 GHz Wireless — ${state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
+                />
+                <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
+              </>
+            ) : (
+              <ConnectivityDot icon={<UsbIcon />} dotState="off" title="Base station USB disconnected" />
+            )}
           </div>
         </div>
       </div>
 
       {/* ── Volume (always visible, controllable) ── */}
-      <div className="mb-3">
+      <div className="mb-3" style={{ opacity: state.baseStationConnected ? 1 : 0.4, pointerEvents: state.baseStationConnected ? 'auto' : 'none' }}>
         <ControlRow label="Volume">
           <Slider
             value={volume}
@@ -579,7 +585,7 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
       </div>
 
       {/* ── ChatMix balance (hardware dial — display only) ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" style={{ opacity: state.baseStationConnected ? 1 : 0.4, pointerEvents: state.baseStationConnected ? 'auto' : 'none' }}>
         <button
           onClick={() => cmd('setChatmixEnabled', !state.chatmixEnabled, { chatmixEnabled: !state.chatmixEnabled })}
           className="text-xs shrink-0 w-32 text-left"
