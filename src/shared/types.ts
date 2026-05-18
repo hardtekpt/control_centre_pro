@@ -289,6 +289,54 @@ export interface LogEntry {
   message: string
 }
 
+// ─── Plugins ──────────────────────────────────────────────────────────────────
+
+export type PluginStatus = 'connected' | 'error' | 'disabled' | 'installed' | 'not-installed'
+
+export type PluginCategory = 'communication' | 'gaming' | 'streaming' | 'smart-home' | 'media' | 'peripheral'
+
+export type PluginFieldKind = 'toggle' | 'text' | 'password' | 'select' | 'multi' | 'oauth' | 'readonly' | 'action'
+
+export interface PluginField {
+  kind: PluginFieldKind
+  id: string
+  label: string
+  sub?: string
+  value?: unknown
+  placeholder?: string
+  mono?: boolean
+  hint?: string
+  options?: Array<{ id: string; label: string }>
+  account?: string
+  lastAuth?: string
+  expiresAt?: string
+  button?: string
+  danger?: boolean
+  copy?: boolean
+}
+
+export interface PluginSection {
+  id: string
+  title: string
+  desc?: string
+  fields: PluginField[]
+}
+
+export interface Plugin {
+  id: string
+  name: string
+  glyph: string
+  author: string
+  version: string
+  blurb: string
+  status: PluginStatus
+  enabled: boolean
+  statusLine: string
+  category: PluginCategory
+  error?: string
+  sections: PluginSection[]
+}
+
 // ─── Arctis Nova Pro HID ──────────────────────────────────────────────────────
 
 /**

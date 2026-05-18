@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import '../components/plugins/plugins.css';
+
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 
 :root {
@@ -24,6 +26,10 @@
   --color-kbd-bg:          #E3E3E3;
   --color-row-hover:       rgba(20,20,20,0.035);
   --color-warn:            #9a6a2c;
+
+  /* Plugin status tokens */
+  --color-ok:              #4a6d4c;
+  --color-border-strong:   #C0C0C0;
 
   /* Notification surface tokens */
   --notif-bg:     #F0F0F0;
@@ -52,6 +58,10 @@
   --color-kbd-bg:          #2c2c2c;
   --color-row-hover:       rgba(255,255,255,0.035);
   --color-warn:            #c4a36a;
+
+  /* Plugin status tokens */
+  --color-ok:              #8baa7b;
+  --color-border-strong:   #555555;
 
   /* Notification surface tokens */
   --notif-bg:     #282828;
