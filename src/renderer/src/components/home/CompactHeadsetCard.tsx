@@ -333,6 +333,29 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
   const batteryDock    = Math.round(state.batteryDock)
   const volume         = Math.round(state.volume)
 
+  if (!state.baseStationConnected) {
+    return (
+      <div
+        className="rounded-lg px-4 py-3 flex flex-col"
+        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+              Arctis Nova Pro Wireless
+            </span>
+          </div>
+          <ConnectivityDot
+            icon={<UsbIcon />}
+            dotState="off"
+            title="Base station USB disconnected"
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="rounded-lg px-4 py-3 flex flex-col"
@@ -351,11 +374,6 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
           <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
           <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
           <div className="flex items-center gap-1.5">
-            <ConnectivityDot
-              icon={<UsbIcon />}
-              dotState={state.baseStationConnected ? 'on' : 'off'}
-              title={`Base station USB — ${state.baseStationConnected ? 'Connected' : 'Disconnected'}`}
-            />
             <ConnectivityDot
               icon={<WirelessIcon />}
               dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
