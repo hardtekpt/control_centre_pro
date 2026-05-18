@@ -4,7 +4,7 @@ import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
-  SerializedNotification,
+  SerializedNotification, Shortcut, ShortcutDispatchEvent,
 } from '../shared/types'
 
 /**
@@ -240,6 +240,24 @@ const api = {
 
   notifAllDismissed: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.NOTIF_ALL_DISMISSED),
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+
+  shortcutsGet: (): Promise<Shortcut[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHORTCUTS_GET),
+
+  shortcutsSave: (shortcuts: Shortcut[]): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHORTCUTS_SAVE, shortcuts),
+
+  shortcutsDispatch: (actionId: string, value?: string | number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHORTCUTS_DISPATCH, actionId, value),
+
+  onShortcutsDispatch: (callback: (event: ShortcutDispatchEvent) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, event: ShortcutDispatchEvent): void =>
+      callback(event)
+    ipcRenderer.on(IPC_CHANNELS.SHORTCUTS_DISPATCH, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SHORTCUTS_DISPATCH, handler)
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)

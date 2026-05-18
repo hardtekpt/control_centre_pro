@@ -19,6 +19,12 @@
   --color-nav-text:        #686868;
   --color-code-bg:         #E5E5E5;
 
+  /* Shortcuts page tokens */
+  --color-text-tertiary:   #B0B0B0;
+  --color-kbd-bg:          #E3E3E3;
+  --color-row-hover:       rgba(20,20,20,0.035);
+  --color-warn:            #9a6a2c;
+
   /* Notification surface tokens */
   --notif-bg:     #F0F0F0;
   --notif-border: rgba(20, 20, 20, 0.10);
@@ -40,6 +46,12 @@
   --color-nav-active:      #141414;
   --color-nav-text:        #ABABAB;
   --color-code-bg:         #252525;
+
+  /* Shortcuts page tokens */
+  --color-text-tertiary:   #5a5a5a;
+  --color-kbd-bg:          #2c2c2c;
+  --color-row-hover:       rgba(255,255,255,0.035);
+  --color-warn:            #c4a36a;
 
   /* Notification surface tokens */
   --notif-bg:     #282828;

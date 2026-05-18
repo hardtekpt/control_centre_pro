@@ -230,6 +230,52 @@ def _handle_cmd(cmd: str, value) -> None:
             log("error", f"Refresh failed: {exc}")
         return
 
+    # ── Shortcut dispatch commands ─────────────────────────────────────────────
+    if cmd == "mute-toggle":
+        try:
+            status = h.get_status()
+            muted = getattr(status, "mic_muted", getattr(status, "mic_mute", False))
+            h.set_mic_mute(not muted)
+        except Exception as exc:
+            log("error", f"mute-toggle failed: {exc}")
+        return
+
+    if cmd == "anc-cycle":
+        try:
+            from arctis_hid import AncMode
+            status = h.get_status()
+            current = getattr(getattr(status, "anc_mode", None), "name", "OFF")
+            cycle = {"OFF": "TRANSPARENCY", "TRANSPARENCY": "ANC", "ANC": "OFF"}
+            next_mode = cycle.get(current, "OFF")
+            h.set_anc_mode(AncMode[next_mode])
+        except Exception as exc:
+            log("error", f"anc-cycle failed: {exc}")
+        return
+
+    if cmd == "vol-delta":
+        try:
+            mic_eq = h.get_mic_eq()
+            current_pct = getattr(mic_eq, "volume_pct", 50)
+            delta = int(value) if value is not None else 5
+            new_pct = max(0, min(100, current_pct + delta))
+            h.set_volume(new_pct / 100.0)
+        except Exception as exc:
+            log("error", f"vol-delta failed: {exc}")
+        return
+
+    if cmd == "output-mute-toggle":
+        log("warn", "output-mute-toggle: not supported by current library")
+        return
+
+    if cmd == "power-off":
+        try:
+            h.power_off()
+        except AttributeError:
+            log("warn", "power-off: not supported by current firmware/library version")
+        except Exception as exc:
+            log("error", f"power-off failed: {exc}")
+        return
+
     try:
         from arctis_hid import (
             AncMode, GainLevel, SidetoneLevel, AudioOutput,

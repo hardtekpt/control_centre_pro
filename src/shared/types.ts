@@ -81,6 +81,11 @@ export const IPC_CHANNELS = {
   NOTIF_RECEIVE:          'notif:receive',         // main → overlay push (forwarded spec)
   NOTIF_SET_IGNORE_MOUSE: 'notif:setIgnoreMouse',  // overlay → main invoke (passthrough toggle)
   NOTIF_ALL_DISMISSED:    'notif:allDismissed',    // overlay → main invoke (hide overlay window)
+
+  // Keyboard shortcuts
+  SHORTCUTS_GET:      'shortcuts:get',      // renderer → main invoke → Shortcut[]
+  SHORTCUTS_SAVE:     'shortcuts:save',     // renderer → main invoke (Shortcut[]) → void
+  SHORTCUTS_DISPATCH: 'shortcuts:dispatch', // main → renderer push ({ actionId, value })
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -483,6 +488,27 @@ export interface PresetSwitcherRule {
   channel: string         // SonarConfig.virtualAudioDevice
   presetId: string        // SonarConfig.id
   enabled: boolean
+}
+
+// ─── DDC/CI Display Control ───────────────────────────────────────────────────
+
+// ─── Keyboard Shortcuts ───────────────────────────────────────────────────────
+
+export type ShortcutScope = 'global' | 'focused'
+
+export interface Shortcut {
+  id: string
+  actionId: string
+  value?: string | number
+  keys: string[]
+  scope: ShortcutScope
+  enabled: boolean
+}
+
+/** Dispatch payload sent from main → renderer for focused-scope actions */
+export interface ShortcutDispatchEvent {
+  actionId: string
+  value?: string | number
 }
 
 // ─── DDC/CI Display Control ───────────────────────────────────────────────────

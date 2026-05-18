@@ -4,12 +4,14 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor, SerializedNotification } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor, SerializedNotification, Shortcut } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 import { DdcService } from './services/apis/ddc/service'
+import { initDispatcher, dispatch } from './shortcuts/dispatcher'
+import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
 
 let mainWindow: BrowserWindow | null = null
 let notifWindow: BrowserWindow | null = null
@@ -602,6 +604,38 @@ function registerIpcHandlers(): void {
     if (!notifWindow || notifWindow.isDestroyed()) return
     notifWindow.hide()
   })
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  const shortcutsFilePath = join(app.getPath('userData'), 'shortcuts.json')
+
+  function loadShortcuts(): Shortcut[] {
+    try {
+      if (existsSync(shortcutsFilePath)) {
+        const data = JSON.parse(readFileSync(shortcutsFilePath, 'utf-8'))
+        return Array.isArray(data) ? data : []
+      }
+    } catch {}
+    return []
+  }
+
+  function saveShortcuts(shortcuts: Shortcut[]): void {
+    writeFileSync(shortcutsFilePath, JSON.stringify(shortcuts, null, 2), 'utf-8')
+  }
+
+  ipcMain.handle(IPC_CHANNELS.SHORTCUTS_GET, () => loadShortcuts())
+
+  ipcMain.handle(IPC_CHANNELS.SHORTCUTS_SAVE, (_, shortcuts: Shortcut[]) => {
+    saveShortcuts(shortcuts)
+    registerGlobalShortcuts(shortcuts)
+    serviceManager.emitNativeLog('shortcuts', 'Shortcuts', 'info',
+      `Saved ${shortcuts.length} shortcut(s); ${shortcuts.filter(s => s.enabled && s.scope === 'global').length} global registered`)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.SHORTCUTS_DISPATCH, (_, actionId: string, value?: string | number) => {
+    void dispatch(actionId, value)
+    // Forward to renderer for app-navigate actions (focused scope handled by renderer itself)
+    mainWindow?.webContents.send(IPC_CHANNELS.SHORTCUTS_DISPATCH, { actionId, value })
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -659,6 +693,31 @@ app.whenReady().then(() => {
     isRunning: () => ddcService.isAvailable(),
   })
 
+  // Register keyboard shortcuts service (tracks enable/disable + logs)
+  let shortcutsServiceEnabled = true
+  serviceManager.registerNativeService({
+    id: 'shortcuts',
+    name: 'Keyboard Shortcuts',
+    description: 'Global and app-focused keyboard shortcut bindings',
+    onEnable: () => {
+      shortcutsServiceEnabled = true
+      try {
+        const shortcutsPath = join(app.getPath('userData'), 'shortcuts.json')
+        if (existsSync(shortcutsPath)) {
+          const saved = JSON.parse(readFileSync(shortcutsPath, 'utf-8'))
+          if (Array.isArray(saved)) registerGlobalShortcuts(saved as Shortcut[])
+        }
+      } catch {}
+      serviceManager.broadcastServiceState()
+    },
+    onDisable: () => {
+      shortcutsServiceEnabled = false
+      unregisterAllShortcuts()
+      serviceManager.broadcastServiceState()
+    },
+    isRunning: () => shortcutsServiceEnabled,
+  })
+
   // Register notifications service (tracks global notification enable/disable state)
   serviceManager.registerNativeService({
     id: 'notifications',
@@ -683,6 +742,7 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   createWindow()
   serviceManager.setWindow(mainWindow!)
+  initDispatcher(mainWindow!, serviceManager, sonarService, ddcService)
   sonarService.setWindow(mainWindow!)
 
   // Initialize preset switcher monitor
@@ -720,6 +780,17 @@ app.whenReady().then(() => {
 
   serviceManager.startAll()  // starts Python services + GG Sonar native service
 
+  // Load persisted shortcuts and register global bindings
+  try {
+    const shortcutsPath = join(app.getPath('userData'), 'shortcuts.json')
+    if (existsSync(shortcutsPath)) {
+      const saved = JSON.parse(readFileSync(shortcutsPath, 'utf-8'))
+      if (Array.isArray(saved)) registerGlobalShortcuts(saved as Shortcut[])
+    }
+  } catch (err) {
+    console.error('[shortcuts] failed to load shortcuts on boot:', err)
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -734,6 +805,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  unregisterAllShortcuts()
   tray?.destroy()
   tray = null
   notifWindow?.destroy()

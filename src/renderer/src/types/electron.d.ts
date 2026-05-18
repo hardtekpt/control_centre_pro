@@ -2,7 +2,7 @@ import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
-  SerializedNotification,
+  SerializedNotification, Shortcut, ShortcutDispatchEvent,
 } from '../../../shared/types'
 
 /**
@@ -94,6 +94,12 @@ declare global {
     onNotifReceive: (callback: (spec: SerializedNotification) => void) => () => void
     notifSetIgnoreMouse: (ignore: boolean) => Promise<void>
     notifAllDismissed: () => Promise<void>
+
+    // Keyboard shortcuts
+    shortcutsGet: () => Promise<Shortcut[]>
+    shortcutsSave: (shortcuts: Shortcut[]) => Promise<void>
+    shortcutsDispatch: (actionId: string, value?: string | number) => Promise<void>
+    onShortcutsDispatch: (callback: (event: ShortcutDispatchEvent) => void) => () => void
     }
   }
 }
