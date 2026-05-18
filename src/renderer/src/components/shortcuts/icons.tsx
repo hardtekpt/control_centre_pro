@@ -236,3 +236,13 @@ export function IconReload({ size }: { size?: number }): JSX.Element {
 export function IconMoon({ size }: { size?: number }): JSX.Element {
   return <Ico size={size}><path d="M19 14a8 8 0 1 1-9-9 6 6 0 0 0 9 9z" /></Ico>
 }
+
+export function IconInput({ size }: { size?: number }): JSX.Element {
+  return (
+    <Ico size={size}>
+      <rect x="3" y="8" width="13" height="8" rx="1.5" />
+      <path d="M16 12h5M18.5 10l2.5 2-2.5 2" />
+      <path d="M7 8V6M11 8V6M7 16v2M11 16v2" />
+    </Ico>
+  )
+}

@@ -3,6 +3,7 @@ import {
   IconMicOff, IconAnc, IconVolUp, IconVolDown, IconVolMute, IconMusic,
   IconPower, IconSwap, IconLock, IconWindow, IconBrightUp, IconBrightDown,
   IconReload, IconMoon, IconHeadset, IconWave, IconMonitor, IconChip, IconLayers,
+  IconInput,
 } from '../../components/shortcuts/icons'
 
 // ─── Param schemas ────────────────────────────────────────────────────────────
@@ -22,6 +23,15 @@ export type ParamSchema =
       default: number
       unit?: string
       signed?: '+' | '−'
+    }
+  | {
+      kind: 'compound'
+      separator: string
+      parts: Array<{
+        id: string
+        label: string
+        options: Array<{ id: string; label: string }>
+      }>
     }
 
 // ─── Action ───────────────────────────────────────────────────────────────────
@@ -130,6 +140,37 @@ export const ACTIONS: Action[] = [
         { id: '2', label: 'Display 2' },
         { id: '3', label: 'Display 3' },
       ]}},
+  { id: 'disp.input-source',     cat: 'displays', label: 'Set input source',    icon: IconInput,
+    param: {
+      kind: 'compound',
+      separator: ':',
+      parts: [
+        {
+          id: 'monitor',
+          label: 'Display',
+          options: [
+            { id: '1', label: 'Display 1' },
+            { id: '2', label: 'Display 2' },
+            { id: '3', label: 'Display 3' },
+          ],
+        },
+        {
+          id: 'input',
+          label: 'Input',
+          options: [
+            { id: '0x0f', label: 'DisplayPort 1' },
+            { id: '0x10', label: 'DisplayPort 2' },
+            { id: '0x11', label: 'HDMI 1' },
+            { id: '0x12', label: 'HDMI 2' },
+            { id: '0x1b', label: 'USB-C' },
+            { id: '0x01', label: 'VGA 1' },
+            { id: '0x02', label: 'VGA 2' },
+            { id: '0x03', label: 'DVI 1' },
+            { id: '0x04', label: 'DVI 2' },
+          ],
+        },
+      ],
+    }},
   { id: 'disp.cycle',           cat: 'displays', label: 'Cycle active display', icon: IconSwap },
   { id: 'disp.night-shift',     cat: 'displays', label: 'Toggle night shift',   icon: IconMoon },
   { id: 'disp.refresh',         cat: 'displays', label: 'Refresh detection',    icon: IconReload },
@@ -172,11 +213,20 @@ export function formatActionValue(action: Action, value: unknown): string | null
   if (p.kind === 'number') {
     return `${p.signed ?? ''}${value}${p.unit ?? ''}`
   }
+  if (p.kind === 'compound') {
+    const parts = String(value).split(p.separator)
+    const labels = p.parts.map((part, i) =>
+      part.options.find((o) => o.id === parts[i])?.label ?? parts[i] ?? ''
+    )
+    return labels.join(' → ')
+  }
   return String(value)
 }
 
 export function defaultValueFor(action: Action): string | number | undefined {
   if (!action.param) return undefined
   if (action.param.kind === 'enum') return action.param.options[0]?.id
+  if (action.param.kind === 'compound')
+    return action.param.parts.map((part) => part.options[0]?.id ?? '').join(action.param.separator)
   return action.param.default
 }

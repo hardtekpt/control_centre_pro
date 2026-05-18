@@ -158,6 +158,13 @@ async function _dispatch(actionId: string, value?: unknown): Promise<void> {
       }
       break
     }
+    case 'disp.input-source': {
+      const [monitorIdStr, inputHex] = String(value).split(':')
+      const monitorId = Number(monitorIdStr)
+      if (!monitorId || !inputHex) break
+      _ddcService?.setInputSource(monitorId, inputHex)
+      break
+    }
     case 'disp.cycle':
       await _ddcService?.refreshMonitors()
       break
