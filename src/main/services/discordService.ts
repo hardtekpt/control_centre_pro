@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { createConnection } from 'net'
 import { Client } from 'discord-rpc'
 import { IPC_CHANNELS } from '../../shared/types'
 import type { DiscordState, DiscordParticipant } from '../../shared/types'
@@ -20,6 +21,7 @@ declare module 'discord-rpc' {
  */
 export class DiscordService {
   private client: Client | null = null
+  private clientSeq = 0  // [DEBUG] incremented per connect attempt to track which instance fires events
   private window: BrowserWindow | null = null
   private clientId = ''
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -182,6 +184,23 @@ export class DiscordService {
 
   // ── Private connection logic ───────────────────────────────────────────────
 
+  // [DEBUG] probe whether any discord-ipc-N pipe exists (confirms Discord is running)
+  private async probeDiscordPipes(): Promise<string> {
+    const results: string[] = []
+    const checks = Array.from({ length: 10 }, (_, i) =>
+      new Promise<string>((resolve) => {
+        const pipePath = `\\\\.\\pipe\\discord-ipc-${i}`
+        const sock = createConnection(pipePath)
+        sock.once('connect', () => { sock.destroy(); resolve(`discord-ipc-${i}: reachable`) })
+        sock.once('error', (e: NodeJS.ErrnoException) => resolve(`discord-ipc-${i}: ${e.code ?? e.message}`))
+        setTimeout(() => { sock.destroy(); resolve(`discord-ipc-${i}: timeout`) }, 500)
+      })
+    )
+    const r = await Promise.all(checks)
+    for (const line of r) results.push(line)
+    return results.join(', ')
+  }
+
   private async connect(): Promise<void> {
     if (this.stopped) return
     if (!this.clientId) {
@@ -195,21 +214,32 @@ export class DiscordService {
       return
     }
 
-    this.log('info', 'Discord: connecting to Discord client via RPC...')
+    const seq = ++this.clientSeq
+    this.log('info', `Discord [#${seq}]: connecting to Discord client via RPC...`)
+
+    // [DEBUG] check which IPC pipes are reachable before we try to connect
+    this.probeDiscordPipes().then((summary) => {
+      this.log('info', `Discord [#${seq}]: pipe probe — ${summary}`)
+    })
+
     this.destroyClient()
+    this.log('info', `Discord [#${seq}]: previous client destroyed, creating new Client`)
 
     const client = new Client({ transport: 'ipc' })
     this.client = client
 
     client.on('ready', async () => {
+      this.log('info', `Discord [#${seq}]: 'ready' event fired — seq matches current: ${seq === this.clientSeq}`)
       if (this.stopped) return
-      this.log('info', 'Discord: RPC socket connected — authenticating...')
+      this.log('info', `Discord [#${seq}]: RPC socket connected — authenticating with clientId=${this.clientId}...`)
       try {
+        this.log('info', `Discord [#${seq}]: calling login() with scopes [rpc, rpc.voice.read, rpc.voice.write] redirectUri=http://127.0.0.1`)
         await client.login({
           clientId: this.clientId,
           scopes: ['rpc', 'rpc.voice.read', 'rpc.voice.write'],
           redirectUri: 'http://127.0.0.1',
         })
+        this.log('info', `Discord [#${seq}]: login() resolved — authenticated`)
 
         const settings = (await client.request('GET_VOICE_SETTINGS', {})) as {
           mute?: boolean
@@ -243,20 +273,22 @@ export class DiscordService {
           // Not in a channel — that's fine
         }
       } catch (err) {
-        this.log('error', `Discord: authentication failed — ${String(err)}`)
+        const e = err as NodeJS.ErrnoException
+        this.log('error', `Discord [#${seq}]: login() failed — ${e.message ?? String(err)} | code=${e.code ?? 'n/a'} | name=${e.name ?? 'n/a'}`)
+        if (e.stack) this.log('error', `Discord [#${seq}]: stack — ${e.stack}`)
         this.state = {
           ...this.state,
           available: true,
           authenticated: false,
-          error: `Auth failed: ${String(err)}`,
+          error: `Auth failed: ${e.message ?? String(err)}`,
         }
         this.push()
       }
     })
 
     client.on('disconnected', () => {
+      this.log('warn', `Discord [#${seq}]: 'disconnected' event fired — seq matches current: ${seq === this.clientSeq}`)
       if (this.stopped) return
-      this.log('info', 'Discord: RPC disconnected')
       this.state = {
         ...this.state,
         available: false,
@@ -269,13 +301,17 @@ export class DiscordService {
     })
 
     try {
+      this.log('info', `Discord [#${seq}]: calling client.connect(${this.clientId})...`)
       await client.connect(this.clientId)
+      this.log('info', `Discord [#${seq}]: client.connect() resolved without error`)
     } catch (err) {
-      this.log('warn', `Discord: connect() failed — ${String(err)}`)
+      const e = err as NodeJS.ErrnoException
+      this.log('warn', `Discord [#${seq}]: connect() failed — message=${e.message ?? String(err)} | code=${e.code ?? 'n/a'} | name=${e.name ?? 'n/a'}`)
+      if (e.stack) this.log('warn', `Discord [#${seq}]: stack — ${e.stack}`)
       this.state = {
         ...this.state,
         available: false,
-        error: `Connect failed: ${String(err)}`,
+        error: `Connect failed: ${e.message ?? String(err)}`,
       }
       this.push()
       this.scheduleReconnect()
