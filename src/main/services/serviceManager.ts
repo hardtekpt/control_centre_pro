@@ -230,6 +230,7 @@ export class ServiceManager {
     })
 
     this.processes.set(id, child)
+    this.emitLog(id, def.name, 'info', 'Service started')
     this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
 
     let buf = ''

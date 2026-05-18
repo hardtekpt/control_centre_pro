@@ -236,6 +236,7 @@ def _handle_cmd(cmd: str, value) -> None:
             status = h.get_status()
             muted = getattr(status, "mic_muted", getattr(status, "mic_mute", False))
             h.set_mic_mute(not muted)
+            log("info", f"Microphone: {'muted' if not muted else 'unmuted'}")
         except Exception as exc:
             log("error", f"mute-toggle failed: {exc}")
         return
@@ -248,6 +249,7 @@ def _handle_cmd(cmd: str, value) -> None:
             cycle = {"OFF": "TRANSPARENCY", "TRANSPARENCY": "ANC", "ANC": "OFF"}
             next_mode = cycle.get(current, "OFF")
             h.set_anc_mode(AncMode[next_mode])
+            log("info", f"ANC: {next_mode}")
         except Exception as exc:
             log("error", f"anc-cycle failed: {exc}")
         return
@@ -259,6 +261,7 @@ def _handle_cmd(cmd: str, value) -> None:
             delta = int(value) if value is not None else 5
             new_pct = max(0, min(100, current_pct + delta))
             h.set_volume(new_pct / 100.0)
+            log("info", f"Volume: {new_pct}%")
         except Exception as exc:
             log("error", f"vol-delta failed: {exc}")
         return
@@ -284,63 +287,83 @@ def _handle_cmd(cmd: str, value) -> None:
 
         if cmd == "setVolume":
             h.set_volume(float(value))
+            log("info", f"Volume: {int(float(value) * 100)}%")
 
         elif cmd == "setAncMode":
             h.set_anc_mode(AncMode[str(value)])
+            log("info", f"ANC: {value}")
 
         elif cmd == "setTransparencyLevel":
             h.set_transparency_level(int(value))
+            log("info", f"Transparency level: {value}")
 
         elif cmd == "setMicGain":
             h.set_gain(GainLevel[str(value)])
+            log("info", f"Microphone gain: {value}")
 
         elif cmd == "setSidetone":
             h.set_sidetone(SidetoneLevel[str(value)])
+            log("info", f"Sidetone: {value}")
 
         elif cmd == "setMicVolume":
             h.set_mic_volume(int(value))
+            log("info", f"Microphone volume: {value}%")
 
         elif cmd == "setWirelessMode":
             h.set_wireless_mode(WirelessMode[str(value)])
+            log("info", f"Wireless mode: {value}")
 
         elif cmd == "setBtDefault":
             h.set_bt_default(bool(value))
+            log("info", f"Bluetooth default: {bool(value)}")
 
         elif cmd == "setBtAutoMute":
             h.set_bt_auto_mute(BtAutoMute[str(value)])
+            log("info", f"Bluetooth auto-mute: {value}")
 
         elif cmd == "setAudioOutput":
             h.set_audio_output(AudioOutput[str(value)])
+            log("info", f"Audio output: {value}")
 
         elif cmd == "setStreamVolumes":
             h.set_stream_volumes(int(value["main"]), int(value["aux"]), int(value["mic"]))
+            log("info", f"Stream volumes - main: {value['main']}%, aux: {value['aux']}%, mic: {value['mic']}%")
 
         elif cmd == "setOledBrightness":
             h.set_oled_brightness(int(value))
+            log("info", f"OLED brightness: {value}")
 
         elif cmd == "setDimTimeout":
             h.set_dim_timeout(TimeoutStep[str(value)])
+            log("info", f"Dim timeout: {value}")
 
         elif cmd == "setHomeScreenMode":
             h.set_home_screen_mode(HomeScreenMode[str(value)])
+            log("info", f"Home screen mode: {value}")
 
         elif cmd == "setMicLedBrightness":
             h.set_mic_led_brightness(int(value))
+            log("info", f"Microphone LED brightness: {value}")
 
         elif cmd == "setAutoOffTimeout":
             h.set_auto_off_timeout(TimeoutStep[str(value)])
+            log("info", f"Auto-off timeout: {value}")
 
         elif cmd == "setChatmixEnabled":
             h.set_chatmix_enabled(bool(value))
+            log("info", f"Chatmix: {'enabled' if bool(value) else 'disabled'}")
 
         elif cmd == "setEqPreset":
             h.set_eq_preset(int(value))
+            log("info", f"EQ preset: {value}")
 
         elif cmd == "setEqBands":
             h.set_eq_bands([int(v) for v in value])
+            log("info", f"EQ bands updated: {value}")
 
         elif cmd == "setUsbInput":
             h.set_usb_input(UsbInput[str(value)])
+            log("info", f"USB input: {value}")
 
         elif cmd == "factoryReset":
             h.factory_reset()

@@ -114,6 +114,8 @@ export class SonarService {
   async setVolume(channel: SonarChannel, value: number): Promise<void> {
     if (!this.baseUrl) return
     const clamped = Math.max(0, Math.min(1, value))
+    const percent = Math.round(clamped * 100)
+    this.log('info', `${channel}: volume ${percent}%`)
     await this.httpPut(`${this.baseUrl}/volumeSettings/classic/${channel}/Volume/${clamped}`)
     this.applyClassicPatch(channel, { volume: clamped })
     this.push()
@@ -122,6 +124,7 @@ export class SonarService {
 
   async setMute(channel: SonarChannel, muted: boolean): Promise<void> {
     if (!this.baseUrl) return
+    this.log('info', `${channel}: ${muted ? 'muted' : 'unmuted'}`)
     await this.httpPut(`${this.baseUrl}/volumeSettings/classic/${channel}/Mute/${muted}`)
     this.applyClassicPatch(channel, { muted })
     this.push()
@@ -151,6 +154,7 @@ export class SonarService {
     try {
       // API path key: 'classic' → 'classic', 'streamer' → 'stream'
       const modeKey = mode === 'streamer' ? 'stream' : 'classic'
+      this.log('info', `Mode: ${mode}`)
       await this.httpPut(`${this.baseUrl}/mode/${modeKey}`)
       // Hold the mode for 4 s so the 1-second fast poll doesn't immediately
       // revert it if the API echoes back the old value before the change settles.
@@ -169,10 +173,11 @@ export class SonarService {
     // Correct path: PUT /classicRedirections/{channelDictKey}/deviceId/{deviceId}
     // ChannelDict uses 'chat' for chatRender and 'mic' for chatCapture
     const channelKey = CHANNEL_DICT_KEY[channel] ?? channel
+    const device = this.state.audioDevices.find((d) => d.id === deviceId)
+    this.log('info', `${channel}: route to "${device?.name ?? deviceId}"`)
     await this.httpPut(`${this.baseUrl}/classicRedirections/${channelKey}/deviceId/${deviceId}`)
     // Optimistic update: resolve the full device from audioDevices so the dropdown
     // immediately shows the correct name without waiting for the next poll
-    const device = this.state.audioDevices.find((d) => d.id === deviceId)
     if (device) {
       this.state = {
         ...this.state,

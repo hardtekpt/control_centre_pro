@@ -97,6 +97,7 @@ export class DiscordService {
   async setSelfMute(muted: boolean): Promise<void> {
     if (!this.client || !this.state.authenticated) return
     try {
+      this.log('info', `Microphone: ${muted ? 'muted' : 'unmuted'}`)
       await this.client.request('SET_VOICE_SETTINGS', { mute: muted })
       this.state = { ...this.state, selfMuted: muted }
       this.push()
@@ -108,6 +109,7 @@ export class DiscordService {
   async setSelfDeaf(deafened: boolean): Promise<void> {
     if (!this.client || !this.state.authenticated) return
     try {
+      this.log('info', `Deafen: ${deafened ? 'on' : 'off'}`)
       await this.client.request('SET_VOICE_SETTINGS', { deaf: deafened })
       this.state = { ...this.state, selfDeafened: deafened }
       this.push()
@@ -120,6 +122,7 @@ export class DiscordService {
     if (!this.client || !this.state.authenticated) return
     const clamped = Math.max(0, Math.min(100, Math.round(volume)))
     try {
+      this.log('info', `Microphone volume: ${clamped}%`)
       await this.client.request('SET_VOICE_SETTINGS', {
         input: { volume: clamped },
       })
@@ -134,6 +137,7 @@ export class DiscordService {
     if (!this.client || !this.state.authenticated) return
     const clamped = Math.max(0, Math.min(100, Math.round(volume)))
     try {
+      this.log('info', `Speaker volume: ${clamped}%`)
       await this.client.request('SET_VOICE_SETTINGS', {
         output: { volume: clamped },
       })
@@ -148,6 +152,8 @@ export class DiscordService {
     if (!this.client || !this.state.authenticated) return
     const clamped = Math.max(0, Math.min(200, Math.round(volume)))
     try {
+      const participant = this.state.participants.find((p) => p.userId === userId)
+      this.log('info', `${participant?.nick ?? 'User'}: volume ${clamped}%`)
       await this.client.request('SET_LOCAL_VOLUME', { user_id: userId, volume: clamped })
       this.state = {
         ...this.state,
@@ -164,6 +170,8 @@ export class DiscordService {
   async setLocalMute(userId: string, muted: boolean): Promise<void> {
     if (!this.client || !this.state.authenticated) return
     try {
+      const participant = this.state.participants.find((p) => p.userId === userId)
+      this.log('info', `${participant?.nick ?? 'User'}: ${muted ? 'locally muted' : 'locally unmuted'}`)
       await this.client.request('SET_LOCAL_MUTE', { user_id: userId, mute: muted })
       this.state = {
         ...this.state,

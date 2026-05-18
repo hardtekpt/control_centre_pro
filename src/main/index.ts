@@ -724,7 +724,10 @@ app.whenReady().then(() => {
     id: 'gg-sonar',
     name: 'GG Sonar',
     description: 'SteelSeries GG Sonar audio mixer integration (HTTP REST)',
-    onEnable: () => sonarService.start(),
+    onEnable: () => {
+      serviceManager.emitNativeLog('gg-sonar', 'GG Sonar', 'info', 'Service enabled, discovering Sonar instance...')
+      sonarService.start()
+    },
     onDisable: () => sonarService.stop(),
     isRunning: () => sonarService.isAvailable(),
   })
@@ -744,8 +747,15 @@ app.whenReady().then(() => {
     description: 'DDC/CI brightness control for connected monitors (Windows only)',
     onEnable: () => {
       ddcService.start()
+      serviceManager.emitNativeLog('ddc', 'DDC Display', 'info', 'Service enabled')
       startDdcPolling()
-      ddcService.refreshMonitors().catch(console.error)
+      ddcService.refreshMonitors().then((monitors) => {
+        if (monitors.length === 0) {
+          serviceManager.emitNativeLog('ddc', 'DDC Display', 'info', 'No DDC-capable monitors detected')
+        } else {
+          serviceManager.emitNativeLog('ddc', 'DDC Display', 'info', `Found ${monitors.length} monitor(s): ${monitors.map(m => m.name).join(', ')}`)
+        }
+      }).catch(console.error)
     },
     onDisable: () => {
       ddcService.stop()
@@ -765,7 +775,10 @@ app.whenReady().then(() => {
     id: 'discord',
     name: 'Discord Voice',
     description: 'Discord RPC voice control — mute, deafen, and per-participant volume',
-    onEnable: () => discordService.start(),
+    onEnable: () => {
+      serviceManager.emitNativeLog('discord', 'Discord Voice', 'info', 'Service enabled, connecting to Discord RPC...')
+      discordService.start()
+    },
     onDisable: () => discordService.stop(),
     isRunning: () => discordService.isAvailable(),
   })
@@ -782,7 +795,13 @@ app.whenReady().then(() => {
         const shortcutsPath = join(app.getPath('userData'), 'shortcuts.json')
         if (existsSync(shortcutsPath)) {
           const saved = JSON.parse(readFileSync(shortcutsPath, 'utf-8'))
-          if (Array.isArray(saved)) registerGlobalShortcuts(saved as Shortcut[])
+          if (Array.isArray(saved)) {
+            registerGlobalShortcuts(saved as Shortcut[])
+            const globalCount = (saved as Shortcut[]).filter(s => s.enabled && s.scope === 'global').length
+            serviceManager.emitNativeLog('shortcuts', 'Keyboard Shortcuts', 'info', `Service enabled with ${globalCount} global shortcut(s)`)
+          }
+        } else {
+          serviceManager.emitNativeLog('shortcuts', 'Keyboard Shortcuts', 'info', 'Service enabled, no shortcuts configured')
         }
       } catch {}
       serviceManager.broadcastServiceState()
@@ -802,6 +821,7 @@ app.whenReady().then(() => {
     description: 'System notifications for headset and device events',
     onEnable: () => {
       notificationsEnabled = true
+      serviceManager.emitNativeLog('notifications', 'Device Notifications', 'info', 'Service enabled')
       serviceManager.broadcastServiceState()
     },
     onDisable: () => {

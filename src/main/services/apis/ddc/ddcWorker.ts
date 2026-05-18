@@ -300,8 +300,6 @@ function doRefresh(): RefreshResult {
     monitors.push(monitor)
   }
 
-  if (monitors.length > 0) log('info', `Enumerated ${monitors.length} DDC-capable monitor(s)`)
-
   return { monitors, devicePaths }
 }
 

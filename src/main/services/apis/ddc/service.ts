@@ -97,7 +97,7 @@ export class DdcService {
       this.available = false
     })
 
-    this.log('info', 'DDC display control service started')
+    this.log('info', 'DDC Display Control initialized')
   }
 
   stop(): void {
@@ -131,10 +131,12 @@ export class DdcService {
     }
 
     const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    this.log('info', `Monitor ${monitor?.name || `#${monitorId}`}: brightness ${normalizedValue}%`)
+
     this.worker.postMessage({ type: 'setBrightness', devicePath, value: normalizedValue })
 
     // Optimistic cache update
-    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
     if (monitor) {
       monitor.brightness = normalizedValue
       this.notifyStateChanged()
@@ -156,10 +158,13 @@ export class DdcService {
       return
     }
 
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    const inputName = this.getInputName(inputValue)
+    this.log('info', `Monitor ${monitor?.name || `#${monitorId}`}: input ${inputName}`)
+
     this.worker.postMessage({ type: 'setInputSource', devicePath, vcpCode })
 
     // Optimistic cache update
-    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
     if (monitor) {
       monitor.input_source = inputValue.toLowerCase()
       this.notifyStateChanged()
@@ -176,6 +181,9 @@ export class DdcService {
 
   async setPrimaryMonitor(monitorId: number, multiMonitorToolPath: string): Promise<void> {
     if (!this.available || !this.running || !this.worker) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    this.log('info', `Setting primary monitor: ${monitor?.name || `#${monitorId}`}`)
 
     const id = this.nextId++
     await new Promise<DdcMonitor[]>((resolve, reject) => {
