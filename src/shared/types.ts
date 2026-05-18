@@ -481,13 +481,19 @@ export interface OpenApp {
   displayName: string
 }
 
+export interface MonitorInputAction {
+  monitorId: number   // DdcMonitor.monitor_id
+  inputValue: string  // hex string, e.g. "0x11"
+}
+
 export interface PresetSwitcherRule {
   id: string
-  appProcessName: string  // Windows process name (no .exe)
-  displayName: string     // Shown in UI
-  channel: string         // SonarConfig.virtualAudioDevice
-  presetId: string        // SonarConfig.id
+  appProcessName: string        // Windows process name (no .exe)
+  displayName: string           // Shown in UI
+  channel?: string              // SonarConfig.virtualAudioDevice (optional — rule may be monitor-only)
+  presetId?: string             // SonarConfig.id (optional)
   enabled: boolean
+  monitorActions?: MonitorInputAction[]
 }
 
 // ─── DDC/CI Display Control ───────────────────────────────────────────────────

@@ -747,6 +747,9 @@ app.whenReady().then(() => {
 
   // Initialize preset switcher monitor
   activeWindowMonitor = new ActiveWindowMonitor(mainWindow!, sonarService)
+  activeWindowMonitor.setMonitorInputHandler((monitorId, inputValue) => {
+    ddcService.setInputSource(monitorId, inputValue)
+  })
   try {
     const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
     if (existsSync(rulesPath)) {

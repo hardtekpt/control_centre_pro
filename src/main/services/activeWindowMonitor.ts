@@ -14,12 +14,18 @@ export class ActiveWindowMonitor {
   private rules: PresetSwitcherRule[] = []
   private autoApplied = new Map<string, string>()
   private manualOverrides = new Set<string>()
+  private appliedMonitorRules = new Set<string>()
   private enabled = true
+  private applyMonitorInput: ((monitorId: number, inputValue: string) => void) | null = null
 
   constructor(
     private window: BrowserWindow,
     private sonarService: SonarService,
   ) {}
+
+  setMonitorInputHandler(handler: (monitorId: number, inputValue: string) => void): void {
+    this.applyMonitorInput = handler
+  }
 
   start(): void {
     const script = `
@@ -103,6 +109,7 @@ while ($true) {
     if (processName !== this.currentProcessName) {
       this.autoApplied.clear()
       this.manualOverrides.clear()
+      this.appliedMonitorRules.clear()
     }
 
     this.currentProcessName = processName
@@ -117,12 +124,24 @@ while ($true) {
       if (!rule.enabled) continue
       if (rule.appProcessName.toLowerCase() !== processName.toLowerCase()) continue
       if (this.manualOverrides.has(rule.id)) continue
-      if (this.autoApplied.get(rule.channel) === rule.id) continue
 
-      this.autoApplied.set(rule.channel, rule.id)
-      this.sonarService.selectPreset(rule.presetId).catch((err) => {
-        console.error('[ActiveWindowMonitor] selectPreset failed:', err)
-      })
+      // Sonar preset action
+      if (rule.channel && rule.presetId) {
+        if (this.autoApplied.get(rule.channel) !== rule.id) {
+          this.autoApplied.set(rule.channel, rule.id)
+          this.sonarService.selectPreset(rule.presetId).catch((err) => {
+            console.error('[ActiveWindowMonitor] selectPreset failed:', err)
+          })
+        }
+      }
+
+      // Monitor input actions (one-shot per rule per app focus)
+      if (rule.monitorActions?.length && !this.appliedMonitorRules.has(rule.id)) {
+        this.appliedMonitorRules.add(rule.id)
+        for (const action of rule.monitorActions) {
+          this.applyMonitorInput?.(action.monitorId, action.inputValue)
+        }
+      }
     }
   }
 }
