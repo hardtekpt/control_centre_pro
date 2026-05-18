@@ -1,6 +1,132 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDiscordStore } from '../../stores/discordStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
+import type { DiscordParticipant } from '@shared/types'
+
+function MicIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" fill="currentColor" stroke="none"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="8" y1="22" x2="16" y2="22"/>
+    </svg>
+  )
+}
+
+function MicOffIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="2" y1="2" x2="22" y2="22"/>
+      <path d="M18.89 13.23A7 7 0 0 0 19 12v-2"/>
+      <path d="M5 10v2a7 7 0 0 0 7 7v0"/>
+      <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/>
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="8" y1="22" x2="16" y2="22"/>
+    </svg>
+  )
+}
+
+function HeadphonesIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+      <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+    </svg>
+  )
+}
+
+function HeadphonesOffIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 14.5V12a9 9 0 0 0-9-9 9 9 0 0 0-7.5 4.04"/>
+      <path d="M3.14 9.44A9 9 0 0 0 3 12v2"/>
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+      <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+      <line x1="2" y1="2" x2="22" y2="22"/>
+    </svg>
+  )
+}
+
+function ParticipantRow({ p }: { p: DiscordParticipant }): JSX.Element {
+  const [dragVolume, setDragVolume] = useState<number | null>(null)
+  const displayVolume = dragVolume ?? p.localVolume
+
+  return (
+    <div
+      className="flex items-center gap-3 px-3 py-2 rounded"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+    >
+      {p.avatar ? (
+        <img
+          src={p.avatar}
+          alt={p.nick}
+          style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: 'var(--color-surface-raised)',
+          }}
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <div
+          className="text-sm font-medium truncate"
+          style={{ color: p.speaking ? '#22c55e' : 'var(--color-text-primary)' }}
+        >
+          {p.nick}
+        </div>
+        <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          {p.muted && 'muted '}
+          {p.deafened && 'deafened '}
+          {p.localMuted && '(local mute)'}
+        </div>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={200}
+        value={displayVolume}
+        onChange={(e) => {
+          const vol = Number(e.target.value)
+          setDragVolume(vol)
+          window.api.discordSetLocalVolume(p.userId, vol).catch(console.error)
+        }}
+        onPointerUp={() => setDragVolume(null)}
+        style={{ width: 80, cursor: 'pointer' }}
+        title={`${displayVolume}%`}
+      />
+      <span
+        className="text-xs mono w-8 text-right"
+        style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}
+      >
+        {displayVolume}
+      </span>
+      <button
+        onClick={() =>
+          window.api.discordSetLocalMute(p.userId, !p.localMuted).catch(console.error)
+        }
+        className="text-xs px-2 py-1 rounded transition-colors"
+        style={{
+          background: p.localMuted ? '#ef4444' : 'var(--color-surface-raised)',
+          border: '1px solid var(--color-border)',
+          color: p.localMuted ? '#fff' : 'var(--color-text-secondary)',
+          cursor: 'pointer',
+          flexShrink: 0,
+        }}
+      >
+        {p.localMuted ? 'Unmute' : 'Mute'}
+      </button>
+    </div>
+  )
+}
 
 export function DiscordSettings(): JSX.Element {
   const { discordState } = useDiscordStore()
@@ -14,6 +140,12 @@ export function DiscordSettings(): JSX.Element {
   const [draftClientSecret, setDraftClientSecret] = useState('')
   const draftClientSecretRef = useRef(draftClientSecret)
 
+  const [dragInputVolume, setDragInputVolume] = useState<number | null>(null)
+  const [dragOutputVolume, setDragOutputVolume] = useState<number | null>(null)
+
+  const displayInputVolume = dragInputVolume ?? (discordState?.inputVolume ?? 100)
+  const displayOutputVolume = dragOutputVolume ?? (discordState?.outputVolume ?? 100)
+
   useEffect(() => {
     draftClientIdRef.current = draftClientId
   }, [draftClientId])
@@ -22,7 +154,6 @@ export function DiscordSettings(): JSX.Element {
     draftClientSecretRef.current = draftClientSecret
   }, [draftClientSecret])
 
-  // Load persisted settings on mount
   useEffect(() => {
     window.api
       .getSettings()
@@ -35,12 +166,10 @@ export function DiscordSettings(): JSX.Element {
       .catch(console.error)
   }, [])
 
-  // Dirty detection
   useEffect(() => {
     setDirty(draftClientId !== savedClientId || draftClientSecret !== savedClientSecret)
   }, [draftClientId, savedClientId, draftClientSecret, savedClientSecret, setDirty])
 
-  // Register save handler
   useEffect(() => {
     registerSave(async () => {
       const trimmedId = draftClientIdRef.current.trim()
@@ -61,16 +190,22 @@ export function DiscordSettings(): JSX.Element {
   }, [registerSave])
 
   const connected = discordState?.available && discordState?.authenticated
+
   const statusText =
     !discordState || !discordState.available
-      ? 'Not connected'
+      ? 'Discord app not running'
       : !discordState.authenticated
         ? 'Connected — auth failed'
         : discordState.voiceChannel
           ? `In voice: ${discordState.voiceChannel.name} (${discordState.voiceChannel.guildName})`
           : 'Connected — not in a voice channel'
 
-  const statusColor = connected ? '#22c55e' : '#ef4444'
+  const statusColor =
+    !discordState || !discordState.available
+      ? '#ef4444'
+      : discordState.authenticated
+        ? '#22c55e'
+        : '#f59e0b'
 
   return (
     <div>
@@ -94,15 +229,21 @@ export function DiscordSettings(): JSX.Element {
             className="flex items-center gap-3 p-4 rounded flex-1"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: statusColor,
-                flexShrink: 0,
-              }}
-            />
+            {/* Connection indicator */}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              style={{ flexShrink: 0 }}
+            >
+              <circle cx="7" cy="7" r="5" fill={statusColor} />
+              {connected && (
+                <circle cx="7" cy="7" r="5" fill={statusColor} opacity="0.3">
+                  <animate attributeName="r" from="5" to="7" dur="1.5s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" from="0.3" to="0" dur="1.5s" repeatCount="indefinite"/>
+                </circle>
+              )}
+            </svg>
             <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
               {statusText}
             </span>
@@ -279,7 +420,8 @@ export function DiscordSettings(): JSX.Element {
               onClick={() =>
                 window.api.discordSetSelfMute(!discordState!.selfMuted).catch(console.error)
               }
-              className="px-4 py-2 rounded text-sm font-medium transition-colors"
+              title={discordState!.selfMuted ? 'Unmute Mic' : 'Mute Mic'}
+              className="flex items-center justify-center w-9 h-9 rounded transition-colors"
               style={{
                 background: discordState!.selfMuted ? '#ef4444' : 'var(--color-surface-raised)',
                 border: '1px solid var(--color-border)',
@@ -287,13 +429,14 @@ export function DiscordSettings(): JSX.Element {
                 cursor: 'pointer',
               }}
             >
-              {discordState!.selfMuted ? 'Unmute Mic' : 'Mute Mic'}
+              {discordState!.selfMuted ? <MicOffIcon /> : <MicIcon />}
             </button>
             <button
               onClick={() =>
                 window.api.discordSetSelfDeaf(!discordState!.selfDeafened).catch(console.error)
               }
-              className="px-4 py-2 rounded text-sm font-medium transition-colors"
+              title={discordState!.selfDeafened ? 'Undeafen' : 'Deafen'}
+              className="flex items-center justify-center w-9 h-9 rounded transition-colors"
               style={{
                 background: discordState!.selfDeafened ? '#ef4444' : 'var(--color-surface-raised)',
                 border: '1px solid var(--color-border)',
@@ -301,46 +444,64 @@ export function DiscordSettings(): JSX.Element {
                 cursor: 'pointer',
               }}
             >
-              {discordState!.selfDeafened ? 'Undeafen' : 'Deafen'}
+              {discordState!.selfDeafened ? <HeadphonesOffIcon /> : <HeadphonesIcon />}
             </button>
           </div>
 
           {/* Input / Output volume */}
           <div className="mt-4 grid grid-cols-2 gap-4 max-w-md">
-            {[
-              {
-                label: 'Mic Input Volume',
-                value: discordState!.inputVolume,
-                onChange: (v: number) => window.api.discordSetInputVolume(v).catch(console.error),
-              },
-              {
-                label: 'Output Volume',
-                value: discordState!.outputVolume,
-                onChange: (v: number) => window.api.discordSetOutputVolume(v).catch(console.error),
-              },
-            ].map(({ label, value, onChange }) => (
-              <div key={label}>
-                <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-                  {label}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={value}
-                    onChange={(e) => onChange(Number(e.target.value))}
-                    style={{ flex: 1, cursor: 'pointer' }}
-                  />
-                  <span
-                    className="text-xs mono w-7 text-right"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                  >
-                    {value}
-                  </span>
-                </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+                Mic Input Volume
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={displayInputVolume}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setDragInputVolume(v)
+                    window.api.discordSetInputVolume(v).catch(console.error)
+                  }}
+                  onPointerUp={() => setDragInputVolume(null)}
+                  style={{ flex: 1, cursor: 'pointer' }}
+                />
+                <span
+                  className="text-xs mono w-7 text-right"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  {displayInputVolume}
+                </span>
               </div>
-            ))}
+            </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+                Output Volume
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={displayOutputVolume}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setDragOutputVolume(v)
+                    window.api.discordSetOutputVolume(v).catch(console.error)
+                  }}
+                  onPointerUp={() => setDragOutputVolume(null)}
+                  style={{ flex: 1, cursor: 'pointer' }}
+                />
+                <span
+                  className="text-xs mono w-7 text-right"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  {displayOutputVolume}
+                </span>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -356,77 +517,7 @@ export function DiscordSettings(): JSX.Element {
           </h2>
           <div className="space-y-2">
             {discordState.participants.map((p) => (
-              <div
-                key={p.userId}
-                className="flex items-center gap-3 px-3 py-2 rounded"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-              >
-                {p.avatar ? (
-                  <img
-                    src={p.avatar}
-                    alt={p.nick}
-                    style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      background: 'var(--color-surface-raised)',
-                    }}
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-medium truncate"
-                    style={{ color: p.speaking ? '#22c55e' : 'var(--color-text-primary)' }}
-                  >
-                    {p.nick}
-                  </div>
-                  <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                    {p.muted && 'muted '}
-                    {p.deafened && 'deafened '}
-                    {p.localMuted && '(local mute)'}
-                  </div>
-                </div>
-                {/* Per-participant volume slider */}
-                <input
-                  type="range"
-                  min={0}
-                  max={200}
-                  value={p.localVolume}
-                  onChange={(e) => {
-                    const vol = Number(e.target.value)
-                    window.api.discordSetLocalVolume(p.userId, vol).catch(console.error)
-                  }}
-                  style={{ width: 80, cursor: 'pointer' }}
-                  title={`${p.localVolume}%`}
-                />
-                <span
-                  className="text-xs mono w-8 text-right"
-                  style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}
-                >
-                  {p.localVolume}
-                </span>
-                {/* Local mute toggle */}
-                <button
-                  onClick={() =>
-                    window.api.discordSetLocalMute(p.userId, !p.localMuted).catch(console.error)
-                  }
-                  className="text-xs px-2 py-1 rounded transition-colors"
-                  style={{
-                    background: p.localMuted ? '#ef4444' : 'var(--color-surface-raised)',
-                    border: '1px solid var(--color-border)',
-                    color: p.localMuted ? '#fff' : 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  {p.localMuted ? 'Unmute' : 'Mute'}
-                </button>
-              </div>
+              <ParticipantRow key={p.userId} p={p} />
             ))}
           </div>
         </section>
