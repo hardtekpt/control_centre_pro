@@ -258,7 +258,7 @@ export type AppView =
   | 'settings'
 
 /** Tabs within the settings view */
-export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'discord' | 'about'
+export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'plugins' | 'about'
 
 /** Navigate targets that can be pushed from the main process */
 export type NavigateTarget = AppView | 'settings:about'

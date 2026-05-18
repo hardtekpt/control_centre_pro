@@ -5,7 +5,7 @@ import { GeneralSettings } from '../../pages/settings/GeneralSettings'
 import { GGSonarSettings } from '../../pages/settings/GGSonarSettings'
 import { DDCSettings } from '../../pages/settings/DDCSettings'
 import { NotificationsSettings } from '../../pages/settings/NotificationsSettings'
-import { DiscordSettings } from '../../pages/settings/DiscordSettings'
+import { Plugins } from '../../pages/settings/Plugins'
 import { About } from '../../pages/settings/About'
 import { useAppStore } from '../../stores/appStore'
 import { SettingsFormProvider, useSettingsForm } from '../../contexts/settingsFormContext'
@@ -13,7 +13,7 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import type { SettingsTab } from '@shared/types'
 
 // About is read-only — no save footer needed
-const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc', 'notifications', 'discord']
+const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins']
 
 function SettingsLayoutInner(): JSX.Element {
   const { currentSettingsTab, setSettingsTab, goBack } = useAppStore()
@@ -76,7 +76,7 @@ function SettingsLayoutInner(): JSX.Element {
             {currentSettingsTab === 'gg-sonar' && <GGSonarSettings />}
             {currentSettingsTab === 'ddc' && <DDCSettings />}
             {currentSettingsTab === 'notifications' && <NotificationsSettings />}
-            {currentSettingsTab === 'discord' && <DiscordSettings />}
+            {currentSettingsTab === 'plugins' && <Plugins />}
             {currentSettingsTab === 'about' && <About />}
           </div>
           {showFooter && (
