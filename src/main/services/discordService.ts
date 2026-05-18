@@ -1,33 +1,279 @@
-import type { BrowserWindow } from 'electron'
-import { createConnection } from 'net'
-import { Client } from 'discord-rpc'
-import { IPC_CHANNELS } from '../../shared/types'
+import { BrowserWindow } from 'electron'
+import { createConnection, Socket } from 'net'
+import { EventEmitter } from 'events'
+import { randomUUID } from 'crypto'
+import { app } from 'electron'
+import { join } from 'path'
+import { readFileSync, writeFileSync, unlinkSync } from 'fs'
+import { net } from 'electron'
+
 import type { DiscordState, DiscordParticipant } from '../../shared/types'
 
-// Type assertion for request method which exists at runtime
-declare module 'discord-rpc' {
-  interface Client {
-    request(command: string, args?: Record<string, unknown>): Promise<unknown>
+// ─── DiscordRpcTransport ────────────────────────────────────────────────────────
+
+interface PendingRequest {
+  resolve(v: unknown): void
+  reject(e: Error): void
+}
+
+class DiscordRpcTransport extends EventEmitter {
+  private socket: Socket | null = null
+  private buffer = Buffer.alloc(0)
+  private pending = new Map<string, PendingRequest>()
+
+  async connect(clientId: string): Promise<void> {
+    // Try pipes 0–9 sequentially
+    for (let i = 0; i < 10; i++) {
+      try {
+        const socket = await this.openPipe(i)
+        this.socket = socket
+        this.setupSocket()
+
+        // Send HANDSHAKE frame
+        this.send(0, { v: 1, client_id: clientId })
+
+        // Wait for READY event
+        return new Promise((resolve, reject) => {
+          const onReady = () => {
+            this.off('ready', onReady)
+            this.off('error', onError)
+            resolve()
+          }
+          const onError = (e: Error) => {
+            this.off('ready', onReady)
+            this.off('error', onError)
+            reject(e)
+          }
+          this.once('ready', onReady)
+          this.once('error', onError)
+        })
+      } catch {
+        if (this.socket) {
+          this.socket.destroy()
+          this.socket = null
+        }
+        continue
+      }
+    }
+    throw new Error('Failed to connect to Discord IPC pipe')
+  }
+
+  private openPipe(index: number): Promise<Socket> {
+    return new Promise((resolve, reject) => {
+      const pipePath = `\\\\?\\pipe\\discord-ipc-${index}`
+      const socket = createConnection(pipePath, () => {
+        resolve(socket)
+      })
+      socket.on('error', reject)
+      setTimeout(() => {
+        if (!socket.connecting) reject(new Error('Connection timeout'))
+        else socket.destroy()
+      }, 500)
+    })
+  }
+
+  private setupSocket() {
+    if (!this.socket) return
+
+    this.socket.on('data', (chunk: Buffer) => {
+      this.buffer = Buffer.concat([this.buffer, chunk])
+      this.parseFrames()
+    })
+
+    this.socket.on('close', () => {
+      this.emit('close')
+    })
+
+    this.socket.on('error', (e: Error) => {
+      this.emit('error', e)
+    })
+  }
+
+  private parseFrames() {
+    while (this.buffer.length >= 8) {
+      const opcode = this.buffer.readUInt32LE(0)
+      const length = this.buffer.readUInt32LE(4)
+      if (this.buffer.length < 8 + length) break
+
+      const body = this.buffer.slice(8, 8 + length)
+      this.buffer = this.buffer.slice(8 + length)
+
+      try {
+        const frame = JSON.parse(body.toString('utf8'))
+        this.handleFrame(frame, opcode)
+      } catch {
+        // Ignore malformed frames
+      }
+    }
+  }
+
+  private handleFrame(frame: any, opcode: number) {
+    // Handle responses to requests
+    if (frame.nonce && this.pending.has(frame.nonce)) {
+      const cb = this.pending.get(frame.nonce)!
+      this.pending.delete(frame.nonce)
+      if (frame.evt === 'ERROR') {
+        cb.reject(new Error(frame.data?.message ?? 'RPC error'))
+      } else {
+        cb.resolve(frame.data)
+      }
+      return
+    }
+
+    // Handle dispatch events
+    if (frame.cmd === 'DISPATCH') {
+      this.emit(`event:${frame.evt}`, frame.data)
+      return
+    }
+
+    // Handle READY event (no nonce)
+    if (frame.evt === 'READY') {
+      this.emit('ready')
+      return
+    }
+  }
+
+  send(opcode: number, payload: object): void {
+    if (!this.socket) throw new Error('Socket not connected')
+    const body = Buffer.from(JSON.stringify(payload), 'utf8')
+    const header = Buffer.allocUnsafe(8)
+    header.writeUInt32LE(opcode, 0)
+    header.writeUInt32LE(body.length, 4)
+    this.socket.write(Buffer.concat([header, body]))
+  }
+
+  request(cmd: string, args?: object): Promise<unknown> {
+    const nonce = randomUUID()
+    return new Promise((resolve, reject) => {
+      this.pending.set(nonce, { resolve, reject })
+      try {
+        this.send(1, { cmd, args, nonce })
+      } catch (e) {
+        this.pending.delete(nonce)
+        reject(e)
+      }
+    })
+  }
+
+  subscribe(evt: string, args?: object): Promise<void> {
+    return this.request('SUBSCRIBE', { evt, args }).then(() => undefined)
+  }
+
+  unsubscribe(evt: string, args?: object): Promise<void> {
+    return this.request('UNSUBSCRIBE', { evt, args }).then(() => undefined)
+  }
+
+  destroy(): void {
+    if (this.socket) {
+      this.socket.destroy()
+      this.socket = null
+    }
+    this.pending.clear()
+    this.removeAllListeners()
   }
 }
 
-/**
- * Connects to the Discord desktop client via the discord-rpc IPC socket
- * (\\.\pipe\discord-ipc-{0-9}) and proxies voice state read/write IPC calls.
- *
- * Event-driven: subscribes to VOICE_CHANNEL_SELECT, VOICE_STATE_UPDATE, SPEAKING_START/STOP.
- * Authentication: OAuth with scopes rpc + rpc.voice.read + rpc.voice.write.
- * Auto-reconnects when the Discord client restarts.
- */
-export class DiscordService {
-  private client: Client | null = null
-  private clientSeq = 0  // [DEBUG] incremented per connect attempt to track which instance fires events
-  private window: BrowserWindow | null = null
-  private clientId = ''
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private stopped = false
-  private lastAvailable = false
+// ─── Token Persistence ──────────────────────────────────────────────────────────
 
+interface TokenCache {
+  access_token: string
+  expires_at: number
+}
+
+function tokenCachePath(): string {
+  return join(app.getPath('userData'), 'discord-token.json')
+}
+
+function loadCachedToken(): string | null {
+  try {
+    const raw = JSON.parse(readFileSync(tokenCachePath(), 'utf8')) as TokenCache
+    if (Date.now() < raw.expires_at - 60_000) return raw.access_token
+    return null
+  } catch {
+    return null
+  }
+}
+
+function saveCachedToken(token: string, expiresInSeconds: number): void {
+  const cache: TokenCache = {
+    access_token: token,
+    expires_at: Date.now() + expiresInSeconds * 1000,
+  }
+  writeFileSync(tokenCachePath(), JSON.stringify(cache), 'utf8')
+}
+
+function clearCachedToken(): void {
+  try {
+    unlinkSync(tokenCachePath())
+  } catch {
+    // Ignore
+  }
+}
+
+// ─── OAuth Helper ───────────────────────────────────────────────────────────────
+
+async function exchangeCode(
+  code: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<{ access_token: string; expires_in: number }> {
+  return new Promise((resolve, reject) => {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: 'http://127.0.0.1',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }).toString()
+
+    const req = net.request({
+      method: 'POST',
+      url: 'https://discord.com/api/oauth2/token',
+    })
+
+    let responseData = ''
+
+    req.on('response', (res) => {
+      res.on('data', (chunk: Buffer) => {
+        responseData += chunk.toString('utf8')
+      })
+
+      res.on('end', () => {
+        try {
+          if (res.statusCode !== 200) {
+            reject(new Error(`OAuth exchange failed: ${res.statusCode}`))
+            return
+          }
+          const parsed = JSON.parse(responseData) as {
+            access_token?: string
+            expires_in?: number
+          }
+          if (!parsed.access_token || !parsed.expires_in) {
+            reject(new Error('Invalid OAuth response'))
+            return
+          }
+          resolve({ access_token: parsed.access_token, expires_in: parsed.expires_in })
+        } catch (e) {
+          reject(e)
+        }
+      })
+    })
+
+    req.on('error', reject)
+    req.write(body)
+    req.end()
+  })
+}
+
+// ─── DiscordService ─────────────────────────────────────────────────────────────
+
+export class DiscordService {
+  private window: BrowserWindow | null = null
+  private clientId: string = ''
+  private clientSecret: string = ''
+  private transport: DiscordRpcTransport | null = null
+  private reconnectTimer: NodeJS.Timeout | null = null
+  private stopped = true
   private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangeFn: (() => void) | null = null
 
@@ -43,469 +289,464 @@ export class DiscordService {
     outputVolume: 100,
   }
 
-  // ── Dependency injection ───────────────────────────────────────────────────
-
-  setWindow(window: BrowserWindow): void {
-    this.window = window
+  setWindow(win: BrowserWindow) {
+    this.window = win
   }
 
-  setLogEmitter(fn: (level: 'info' | 'warn' | 'error', msg: string) => void): void {
+  setLogEmitter(fn: (level: 'info' | 'warn' | 'error', msg: string) => void) {
     this.logFn = fn
   }
 
-  setStateChangeNotifier(fn: () => void): void {
+  setStateChangeNotifier(fn: () => void) {
     this.stateChangeFn = fn
   }
 
-  setClientId(clientId: string): void {
-    this.clientId = clientId
+  setClientId(id: string) {
+    this.clientId = id
   }
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
-  start(): void {
-    this.stopped = false
-    this.connect()
-  }
-
-  stop(): void {
-    this.stopped = true
-    this.clearReconnectTimer()
-    this.destroyClient()
-    if (this.state.available || this.state.authenticated) {
-      this.state = {
-        ...this.state,
-        available: false,
-        authenticated: false,
-        voiceChannel: null,
-        participants: [],
-      }
-      this.push()
-    }
-  }
-
-  isAvailable(): boolean {
-    return this.state.available
+  setClientSecret(secret: string) {
+    this.clientSecret = secret
   }
 
   getState(): DiscordState {
     return this.state
   }
 
-  // ── Public write commands ──────────────────────────────────────────────────
-
-  async setSelfMute(muted: boolean): Promise<void> {
-    if (!this.client || !this.state.authenticated) return
-    try {
-      this.log('info', `Microphone: ${muted ? 'muted' : 'unmuted'}`)
-      await this.client.request('SET_VOICE_SETTINGS', { mute: muted })
-      this.state = { ...this.state, selfMuted: muted }
-      this.push()
-    } catch (err) {
-      this.log('warn', `Discord: setSelfMute failed — ${String(err)}`)
-    }
+  isAvailable(): boolean {
+    return this.state.available && this.state.authenticated
   }
 
-  async setSelfDeaf(deafened: boolean): Promise<void> {
-    if (!this.client || !this.state.authenticated) return
-    try {
-      this.log('info', `Deafen: ${deafened ? 'on' : 'off'}`)
-      await this.client.request('SET_VOICE_SETTINGS', { deaf: deafened })
-      this.state = { ...this.state, selfDeafened: deafened }
-      this.push()
-    } catch (err) {
-      this.log('warn', `Discord: setSelfDeaf failed — ${String(err)}`)
-    }
-  }
-
-  async setInputVolume(volume: number): Promise<void> {
-    if (!this.client || !this.state.authenticated) return
-    const clamped = Math.max(0, Math.min(100, Math.round(volume)))
-    try {
-      this.log('info', `Microphone volume: ${clamped}%`)
-      await this.client.request('SET_VOICE_SETTINGS', {
-        input: { volume: clamped },
-      })
-      this.state = { ...this.state, inputVolume: clamped }
-      this.push()
-    } catch (err) {
-      this.log('warn', `Discord: setInputVolume failed — ${String(err)}`)
-    }
-  }
-
-  async setOutputVolume(volume: number): Promise<void> {
-    if (!this.client || !this.state.authenticated) return
-    const clamped = Math.max(0, Math.min(100, Math.round(volume)))
-    try {
-      this.log('info', `Speaker volume: ${clamped}%`)
-      await this.client.request('SET_VOICE_SETTINGS', {
-        output: { volume: clamped },
-      })
-      this.state = { ...this.state, outputVolume: clamped }
-      this.push()
-    } catch (err) {
-      this.log('warn', `Discord: setOutputVolume failed — ${String(err)}`)
-    }
-  }
-
-  async setLocalVolume(userId: string, volume: number): Promise<void> {
-    if (!this.client || !this.state.authenticated) return
-    const clamped = Math.max(0, Math.min(200, Math.round(volume)))
-    try {
-      const participant = this.state.participants.find((p) => p.userId === userId)
-      this.log('info', `${participant?.nick ?? 'User'}: volume ${clamped}%`)
-      await this.client.request('SET_LOCAL_VOLUME', { user_id: userId, volume: clamped })
-      this.state = {
-        ...this.state,
-        participants: this.state.participants.map((p) =>
-          p.userId === userId ? { ...p, localVolume: clamped } : p
-        ),
-      }
-      this.push()
-    } catch (err) {
-      this.log('warn', `Discord: setLocalVolume(${userId}) failed — ${String(err)}`)
-    }
-  }
-
-  async setLocalMute(userId: string, muted: boolean): Promise<void> {
-    if (!this.client || !this.state.authenticated) return
-    try {
-      const participant = this.state.participants.find((p) => p.userId === userId)
-      this.log('info', `${participant?.nick ?? 'User'}: ${muted ? 'locally muted' : 'locally unmuted'}`)
-      await this.client.request('SET_LOCAL_MUTE', { user_id: userId, mute: muted })
-      this.state = {
-        ...this.state,
-        participants: this.state.participants.map((p) =>
-          p.userId === userId ? { ...p, localMuted: muted } : p
-        ),
-      }
-      this.push()
-    } catch (err) {
-      this.log('warn', `Discord: setLocalMute(${userId}) failed — ${String(err)}`)
-    }
-  }
-
-  async reconnect(): Promise<void> {
-    this.destroyClient()
+  start() {
+    this.stopped = false
     this.connect()
   }
 
-  // ── Private connection logic ───────────────────────────────────────────────
-
-  // [DEBUG] probe whether any discord-ipc-N pipe exists (confirms Discord is running)
-  private async probeDiscordPipes(): Promise<string> {
-    const results: string[] = []
-    const checks = Array.from({ length: 10 }, (_, i) =>
-      new Promise<string>((resolve) => {
-        const pipePath = `\\\\.\\pipe\\discord-ipc-${i}`
-        const sock = createConnection(pipePath)
-        sock.once('connect', () => { sock.destroy(); resolve(`discord-ipc-${i}: reachable`) })
-        sock.once('error', (e: NodeJS.ErrnoException) => resolve(`discord-ipc-${i}: ${e.code ?? e.message}`))
-        setTimeout(() => { sock.destroy(); resolve(`discord-ipc-${i}: timeout`) }, 500)
-      })
-    )
-    const r = await Promise.all(checks)
-    for (const line of r) results.push(line)
-    return results.join(', ')
+  stop() {
+    this.stopped = true
+    this.clearReconnectTimer()
+    this.destroyTransport()
+    this.state = {
+      available: false,
+      authenticated: false,
+      error: null,
+      voiceChannel: null,
+      participants: [],
+      selfMuted: false,
+      selfDeafened: false,
+      inputVolume: 100,
+      outputVolume: 100,
+    }
+    this.push()
   }
 
-  private async connect(): Promise<void> {
+  async connect() {
     if (this.stopped) return
-    if (!this.clientId) {
-      this.log('warn', 'Discord: no Client ID configured — set one in Discord settings')
-      this.state = {
-        ...this.state,
-        available: false,
-        error: 'No Client ID configured',
-      }
-      this.push()
-      return
-    }
 
-    const seq = ++this.clientSeq
-    this.log('info', `Discord [#${seq}]: connecting to Discord client via RPC...`)
-
-    // [DEBUG] check which IPC pipes are reachable before we try to connect
-    this.probeDiscordPipes().then((summary) => {
-      this.log('info', `Discord [#${seq}]: pipe probe — ${summary}`)
-    })
-
-    this.destroyClient()
-    this.log('info', `Discord [#${seq}]: previous client destroyed, creating new Client`)
-
-    const client = new Client({ transport: 'ipc' })
-    this.client = client
-
-    client.on('ready', async () => {
-      this.log('info', `Discord [#${seq}]: 'ready' event fired — seq matches current: ${seq === this.clientSeq}`)
-      if (this.stopped) return
-      this.log('info', `Discord [#${seq}]: RPC socket connected — authenticating with clientId=${this.clientId}...`)
-      try {
-        this.log('info', `Discord [#${seq}]: calling login() with scopes [rpc, rpc.voice.read, rpc.voice.write] redirectUri=http://127.0.0.1`)
-        await client.login({
-          clientId: this.clientId,
-          scopes: ['rpc', 'rpc.voice.read', 'rpc.voice.write'],
-          redirectUri: 'http://127.0.0.1',
-        })
-        this.log('info', `Discord [#${seq}]: login() resolved — authenticated`)
-
-        const settings = (await client.request('GET_VOICE_SETTINGS', {})) as {
-          mute?: boolean
-          deaf?: boolean
-          input?: { volume?: number }
-          output?: { volume?: number }
-        }
-
-        this.state = {
-          ...this.state,
-          available: true,
-          authenticated: true,
-          error: null,
-          selfMuted: settings.mute ?? false,
-          selfDeafened: settings.deaf ?? false,
-          inputVolume: settings.input?.volume ?? 100,
-          outputVolume: settings.output?.volume ?? 100,
-        }
-        this.push()
-
-        await this.subscribeToVoiceEvents(client)
-
-        try {
-          const channelRaw = (await client.request('GET_SELECTED_VOICE_CHANNEL', {})) as
-            | { id?: string; name?: string; guild_id?: string }
-            | null
-          if (channelRaw?.id) {
-            await this.handleVoiceChannelSelect(client, channelRaw.id)
-          }
-        } catch {
-          // Not in a channel — that's fine
-        }
-      } catch (err) {
-        const e = err as NodeJS.ErrnoException
-        this.log('error', `Discord [#${seq}]: login() failed — ${e.message ?? String(err)} | code=${e.code ?? 'n/a'} | name=${e.name ?? 'n/a'}`)
-        if (e.stack) this.log('error', `Discord [#${seq}]: stack — ${e.stack}`)
-        this.state = {
-          ...this.state,
-          available: true,
-          authenticated: false,
-          error: `Auth failed: ${e.message ?? String(err)}`,
-        }
-        this.push()
-      }
-    })
-
-    client.on('disconnected', () => {
-      this.log('warn', `Discord [#${seq}]: 'disconnected' event fired — seq matches current: ${seq === this.clientSeq}`)
-      if (this.stopped) return
+    // Guard on required credentials
+    if (!this.clientId || !this.clientSecret) {
       this.state = {
         ...this.state,
         available: false,
         authenticated: false,
-        voiceChannel: null,
-        participants: [],
+        error: 'Client ID and Client Secret are required',
       }
-      this.push()
-      this.scheduleReconnect()
-    })
-
-    client.on('error', (err) => {
-      const e = err as NodeJS.ErrnoException
-      this.log('error', `Discord [#${seq}]: RPC error — ${e.message ?? String(err)}`)
-    })
-
-    try {
-      this.log('info', `Discord [#${seq}]: calling client.connect(${this.clientId})...`)
-      await client.connect(this.clientId)
-      this.log('info', `Discord [#${seq}]: client.connect() resolved without error`)
-    } catch (err) {
-      const e = err as NodeJS.ErrnoException
-      this.log('warn', `Discord [#${seq}]: connect() failed — message=${e.message ?? String(err)} | code=${e.code ?? 'n/a'} | name=${e.name ?? 'n/a'}`)
-      if (e.stack) this.log('warn', `Discord [#${seq}]: stack — ${e.stack}`)
-      this.state = {
-        ...this.state,
-        available: false,
-        error: `Connect failed: ${e.message ?? String(err)}`,
-      }
-      this.push()
-      this.scheduleReconnect()
-    }
-  }
-
-  private async subscribeToVoiceEvents(client: Client): Promise<void> {
-    await client.subscribe('VOICE_CHANNEL_SELECT', {})
-
-    client.on('VOICE_CHANNEL_SELECT', (data: { channel_id: string | null }) => {
-      void this.handleVoiceChannelSelect(client, data.channel_id)
-    })
-  }
-
-  private async handleVoiceChannelSelect(
-    client: Client,
-    channelId: string | null,
-  ): Promise<void> {
-    if (!channelId) {
-      this.state = { ...this.state, voiceChannel: null, participants: [] }
       this.push()
       return
     }
 
     try {
-      const channel = (await client.request('GET_CHANNEL', { channel_id: channelId })) as {
-        id: string
-        name: string
-        guild_id: string
-        voice_states?: Array<{
-          user: { id: string; username: string; avatar: string | null }
-          nick: string
-          mute: boolean
-          deaf: boolean
-          self_mute: boolean
-          self_deaf: boolean
-          suppress: boolean
-          volume: number
-        }>
+      this.destroyTransport()
+
+      const transport = new DiscordRpcTransport()
+      this.transport = transport
+
+      transport.on('close', () => this.handleDisconnect())
+      transport.on('error', (e: Error) => this.handleDisconnect(e))
+
+      await transport.connect(this.clientId)
+      this.state = { ...this.state, available: true, authenticated: false }
+      this.push()
+
+      // Check for cached token
+      const cachedToken = loadCachedToken()
+      if (cachedToken) {
+        await this.authenticate(cachedToken)
+      } else {
+        await this.authorize()
+      }
+    } catch (e) {
+      this.logFn?.('error', `Discord connect failed: ${e instanceof Error ? e.message : String(e)}`)
+      this.handleDisconnect()
+    }
+  }
+
+  private async authorize() {
+    if (!this.transport) return
+
+    try {
+      const response = (await this.transport.request('AUTHORIZE', {
+        client_id: this.clientId,
+        scopes: ['rpc', 'rpc.voice.read', 'rpc.voice.write'],
+      })) as { code?: string }
+
+      if (!response.code) throw new Error('No authorization code received')
+
+      const { access_token, expires_in } = await exchangeCode(
+        response.code,
+        this.clientId,
+        this.clientSecret,
+      )
+
+      saveCachedToken(access_token, expires_in)
+      await this.authenticate(access_token)
+    } catch (e) {
+      clearCachedToken()
+      this.state = {
+        ...this.state,
+        authenticated: false,
+        error: e instanceof Error ? e.message : 'Authorization failed',
+      }
+      this.push()
+    }
+  }
+
+  private async authenticate(token: string) {
+    if (!this.transport) return
+
+    try {
+      await this.transport.request('AUTHENTICATE', { access_token: token })
+
+      this.state = {
+        ...this.state,
+        authenticated: true,
+        error: null,
+      }
+      this.push()
+
+      // Load initial voice settings
+      const voiceSettings = (await this.transport.request('GET_VOICE_SETTINGS')) as {
+        mute?: boolean
+        deaf?: boolean
+        input?: { volume?: number }
+        output?: { volume?: number }
       }
 
-      let guildName = ''
-      try {
-        const guild = (await client.request('GET_GUILD', { guild_id: channel.guild_id })) as {
-          name?: string
+      this.state = {
+        ...this.state,
+        selfMuted: voiceSettings.mute ?? false,
+        selfDeafened: voiceSettings.deaf ?? false,
+        inputVolume: voiceSettings.input?.volume ?? 100,
+        outputVolume: voiceSettings.output?.volume ?? 100,
+      }
+
+      // Subscribe to voice events
+      await this.transport.subscribe('VOICE_CHANNEL_SELECT')
+      await this.transport.subscribe('VOICE_SETTINGS_UPDATE')
+
+      // Check if already in a channel
+      const selectedChannel = (await this.transport.request('GET_SELECTED_VOICE_CHANNEL')) as {
+        id?: string
+      }
+
+      if (selectedChannel.id) {
+        await this.handleChannelJoin(selectedChannel.id)
+      }
+
+      this.push()
+
+      // Setup event listeners
+      this.transport.on('event:VOICE_CHANNEL_SELECT', (data: any) => {
+        if (data.channel_id) {
+          this.handleChannelJoin(data.channel_id)
+        } else {
+          this.handleChannelLeave()
         }
-        guildName = guild.name ?? ''
-      } catch {
-        // DMs / group calls have no guild
+      })
+
+      this.transport.on('event:VOICE_STATE_CREATE', (data: any) => {
+        this.handleVoiceStateCreate(data)
+      })
+
+      this.transport.on('event:VOICE_STATE_UPDATE', (data: any) => {
+        this.handleVoiceStateUpdate(data)
+      })
+
+      this.transport.on('event:VOICE_STATE_DELETE', (data: any) => {
+        this.handleVoiceStateDelete(data)
+      })
+
+      this.transport.on('event:SPEAKING_START', (data: any) => {
+        this.handleSpeakingStart(data)
+      })
+
+      this.transport.on('event:SPEAKING_STOP', (data: any) => {
+        this.handleSpeakingStop(data)
+      })
+
+      this.transport.on('event:VOICE_SETTINGS_UPDATE', (data: any) => {
+        this.state = {
+          ...this.state,
+          selfMuted: data.mute ?? this.state.selfMuted,
+          selfDeafened: data.deaf ?? this.state.selfDeafened,
+          inputVolume: data.input?.volume ?? this.state.inputVolume,
+          outputVolume: data.output?.volume ?? this.state.outputVolume,
+        }
+        this.push()
+      })
+    } catch (e) {
+      clearCachedToken()
+      this.state = {
+        ...this.state,
+        authenticated: false,
+        error: e instanceof Error ? e.message : 'Authentication failed',
+      }
+      this.push()
+    }
+  }
+
+  private async handleChannelJoin(channelId: string) {
+    if (!this.transport) return
+
+    try {
+      const channelData = (await this.transport.request('GET_CHANNEL', {
+        channel_id: channelId,
+      })) as {
+        name?: string
+        guild_id?: string
+        voice_states?: Array<{ user: any; mute?: boolean; deaf?: boolean }>
       }
 
-      const participants: DiscordParticipant[] = (channel.voice_states ?? []).map((vs) => ({
+      let guildName = 'Direct Message'
+      if (channelData.guild_id) {
+        const guildData = (await this.transport.request('GET_GUILD', {
+          guild_id: channelData.guild_id,
+        })) as { name?: string }
+        guildName = guildData.name ?? 'Unknown Server'
+      }
+
+      const participants = (channelData.voice_states ?? []).map((vs) => ({
         userId: vs.user.id,
         username: vs.user.username,
-        nick: vs.nick ?? vs.user.username,
-        muted: vs.self_mute || vs.mute,
-        deafened: vs.self_deaf || vs.deaf,
-        localMuted: vs.suppress,
-        localVolume: vs.volume ?? 100,
+        nick: vs.user.username,
+        muted: vs.mute ?? false,
+        deafened: vs.deaf ?? false,
+        localMuted: false,
+        localVolume: 100,
         speaking: false,
-        avatar: vs.user.avatar
-          ? `https://cdn.discordapp.com/avatars/${vs.user.id}/${vs.user.avatar}.webp?size=64`
-          : null,
+        avatar: null,
       }))
 
       this.state = {
         ...this.state,
-        voiceChannel: { id: channelId, name: channel.name, guildName },
+        voiceChannel: {
+          id: channelId,
+          name: channelData.name ?? 'Unknown Channel',
+          guildName,
+        },
         participants,
       }
+
+      // Subscribe to channel-specific events
+      await this.transport.subscribe('VOICE_STATE_CREATE', { channel_id: channelId })
+      await this.transport.subscribe('VOICE_STATE_UPDATE', { channel_id: channelId })
+      await this.transport.subscribe('VOICE_STATE_DELETE', { channel_id: channelId })
+      await this.transport.subscribe('SPEAKING_START', { channel_id: channelId })
+      await this.transport.subscribe('SPEAKING_STOP', { channel_id: channelId })
+
       this.push()
-
-      await client.subscribe('VOICE_STATE_UPDATE', { channel_id: channelId })
-      await client.subscribe('SPEAKING_START', { channel_id: channelId })
-      await client.subscribe('SPEAKING_STOP', { channel_id: channelId })
-
-      client.on(
-        'VOICE_STATE_UPDATE',
-        (data: {
-          user: { id: string; username: string; avatar: string | null }
-          nick: string
-          mute: boolean
-          self_mute: boolean
-          deaf: boolean
-          self_deaf: boolean
-          suppress: boolean
-          volume: number
-        }) => {
-          const userId = data.user.id
-          const existing = this.state.participants.find((p) => p.userId === userId)
-          const updated: DiscordParticipant = {
-            userId,
-            username: data.user.username,
-            nick: data.nick ?? data.user.username,
-            muted: data.self_mute || data.mute,
-            deafened: data.self_deaf || data.deaf,
-            localMuted: data.suppress,
-            localVolume: data.volume ?? existing?.localVolume ?? 100,
-            speaking: existing?.speaking ?? false,
-            avatar: data.user.avatar
-              ? `https://cdn.discordapp.com/avatars/${userId}/${data.user.avatar}.webp?size=64`
-              : null,
-          }
-          const alreadyInList = this.state.participants.some((p) => p.userId === userId)
-          this.state = {
-            ...this.state,
-            participants: alreadyInList
-              ? this.state.participants.map((p) => (p.userId === userId ? updated : p))
-              : [...this.state.participants, updated],
-          }
-          this.push()
-        },
-      )
-
-      client.on('SPEAKING_START', (data: { user_id: string }) => {
-        this.state = {
-          ...this.state,
-          participants: this.state.participants.map((p) =>
-            p.userId === data.user_id ? { ...p, speaking: true } : p
-          ),
-        }
-        this.push()
-      })
-
-      client.on('SPEAKING_STOP', (data: { user_id: string }) => {
-        this.state = {
-          ...this.state,
-          participants: this.state.participants.map((p) =>
-            p.userId === data.user_id ? { ...p, speaking: false } : p
-          ),
-        }
-        this.push()
-      })
-    } catch (err) {
-      this.log('warn', `Discord: failed to load channel ${channelId} — ${String(err)}`)
+    } catch (e) {
+      this.logFn?.('warn', `Failed to join channel: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
-  // ── Reconnect / cleanup ────────────────────────────────────────────────────
+  private async handleChannelLeave() {
+    if (!this.transport || !this.state.voiceChannel) return
 
-  private scheduleReconnect(delayMs = 10_000): void {
-    this.clearReconnectTimer()
-    if (this.stopped) return
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null
-      this.connect()
-    }, delayMs)
+    try {
+      const channelId = this.state.voiceChannel.id
+      await this.transport.unsubscribe('VOICE_STATE_CREATE', { channel_id: channelId })
+      await this.transport.unsubscribe('VOICE_STATE_UPDATE', { channel_id: channelId })
+      await this.transport.unsubscribe('VOICE_STATE_DELETE', { channel_id: channelId })
+      await this.transport.unsubscribe('SPEAKING_START', { channel_id: channelId })
+      await this.transport.unsubscribe('SPEAKING_STOP', { channel_id: channelId })
+    } catch {
+      // Ignore unsubscribe errors
+    }
+
+    this.state = {
+      ...this.state,
+      voiceChannel: null,
+      participants: [],
+    }
+    this.push()
   }
 
-  private clearReconnectTimer(): void {
-    if (this.reconnectTimer !== null) {
+  private handleVoiceStateCreate(data: any) {
+    const participant = this.parseParticipant(data)
+    if (!this.state.participants.find((p) => p.userId === participant.userId)) {
+      this.state.participants.push(participant)
+      this.push()
+    }
+  }
+
+  private handleVoiceStateUpdate(data: any) {
+    const participant = this.parseParticipant(data)
+    const existing = this.state.participants.find((p) => p.userId === participant.userId)
+    if (existing) {
+      Object.assign(existing, participant)
+    } else {
+      this.state.participants.push(participant)
+    }
+    this.push()
+  }
+
+  private handleVoiceStateDelete(data: any) {
+    const userId = data.user?.id
+    if (userId) {
+      this.state.participants = this.state.participants.filter((p) => p.userId !== userId)
+      this.push()
+    }
+  }
+
+  private handleSpeakingStart(data: any) {
+    const userId = data.user_id
+    if (userId) {
+      const p = this.state.participants.find((x) => x.userId === userId)
+      if (p) {
+        p.speaking = true
+        this.push()
+      }
+    }
+  }
+
+  private handleSpeakingStop(data: any) {
+    const userId = data.user_id
+    if (userId) {
+      const p = this.state.participants.find((x) => x.userId === userId)
+      if (p) {
+        p.speaking = false
+        this.push()
+      }
+    }
+  }
+
+  private parseParticipant(data: any): DiscordParticipant {
+    return {
+      userId: data.user.id,
+      username: data.user.username,
+      nick: data.user.username,
+      muted: data.mute ?? false,
+      deafened: data.deaf ?? false,
+      localMuted: false,
+      localVolume: 100,
+      speaking: false,
+      avatar: null,
+    }
+  }
+
+  async setSelfMute(muted: boolean) {
+    if (!this.transport) return
+    this.state = { ...this.state, selfMuted: muted }
+    this.push()
+    await this.transport.request('SET_VOICE_SETTINGS', { mute: muted })
+  }
+
+  async setSelfDeaf(deafened: boolean) {
+    if (!this.transport) return
+    this.state = { ...this.state, selfDeafened: deafened }
+    this.push()
+    await this.transport.request('SET_VOICE_SETTINGS', { deaf: deafened })
+  }
+
+  async setInputVolume(volume: number) {
+    if (!this.transport) return
+    const v = Math.max(0, Math.min(100, Math.round(volume)))
+    this.state = { ...this.state, inputVolume: v }
+    this.push()
+    await this.transport.request('SET_VOICE_SETTINGS', { input: { volume: v } })
+  }
+
+  async setOutputVolume(volume: number) {
+    if (!this.transport) return
+    const v = Math.max(0, Math.min(100, Math.round(volume)))
+    this.state = { ...this.state, outputVolume: v }
+    this.push()
+    await this.transport.request('SET_VOICE_SETTINGS', { output: { volume: v } })
+  }
+
+  async setLocalVolume(userId: string, volume: number) {
+    if (!this.transport) return
+    const v = Math.max(0, Math.min(200, Math.round(volume)))
+    const p = this.state.participants.find((x) => x.userId === userId)
+    if (p) {
+      p.localVolume = v
+      this.push()
+    }
+    await this.transport.request('SET_USER_VOICE_SETTINGS', { user_id: userId, volume: v })
+  }
+
+  async setLocalMute(userId: string, muted: boolean) {
+    if (!this.transport) return
+    const p = this.state.participants.find((x) => x.userId === userId)
+    if (p) {
+      p.localMuted = muted
+      this.push()
+    }
+    await this.transport.request('SET_USER_VOICE_SETTINGS', { user_id: userId, mute: muted })
+  }
+
+  reconnect() {
+    clearCachedToken()
+    this.destroyTransport()
+    this.connect()
+  }
+
+  private handleDisconnect(error?: Error) {
+    if (error) {
+      this.logFn?.('warn', `Discord disconnected: ${error.message}`)
+    }
+    this.state = {
+      ...this.state,
+      available: false,
+      authenticated: false,
+      voiceChannel: null,
+      participants: [],
+    }
+    this.push()
+
+    if (!this.stopped) {
+      this.scheduleReconnect()
+    }
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = setTimeout(() => {
+      if (!this.stopped) {
+        this.connect()
+      }
+    }, 10_000)
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
   }
 
-  private destroyClient(): void {
-    if (this.client) {
-      try {
-        this.client.destroy()
-      } catch {
-        // ignore
-      }
-      this.client = null
+  private destroyTransport() {
+    if (this.transport) {
+      this.transport.destroy()
+      this.transport = null
     }
   }
 
-  // ── Log / push helpers ─────────────────────────────────────────────────────
-
-  private log(level: 'info' | 'warn' | 'error', msg: string): void {
-    this.logFn?.(level, msg)
-  }
-
-  private push(): void {
-    if (this.window && !this.window.isDestroyed()) {
-      this.window.webContents.send(IPC_CHANNELS.DISCORD_STATE_CHANGE, this.state)
+  private push() {
+    if (this.window) {
+      this.window.webContents.send('discord:stateChange', this.state)
     }
-    const nowAvailable = this.state.available
-    if (nowAvailable !== this.lastAvailable) {
-      this.lastAvailable = nowAvailable
-      this.stateChangeFn?.()
-    }
+    this.stateChangeFn?.()
   }
 }
