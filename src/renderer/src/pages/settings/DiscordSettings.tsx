@@ -106,23 +106,24 @@ export function DiscordSettings(): JSX.Element {
             {statusText}
           </span>
           {discordState?.error && (
-            <span className="text-xs ml-auto" style={{ color: '#ef4444' }}>
+            <span className="text-xs" style={{ color: '#ef4444' }}>
               {discordState.error}
             </span>
           )}
+          <button
+            onClick={() => window.api.discordReconnect().catch(console.error)}
+            className="ml-auto text-xs px-3 py-1.5 rounded transition-colors"
+            style={{
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            Reconnect
+          </button>
         </div>
-        <button
-          onClick={() => window.api.discordReconnect().catch(console.error)}
-          className="mt-2 text-xs px-3 py-1.5 rounded transition-colors"
-          style={{
-            background: 'var(--color-surface-raised)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-text-secondary)',
-            cursor: 'pointer',
-          }}
-        >
-          Reconnect
-        </button>
       </section>
 
       {/* Client ID */}
