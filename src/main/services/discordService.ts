@@ -499,12 +499,12 @@ export class DiscordService {
       await this.transport.subscribe('VOICE_CHANNEL_SELECT')
       await this.transport.subscribe('VOICE_SETTINGS_UPDATE')
 
-      // Check if already in a channel
+      // Check if already in a channel (null when not in one)
       const selectedChannel = (await this.transport.request('GET_SELECTED_VOICE_CHANNEL')) as {
         id?: string
-      }
+      } | null
 
-      if (selectedChannel.id) {
+      if (selectedChannel?.id) {
         await this.handleChannelJoin(selectedChannel.id)
       }
 
