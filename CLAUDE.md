@@ -39,16 +39,19 @@ resources/
 src/
 ├── main/                             # Node.js (Electron main process)
 │   ├── index.ts                      # Window creation, IPC handlers, app lifecycle, OSD management
-│   └── services/
-│       ├── serviceManager.ts         # Spawns/monitors Python subprocesses, routes events
-│       ├── sonarService.ts           # GG Sonar HTTP REST polling client (Node.js native)
-│       ├── activeWindowMonitor.ts    # Foreground window watcher (preset auto-switcher)
-│       ├── notifications/
-│       │   ├── windowService.ts      # System notification BrowserWindows (HTML inline, no React)
-│       │   └── timerService.ts       # Keyed auto-close timer map (debounces rapid events)
-│       └── apis/ddc/
-│           ├── service.ts            # DDC/CI async wrapper — manages worker lifecycle
-│           └── ddcWorker.ts          # Worker thread: PowerShell device queries + ddcci native calls
+│   ├── services/
+│   │   ├── serviceManager.ts         # Spawns/monitors Python subprocesses, routes events
+│   │   ├── sonarService.ts           # GG Sonar HTTP REST polling client (Node.js native)
+│   │   ├── activeWindowMonitor.ts    # Foreground window watcher (preset auto-switcher + monitor actions)
+│   │   ├── notifications/
+│   │   │   ├── windowService.ts      # System notification BrowserWindows (HTML inline, no React)
+│   │   │   └── timerService.ts       # Keyed auto-close timer map (debounces rapid events)
+│   │   └── apis/ddc/
+│   │       ├── service.ts            # DDC/CI async wrapper — manages worker lifecycle
+│   │       └── ddcWorker.ts          # Worker thread: PowerShell device queries + ddcci native calls
+│   └── shortcuts/
+│       ├── dispatcher.ts             # Executes shortcut actions; routes to services
+│       └── shortcutRegistry.ts       # Global hotkey registration + handler wiring
 ├── preload/
 │   └── index.ts                      # contextBridge — exposes window.api to the renderer
 ├── shared/
@@ -65,9 +68,12 @@ src/
         │   ├── appStore.ts           # Zustand: currentView, sidebarCollapsed, theme, peek panel
         │   ├── serviceStore.ts       # Zustand: services[], logs[], ArctisState, ddcMonitors[], settings
         │   ├── sonarStore.ts         # Zustand: SonarState, activePresetIds per channel
-        │   └── notificationStore.ts  # Zustand: notification queue and stacking state
+        │   ├── notificationStore.ts  # Zustand: notification queue and stacking state
+        │   └── shortcutStore.ts      # Zustand: shortcuts[], conflict detection
         ├── lib/
-        │   └── notifyFromEvent.ts    # Maps hardware events -> SerializedNotification push calls
+        │   ├── notifyFromEvent.ts    # Maps hardware events -> SerializedNotification push calls
+        │   └── shortcuts/
+        │       └── catalog.ts         # Action definitions, categories, metadata
         ├── contexts/
         │   └── settingsFormContext.tsx  # Dirty state + save-handler registry for settings pages
         ├── types/electron.d.ts       # window.api type declarations for TS
@@ -83,7 +89,7 @@ src/
             ├── Home.tsx              # Dashboard — CompactHeadsetCard + DisplayCards grid
             ├── Arctis.tsx            # Full headset control panel
             ├── GGSonar.tsx           # Audio mixer page (ChannelMixer)
-            ├── Shortcuts.tsx         # Preset auto-switcher rules
+            ├── Shortcuts.tsx         # Keyboard shortcuts configuration UI
             ├── Notifications.tsx     # Notification preview and per-type config
             └── settings/
                 ├── GeneralSettings.tsx   # Theme, tray, Python path, service enable/disable
@@ -512,16 +518,19 @@ interface SonarStoreState {
 
 ---
 
-## Preset Auto-Switcher
+## Preset Auto-Switcher & App-Triggered Actions
 
 **Service**: `src/main/services/activeWindowMonitor.ts`
 
-Polls the Windows foreground window at a configurable interval (default 500ms). When the active
-process name matches a `PresetSwitcherRule`, calls `sonarService.selectPreset()` for the
-configured channel and preset.
+Polls the Windows foreground window at a 500ms interval. When the active process name matches
+a `PresetSwitcherRule`, fires zero or more actions:
+- Optionally switch a GG Sonar preset for a channel
+- Optionally change monitor input sources via DDC/CI
 
-**Manual override tracking**: when the user manually selects a preset in the GG Sonar page, the
-switcher backs off and does not override that channel until the foreground app changes away and back.
+**Manual override tracking**: when the user manually selects a preset in the GG Sonar page,
+the switcher records this and skips re-applying auto-presets for that channel until the
+foreground app changes away and back. Monitor actions are one-shot per rule per app focus
+(cleared on app change).
 
 **IPC channels**:
 ```
@@ -532,8 +541,152 @@ PRESET_SWITCHER_GET_ENABLED, PRESET_SWITCHER_SET_ENABLED, PRESET_SWITCHER_ENABLE
 
 **Rule structure** (`PresetSwitcherRule` in `types.ts`):
 ```typescript
-{ processName: string; channelId: string; presetId: string }
+{
+  id: string
+  appProcessName: string                    // Windows process name (no .exe)
+  displayName: string                       // Shown in UI
+  enabled: boolean
+  channel?: string                          // SonarConfig.virtualAudioDevice (optional)
+  presetId?: string                         // SonarConfig.id (optional)
+  monitorActions?: MonitorInputAction[]     // DDC/CI input switches (optional)
+}
+
+// Monitor action: sets display input on focus
+interface MonitorInputAction {
+  monitorId: number   // DdcMonitor.monitor_id
+  inputValue: string  // hex string, e.g. "0x11" (HDMI 1)
+}
 ```
+
+A rule must have **at least one action** (Sonar preset or monitor action). A rule can have both.
+
+**UI**: `src/renderer/src/components/gg-sonar/PresetSwitcherSection.tsx`
+- Add Rule form has two optional sections: **Sonar preset** (channel + preset dropdowns) and
+  **Monitor inputs** (accumulate multiple input switches).
+- Existing rules display both types of actions in summary form with icons (🔊 for Sonar, 🖥️ for monitor).
+- Rules can be enabled/disabled or deleted.
+
+---
+
+## Keyboard Shortcuts System
+
+**Pages**: `src/renderer/src/pages/Shortcuts.tsx` — the main UI
+**Store**: `src/renderer/src/stores/shortcutStore.ts` — Zustand state for shortcuts list
+**Dispatcher**: `src/main/shortcuts/dispatcher.ts` — execution engine for shortcut actions
+**Registry**: `src/main/shortcuts/shortcutRegistry.ts` — global + app-focused hotkey registration
+**Catalog**: `src/renderer/src/lib/shortcuts/catalog.ts` — action definitions and metadata
+
+### Overview
+
+Users define **Shortcuts** — keyboard combinations bound to **Actions**. Actions span hardware
+control (headset volume, display brightness), Sonar preset selection, monitor input switching,
+preset auto-switcher toggles, and notifications.
+
+**Shortcut scope**:
+- **global**: fired in all contexts (wired to `registerGlobalShortcuts()` via `globalShortcut.register()`)
+- **focused**: fired only when the app window has focus (event listeners on the renderer)
+
+### Shortcut interface (`src/shared/types.ts`)
+
+```typescript
+export interface Shortcut {
+  id: string
+  actionId: string              // Identifies the action (e.g. 'headset.volume.up')
+  value?: string | number       // Optional parameter (e.g. volume delta, preset ID)
+  keys: string[]                // Key combo, e.g. ['ctrl', 'shift', 'a']
+  scope: ShortcutScope          // 'global' | 'focused'
+  enabled: boolean
+}
+```
+
+### Action Catalog
+
+Actions are declared in `src/renderer/src/lib/shortcuts/catalog.ts` with:
+- `id`: unique identifier
+- `label`: display name
+- `cat`: category ('headset', 'display', 'sonar', 'switcher', etc.)
+- `schema`: optional validator for the `value` parameter (e.g. enum of preset IDs)
+- `valueLabel`: UI label for the parameter field (e.g. "Delta" for volume)
+
+Example categories:
+- **Headset**: volume up/down, mute, ANC mode, sidetone level
+- **Display**: brightness up/down, input source select, primary monitor set
+- **Sonar**: channel volume, mute, preset select, mode switch
+- **Preset Switcher**: enable/disable auto-switcher
+- **Notifications**: toggle notification types
+
+### Dispatcher Flow
+
+**Global scope** (main process):
+1. User defines a global shortcut (e.g. `Ctrl+Alt+V` → "headset volume up")
+2. `src/main/shortcuts/shortcutRegistry.ts` registers it with `globalShortcut.register()`
+3. On key press, the handler calls `initDispatcher()`'s `dispatch(shortcut)` function
+4. Dispatcher resolves action type and invokes the appropriate service method (e.g. `arctisService.setVolume()`)
+
+**Focused scope** (renderer):
+1. Keyboard event fires on the renderer window
+2. `Shortcuts.tsx` uses a `keydown` listener to detect key combos
+3. Matches combo against `items` in `shortcutStore`
+4. Finds matching focused shortcut and calls `window.api.shortcutsDispatch(actionId, value)`
+5. Main process dispatcher receives it and executes
+
+### Shortcut Persistence
+
+Shortcuts are persisted to `app.getPath('userData')/shortcuts.json`:
+
+```json
+[
+  {
+    "id": "uuid",
+    "actionId": "headset.volume.up",
+    "value": 5,
+    "keys": ["ctrl", "alt", "up"],
+    "scope": "global",
+    "enabled": true
+  }
+]
+```
+
+**Conflict detection**: `shortcutStore.findConflict(combo, excludeId?)` checks if a key combo
+is already bound (ignores disabled shortcuts). Called before saving a new shortcut.
+
+### UI Pattern
+
+**Shortcuts page**:
+- Search + filter chips by category
+- Editable rows showing keybind, action label, value (if any)
+- Click to edit: opens an inline form with key recorder + action/value dropdowns
+- Delete button per row
+
+**Key recorder**: listens for a single key press, normalizes to `['ctrl', 'shift', 'a']` format.
+Handles system keys (Enter, Escape, Delete) and ignores modifiers-only presses.
+
+### Adding a New Action
+
+1. Add entry to `ACTIONS` in `src/renderer/src/lib/shortcuts/catalog.ts`:
+   ```typescript
+   {
+     id: 'myaction.foo',
+     label: 'My Action Label',
+     cat: 'headset',
+     schema: { type: 'enum', values: ['val1', 'val2'] },  // or omit for no-param actions
+     valueLabel: 'Option'
+   }
+   ```
+2. In `src/main/shortcuts/dispatcher.ts`, add a case to `dispatch()` that calls the service:
+   ```typescript
+   case 'myaction.foo':
+     serviceManager.getService('my-service').foo(value as string)
+     break
+   ```
+3. If it's a **global** action that needs main-process handling, ensure the dispatcher case is covered.
+4. If it's a **focused** action only, the renderer-side dispatch is sufficient.
+
+### Validation Rules
+
+- **Conflict detection**: no two enabled shortcuts may use the same key combo (per scope).
+- **Scope isolation**: focused shortcuts take precedence in the renderer; global shortcuts fire regardless.
+- **Disabled shortcuts**: do not reserve key combos; conflicts are only with enabled shortcuts.
 
 ---
 
