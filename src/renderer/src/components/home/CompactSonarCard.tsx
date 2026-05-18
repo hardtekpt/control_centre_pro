@@ -183,10 +183,8 @@ function InlinePresetSelector({
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
   { channel: 'game', label: 'Game' },
-  { channel: 'chatRender', label: 'Chat' },
-  { channel: 'chatCapture', label: 'Mic' },
   { channel: 'media', label: 'Media' },
-  { channel: 'aux', label: 'Aux' },
+  { channel: 'chatRender', label: 'Chat' },
 ]
 
 function ChannelRow({
@@ -300,20 +298,30 @@ export function CompactSonarCard(): JSX.Element {
     [presetsByChannel],
   )
 
-  if (!sonarState?.available || !sonarState.classic) {
+  const isActive = !!(sonarState?.available && sonarState.classic)
+
+  if (!isActive) {
     return (
       <div
         className="rounded-lg px-4 py-3 flex flex-col"
         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span style={{ color: 'var(--color-accent)' }}><SonarIcon /></span>
-            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-              GG Sonar
-            </span>
-          </div>
-          <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Unavailable</span>
+        <div className="flex items-center gap-2">
+          <span style={{ color: 'var(--color-accent)' }}><SonarIcon /></span>
+          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+            GG Sonar
+          </span>
+          <div
+            title="Unavailable"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: 'var(--color-text-secondary)',
+              opacity: 0.4,
+              flexShrink: 0,
+            }}
+          />
         </div>
       </div>
     )
@@ -355,6 +363,16 @@ export function CompactSonarCard(): JSX.Element {
           <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             GG Sonar
           </span>
+          <div
+            title="Active"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#22c55e',
+              flexShrink: 0,
+            }}
+          />
         </div>
         <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
           {sonarState.mode === 'streamer' ? 'Streamer' : 'Classic'}
