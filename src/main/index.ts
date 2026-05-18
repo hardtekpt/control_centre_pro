@@ -392,6 +392,9 @@ function registerIpcHandlers(): void {
     if (typeof settings.discordClientId === 'string') {
       discordService.setClientId(settings.discordClientId)
     }
+    if (typeof settings.discordClientSecret === 'string') {
+      discordService.setClientSecret(settings.discordClientSecret)
+    }
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
@@ -881,6 +884,9 @@ app.whenReady().then(() => {
       }
       if (typeof saved.discordClientId === 'string' && saved.discordClientId) {
         discordService.setClientId(saved.discordClientId)
+      }
+      if (typeof saved.discordClientSecret === 'string' && saved.discordClientSecret) {
+        discordService.setClientSecret(saved.discordClientSecret)
       }
     }
   } catch { /* use default */ }
