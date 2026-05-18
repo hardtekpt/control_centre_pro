@@ -60,12 +60,15 @@ def _read_full_state(headset) -> dict:
     status = headset.get_status()
     mic_eq = headset.get_mic_eq()
 
-    # get_display() may not exist on all firmware versions
+    # get_display() may fail if base station USB is disconnected
     display = None
+    base_station_connected = True
     try:
         display = headset.get_display()
     except Exception as exc:
         log("warn", f"get_display() unavailable: {exc}")
+        # If get_display() fails, the base station is likely disconnected
+        base_station_connected = False
 
     # get_volume_limiter() may not exist on all firmware versions
     limiter = None
@@ -132,7 +135,7 @@ def _read_full_state(headset) -> dict:
         "streamAux":   getattr(mic_eq, "stream_aux_vol",  getattr(mic_eq, "stream_aux",  getattr(mic_eq, "aux",  100))),
         "streamMic":   getattr(mic_eq, "stream_mic_vol",  getattr(mic_eq, "stream_mic",  getattr(mic_eq, "mic",  100))),
         # ── Base Station (from display object if available) ───────────────────
-        "baseStationConnected": True,   # if we got here, USB HID is active
+        "baseStationConnected": base_station_connected,  # False if get_display() failed
         "oledBrightness": getattr(display, "oled_brightness", 5) if display else 5,
         "dimTimeout":     enum_name(display, "dim_timeout", default="OFF") if display else "OFF",
         "homescreenMode": enum_name(display, "home_screen_mode", default="DETAILED") if display else "DETAILED",
