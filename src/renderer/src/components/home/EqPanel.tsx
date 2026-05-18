@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
+import { SliderInput } from '../SliderInput'
 import type { ArctisState, Option } from '@shared/types'
 
 const EQ_CUSTOM_INDEX = 0x04
@@ -127,35 +128,6 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
   const summary = isCustom ? 'Custom' : (namedPreset?.label ?? `Preset ${state.eqPresetIndex}`)
   const bands = state.eqBands?.length === 10 ? state.eqBands : Array(10).fill(20)
 
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const handleWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' && target.getAttribute('type') === 'range') {
-        e.preventDefault()
-        const input = target as HTMLInputElement
-        const delta = e.deltaY < 0 ? 1 : -1
-        const currentValue = Number(input.value)
-        const min = Number(input.min)
-        const max = Number(input.max)
-        const newValue = Math.max(min, Math.min(max, currentValue + delta))
-
-        if (newValue !== currentValue) {
-          const bandIndex = Array.from(container.querySelectorAll('input[type="range"]')).indexOf(input)
-          if (bandIndex >= 0) {
-            const newBands = [...bands]
-            newBands[bandIndex] = newValue
-            cmd('setEqBands', newBands, { eqBands: newBands })
-          }
-        }
-      }
-    }
-
-    container.addEventListener('wheel', handleWheel, { passive: false })
-    return () => container.removeEventListener('wheel', handleWheel)
-  }, [bands, cmd])
 
   return (
     <div
@@ -227,33 +199,23 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
             {EQ_BAND_FREQS.map((freq, i) => {
               const raw = bands[i] ?? 20   // 0–40, 20 = flat
               const db  = raw - 20          // display as –20…+20 dB
+              const normalized = raw / 40   // normalize to 0-1
               return (
                 <div key={i} className="flex flex-col items-center gap-1">
                   <span className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}>
                     {freq}
                   </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={40}
-                    step={1}
-                    value={raw}
-                    onChange={(e) => {
-                      const newBands = [...bands]
-                      newBands[i] = Number(e.target.value)
-                      cmd('setEqBands', newBands, { eqBands: newBands })
-                    }}
-                    style={{
-                      accentColor: 'var(--color-accent)',
-                      cursor: 'pointer',
-                      width: '100%',
-                      writingMode: 'vertical-lr',
-                      direction: 'rtl',
-                      height: 144,
-                      // @ts-expect-error — non-standard but supported in Chromium (Electron)
-                      appearance: 'slider-vertical',
-                    }}
-                  />
+                  <div style={{ height: 144, width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <SliderInput
+                      value={normalized}
+                      onChange={(v) => {
+                        const newBands = [...bands]
+                        newBands[i] = Math.round(v * 40)
+                        cmd('setEqBands', newBands, { eqBands: newBands })
+                      }}
+                      orientation="vertical"
+                    />
+                  </div>
                   <span className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: 9, lineHeight: 1 }}>
                     {db > 0 ? `+${db}` : db}
                   </span>
