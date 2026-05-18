@@ -308,6 +308,11 @@ export class DiscordService {
       this.scheduleReconnect()
     })
 
+    client.on('error', (err) => {
+      const e = err as NodeJS.ErrnoException
+      this.log('error', `Discord [#${seq}]: RPC error — ${e.message ?? String(err)}`)
+    })
+
     try {
       this.log('info', `Discord [#${seq}]: calling client.connect(${this.clientId})...`)
       await client.connect(this.clientId)

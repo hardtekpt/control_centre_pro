@@ -755,7 +755,9 @@ app.whenReady().then(() => {
         } else {
           serviceManager.emitNativeLog('ddc', 'DDC Display', 'info', `Found ${monitors.length} monitor(s): ${monitors.map(m => m.name).join(', ')}`)
         }
-      }).catch(console.error)
+      }).catch((err) => {
+        serviceManager.emitNativeLog('ddc', 'DDC Display', 'error', `Failed to enumerate monitors: ${String(err)}`)
+      })
     },
     onDisable: () => {
       ddcService.stop()

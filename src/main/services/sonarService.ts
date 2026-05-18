@@ -39,6 +39,7 @@ export class SonarService {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
   private discovering = false
   private lastAvailable = false
+  private discoveryFailures = 0
   private pendingMode: SonarMode | null = null
   private pendingModeExpiry = 0
 
@@ -434,9 +435,23 @@ export class SonarService {
         subApps?: { sonar?: { metadata?: { webServerAddress?: string } } }
       }
       const addr = data.subApps?.sonar?.metadata?.webServerAddress
-      if (addr) this.baseUrl = addr.replace(/\/$/, '')
-    } catch {
-      // GG not running or not responding
+      if (addr) {
+        this.baseUrl = addr.replace(/\/$/, '')
+        if (this.discoveryFailures > 0) {
+          this.log('info', `GG Sonar discovered at ${addr}`)
+          this.discoveryFailures = 0
+        }
+      } else {
+        this.discoveryFailures++
+        if (this.discoveryFailures === 1) {
+          this.log('warn', 'GG Sonar: subApps response missing sonar metadata')
+        }
+      }
+    } catch (err) {
+      this.discoveryFailures++
+      if (this.discoveryFailures === 1) {
+        this.log('error', `GG Sonar discovery failed: ${String(err)} — is GG running?`)
+      }
     } finally {
       this.discovering = false
     }
