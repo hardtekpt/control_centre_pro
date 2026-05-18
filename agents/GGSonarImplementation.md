@@ -1,47 +1,202 @@
-# GG Sonar Full Integration — Implementation Plan
+# GG Sonar Integration — Implementation Reference
+
+## Status: Implemented
+
+The GG Sonar integration is complete. This document describes what was built, how it works,
+and key decisions made during implementation.
+
+For the full REST API reference, see [GGSonarHttpRestApi.md](GGSonarHttpRestApi.md).
+
+---
 
 ## Context
 
-GG Sonar is SteelSeries' software audio mixer. It exposes a local REST HTTP API (discovered dynamically via `https://127.0.0.1:6327/subApps`) running on a random port that changes each GG restart. The goal is to replace the stub `GGSonar.tsx` placeholder with a full-featured Sonar control panel: a complete audio mixer, preset manager, preset editor (EQ, spatial, boosts, smart volume), routing display, streamer mode, and enable/disable — a local replacement for the GG Sonar desktop app.
+GG Sonar is SteelSeries' software audio mixer. It exposes a local HTTP REST API discovered
+dynamically via `https://127.0.0.1:6327/subApps`. The port changes on every GG restart.
 
-Unlike the Arctis service (Python subprocess for USB HID), Sonar connects to an already-running process via HTTP. No Python subprocess needed — the service lives in the Electron main process as a Node.js HTTP polling client.
-
----
-
-## Confirmed API Endpoints
-
-```
-GET  https://127.0.0.1:6327/subApps       → discover dynamic Sonar port (HTTPS, rejectUnauthorized: false)
-GET  /mode                                → "classic" | "streamer"
-GET  /volumeSettings/classic             → masters + 5 channel volumes/mutes
-GET  /volumeSettings/streamer            → streaming + monitoring mixes per channel
-GET  /chatMix                             → { balance, state }
-GET  /AudioDeviceRouting                  → device roles + routed audio sessions
-GET  /configs                             → full preset catalog (EQ, boosts, spatial, etc.)
-
-PUT  /volumeSettings/classic/{channel}/Volume/{value}   → set volume (0.0–1.0)
-PUT  /volumeSettings/classic/{channel}/Mute/{true|false}→ set mute
-PUT  /configs/{presetId}/select                         → activate a preset
-```
-
-Channels: `master`, `game`, `chatRender`, `chatCapture`, `media`, `aux`
-
-**Investigate (build UI, try at runtime):**
-- `PUT /mode` with body `"classic"` or `"streamer"` — streamer mode toggle
-- `PUT /volumeSettings/streamer/{channel}/Volume/{value}` — streamer volume writes
-- `PUT /configs/{id}` with full config body — preset editing (EQ, boosts)
+Unlike the Arctis service (Python subprocess for USB HID), Sonar connects to an already-running
+process via HTTP. No Python subprocess is needed — the service lives in the Electron main process
+as a Node.js HTTP polling client (`src/main/services/sonarService.ts`).
 
 ---
 
-## New Types — `src/shared/types.ts`
+## Architecture
 
-Add after existing Arctis types:
+```
+GG Sonar (running separately)
+    ↑ HTTP polls every 1–5 s
+src/main/services/sonarService.ts
+    ↓ IPC push: SONAR_STATE_CHANGE
+src/renderer/src/stores/sonarStore.ts
+    ↓ reads
+src/renderer/src/pages/GGSonar.tsx + components/gg-sonar/
+```
+
+Write path (renderer → hardware):
+```
+User action (drag fader / click preset)
+  → window.api.sonarSetVolume(channel, value)
+  → IPC SONAR_SET_VOLUME
+  → sonarService.ts: optimistic state update + HTTP PUT
+  → IPC push: SONAR_STATE_CHANGE (updated state)
+  → sonarStore updated
+```
+
+---
+
+## Service: sonarService.ts
+
+**Discovery**: `GET https://127.0.0.1:6327/subApps` (HTTPS, `rejectUnauthorized: false`)
+→ read `subApps.sonar.metadata.webServerAddress` for the dynamic port.
+On failure: set `available: false`, retry discovery on next poll cycle.
+
+**Polling intervals**:
+
+| Interval | Endpoints |
+|---|---|
+| 1 s (fast) | `/mode`, `/volumeSettings/classic`, `/volumeSettings/streamer`, `/chatMix` |
+| 5 s (slow) | `/configs`, `/configs/selected`, `/AudioDeviceRouting`, `/audioDevices`, `/classicRedirections`, `/streamRedirections` |
+
+**Write commands** (all optimistic — update local state immediately, send HTTP async):
+- Set classic volume: `PUT /volumeSettings/classic/{channelKey}/Volume/{value}`
+- Set classic mute: `PUT /volumeSettings/classic/{channelKey}/Mute/{true|false}`
+- Set streamer volume: `PUT /volumeSettings/streamer/{mix}/{channelKey}/volume/{value}`
+- Set mode: `PUT /mode/{classic|stream}`
+- Select preset: `PUT /configs/{configId}/select`
+- Set redirection: `PUT /classicRedirections/{channelDictKey}/deviceId/{deviceId}`
+- Route process: `PUT /AudioDeviceRouting/{dataFlow}/{targetVirtualDeviceId}/{processId}`
+
+**All PUT endpoints use path parameters only — no JSON body.**
+
+---
+
+## Channel Key Naming (Critical Detail)
+
+Sonar uses three different key formats depending on context. Using the wrong one silently fails.
+
+| Channel | JSON response key | HTTP volume path | ChannelDict (redirection) |
+|---|---|---|---|
+| Master | `masters` | `Master` | `master` |
+| Game | `game` | `game` | `game` |
+| Chat (render) | `chatRender` | `chatRender` | `chat` |
+| Mic (capture) | `chatCapture` | `chatCapture` | `mic` |
+| Media | `media` | `media` | `media` |
+| Aux | `aux` | `aux` | `aux` |
+
+Note: the mode API uses `"stream"` not `"streamer"` — observed from actual API responses.
+
+---
+
+## Preset Limitations
+
+**Preset creation, editing, and deletion are NOT supported via the HTTP API.**
+
+The API only allows:
+- `GET /configs` — read all presets
+- `GET /configs/selected` — read currently active preset per channel
+- `PUT /configs/{configId}/select` — activate an existing preset
+
+To create or modify presets, users must use the SteelSeries GG application. This is confirmed by
+the [SteelSeries-NET-API source](https://github.com/DataNext27/SteelSeries-NET-API) — only GET
+and PUT /select are implemented; no POST/DELETE or edit endpoints exist.
+
+The UI makes this clear: the PresetEditor panel is read-only, showing preset data with a banner
+explaining that editing requires GG.
+
+---
+
+## Zustand Store: sonarStore.ts
 
 ```typescript
-export type SonarMode = 'classic' | 'streamer'
+interface SonarStoreState {
+  sonarState: SonarState | null        // null until first successful poll
+  activePresetIds: Record<string, string>  // virtualAudioDevice -> configId
+}
+```
+
+`sonarState` mirrors the full API response shape. `activePresetIds` is a flat map from
+`virtualAudioDevice` (channel name) to the currently selected config ID — derived from
+`GET /configs/selected` and updated on every preset switch.
+
+---
+
+## UI Components
+
+### GGSonar.tsx
+
+The main page. Shows:
+- Status indicator (GG detected / not detected)
+- Classic / Streamer mode toggle
+- `ChannelMixer` component with all 6 channels
+
+### ChannelMixer.tsx
+
+Container for 6 `ChannelStrip` columns. Maps routing sessions and presets to each channel.
+Handles `handleVolume`, `handleMute`, `handlePresetSelect`.
+
+### ChannelStrip.tsx
+
+Vertical channel column:
+```
+┌──────────┐
+│  MASTER  │
+│  100%    │
+│          │
+│  [fader] │  ← custom div-based vertical slider (flex-1 height, mouse events)
+│          │
+│  [mute]  │
+│──────────│
+│ FPS   ✎  │  ← preset dropdown + edit button
+│──────────│
+│ ● Steam  │  ← routed apps from AudioDeviceRouting
+│ ● Game   │
+└──────────┘
+```
+
+The fader is a custom div element using mouse drag events rather than `<input type="range">`,
+which allows vertical orientation without CSS hacks and fills available height naturally.
+
+### PresetEditor.tsx
+
+Right-side overlay (320px). Shows full config data read-only: EQ, boosts, spatial, smart volume,
+voice features. Displays a note that preset content cannot be edited via the API.
+
+---
+
+## IPC Channels
+
+```typescript
+SONAR_GET_STATE: 'sonar:getState',
+SONAR_STATE_CHANGE: 'sonar:stateChange',
+SONAR_SET_VOLUME: 'sonar:setVolume',
+SONAR_SET_MUTE: 'sonar:setMute',
+SONAR_SELECT_PRESET: 'sonar:selectPreset',
+SONAR_SET_MODE: 'sonar:setMode',
+SONAR_GET_POLLING_CONFIG: 'sonar:getPollingConfig',
+SONAR_SET_POLLING_CONFIG: 'sonar:setPollingConfig',
+SONAR_SET_REDIRECTION: 'sonar:setRedirection',
+SONAR_ROUTE_PROCESS: 'sonar:routeProcess',
+SONAR_REFRESH_DEVICES: 'sonar:refreshDevices',
+```
+
+---
+
+## Preset Auto-Switcher Integration
+
+The preset auto-switcher (`activeWindowMonitor.ts`) calls `sonarService.selectPreset()` directly
+when a foreground app match is detected. It does not go through the renderer IPC path.
+
+When a user manually selects a preset in the GG Sonar page, the switcher marks that channel as
+"manually overridden" and does not re-apply the rule until the foreground app changes.
+
+---
+
+## Shared Types (src/shared/types.ts)
+
+```typescript
+export type SonarMode = 'classic' | 'stream'   // note: API returns "stream" not "streamer"
 export const SONAR_CHANNELS = ['master','game','chatRender','chatCapture','media','aux'] as const
 export type SonarChannel = (typeof SONAR_CHANNELS)[number]
-export type SonarDeviceChannel = 'game' | 'chatRender' | 'chatCapture' | 'media' | 'aux'
 
 export interface SonarChannelVolume { volume: number; muted: boolean }
 export interface SonarStreamerMix { streaming: SonarChannelVolume; monitoring: SonarChannelVolume }
@@ -54,126 +209,46 @@ export interface SonarStreamerVolumes {
   masters: { stream: SonarStreamerMix; classic: SonarChannelVolume }
   devices: Record<SonarDeviceChannel, { stream: SonarStreamerMix; classic: SonarChannelVolume }>
 }
-export interface SonarAudioSession {
-  id: string; processName: string; processId: number; displayName: string
-  isSystemSound: boolean; state: string
-  isRoutingErrorProne: boolean; routingErrorDetected: boolean
-}
-export interface SonarDeviceRoute { deviceId: string; role: string; dataFlow: string; audioSessions: SonarAudioSession[] }
-export interface SonarConfigData {
-  bassBoostState?: { enabled: boolean; value: number }
-  trebleBoostState?: { enabled: boolean; value: number }
-  voiceClarityState?: { enabled: boolean; value: number }
-  smartVolume?: { enabled: boolean; volumeLevel: number; loudness: string }
-  generalGain?: number
-  parametricEQ?: { enabled: boolean }
-  virtualSurroundState?: boolean; reverbGainDB?: number; formFactor?: string; globalEnableState?: boolean
-  noiseReductionState?: { enabled: boolean }; volumeStabilizerState?: { enabled: boolean }
-  noiseGateState?: { enabled: boolean }; automaticNoiseGateState?: { enabled: boolean }
-  impactNoiseReductionState?: { enabled: boolean }; noiseCancelingState?: { enabled: boolean }
-  acousticEchoCancelingState?: { enabled: boolean }
-}
 export interface SonarConfig {
   id: string; name: string; virtualAudioDevice: string; data: SonarConfigData
   isPreset: boolean; isFavorite: boolean; favoritePosition: number
   image: string; createdAt: string; updatedAt: string
 }
-export interface SonarChatMix { balance: number; state: string }
 export interface SonarState {
   available: boolean; mode: SonarMode
   classic: SonarClassicVolumes | null; streamer: SonarStreamerVolumes | null
-  configs: SonarConfig[]; routing: SonarDeviceRoute[]; chatMix: SonarChatMix | null
+  configs: SonarConfig[]; routing: SonarDeviceRoute[]
+  chatMix: SonarChatMix | null
+  audioDevices: SonarAudioDevice[]; classicRedirections: SonarClassicRedirection[]
+  streamRedirections: SonarStreamRedirection[]; selectedConfigs: SonarConfig[]
 }
 ```
 
-New IPC channels:
-```typescript
-SONAR_GET_STATE: 'sonar:getState',
-SONAR_STATE_CHANGE: 'sonar:stateChange',
-SONAR_SET_VOLUME: 'sonar:setVolume',
-SONAR_SET_MUTE: 'sonar:setMute',
-SONAR_SELECT_PRESET: 'sonar:selectPreset',
-SONAR_SET_MODE: 'sonar:setMode',
-```
-
 ---
 
-## New File: `src/main/services/sonarService.ts`
+## Key Lessons Learned
 
-Node.js HTTP polling service. Uses `https` module (rejectUnauthorized: false) for discovery, `http` for all Sonar calls.
+1. **Port changes on every GG restart**: discovery must be re-attempted on every connection
+   failure, not just on startup.
 
-- **Discovery**: `GET https://127.0.0.1:6327/subApps` → parse `subApps.sonar.metadata.webServerAddress`
-- **Fast poll (1 s)**: `/mode`, `/volumeSettings/classic`, `/volumeSettings/streamer`, `/chatMix`
-- **Slow poll (5 s)**: `/configs`, `/AudioDeviceRouting`
-- **On failure**: clear `baseUrl`, set `available: false`, retry discovery on next poll
+2. **Three channel key formats**: the naming inconsistency (`chatRender` vs `chatCapture` vs
+   `chat` vs `mic`) is a Sonar API quirk, not a bug. Always use the correct key for the
+   endpoint you're calling.
 
-Write commands do optimistic local state updates + push to renderer.
+3. **Mode is `"stream"` not `"streamer"`**: the GET `/mode` response and PUT `/mode/{key}`
+   both use `"stream"`. Using `"streamer"` silently fails.
 
----
+4. **Optimistic updates prevent lag**: Sonar HTTP round-trips take ~50–200ms. Applying state
+   locally before the HTTP call completes gives the UI instant response for volume fader drags.
 
-## Channel Layout (key design)
+5. **`/configs/selected` vs `/configs`**: `/configs` returns all presets; `/configs/selected`
+   returns only the active ones per channel. Use `/configs/selected` to know what's currently
+   active without scanning the full list.
 
-Each channel column contains ALL its controls stacked vertically:
+6. **Audio device routing GUIDs**: `GET /AudioDeviceRouting` returns entries with a `deviceId`
+   that is Sonar's **virtual** channel device GUID, not a Windows physical device GUID. For
+   routing a process to a channel: use `targetVirtualDeviceId` from the routing response.
+   For assigning a physical device to a channel: use the Windows GUID from `/audioDevices`.
 
-```
-┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
-│  MASTER  │   GAME   │   CHAT   │   MIC    │  MEDIA   │   AUX    │
-│  100%    │   80%    │   56%    │  100%    │  100%    │    6%    │
-│          │          │          │          │          │          │
-│  [fader] │  [fader] │  [fader] │  [fader] │  [fader] │  [fader] │
-│          │          │          │          │          │          │
-│  [mute]  │  [mute]  │  [mute]  │  [mute]  │  [mute]  │  [mute]  │
-│──────────│──────────│──────────│──────────│──────────│──────────│
-│  (none)  │ FPS   ✎  │ Voice ✎  │ Mic   ✎  │ Music ✎  │ Aux   ✎  │
-│──────────│──────────│──────────│──────────│──────────│──────────│
-│          │ ● Steam  │ ● Discord│          │ ● Spotify│          │
-│          │ ● Game   │          │          │ ● Chrome │          │
-└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
-```
-
-Custom div-based vertical fader (mouse drag), fills available height.
-
----
-
-## New UI Components
-
-### `src/renderer/src/components/gg-sonar/ChannelStrip.tsx`
-Vertical channel column. Custom fader (div + mouse events, `flex-1` height). Below: mute button, divider, preset dropdown + edit button, divider, routed apps list.
-
-### `src/renderer/src/components/gg-sonar/ChannelMixer.tsx`
-Container for 6 ChannelStrip columns. Maps routing sessions and presets to each channel. Handles `handleVolume`, `handleMute`, `handlePresetSelect`.
-
-### `src/renderer/src/components/gg-sonar/PresetEditor.tsx`
-Fixed right-side overlay (320px). Shows full config data read-only (EQ, boosts, spatial, smart volume, voice features). Favorites display. Read-only banner noting write endpoint investigation.
-
----
-
-## File Change Summary
-
-| File | Change |
-|---|---|
-| `src/shared/types.ts` | Add `SonarState`, 7 interfaces, `SONAR_CHANNELS`, 6 IPC channels |
-| `src/main/services/sonarService.ts` | **New** — HTTP discovery + polling + write commands |
-| `src/main/index.ts` | Init `SonarService`, 5 IPC handlers |
-| `src/preload/index.ts` | 6 new Sonar API methods |
-| `src/renderer/src/types/electron.d.ts` | Declare 6 Sonar methods on `Window['api']` |
-| `src/renderer/src/stores/sonarStore.ts` | **New** — Zustand store with activePresetIds |
-| `src/renderer/src/App.tsx` | Add sonar state init + subscription effect |
-| `src/renderer/src/components/gg-sonar/ChannelStrip.tsx` | **New** |
-| `src/renderer/src/components/gg-sonar/ChannelMixer.tsx` | **New** |
-| `src/renderer/src/components/gg-sonar/PresetEditor.tsx` | **New** |
-| `src/renderer/src/pages/GGSonar.tsx` | Replace 30-line stub with full page |
-
----
-
-## Verification
-
-1. `npm run dev` — app starts.
-2. With GG running: open GG Sonar page → status dot is green, all channels show real volumes.
-3. Drag a volume fader → GG Sonar app reflects the change immediately.
-4. Click mute → channel mutes in GG app.
-5. Click a preset dropdown → preset activates in GG app.
-6. Click Classic ↔ Streamer toggle → mixer switches to streaming/monitoring view.
-7. With GG closed: status shows "not detected", page shows unavailable state.
-8. Start GG while app is open → page auto-reconnects within ~5 s.
-9. Click preset edit button → PresetEditor slides in with EQ/boost/spatial data.
+7. **Preset editing is truly impossible via API**: no workaround exists. The GG application is
+   the only edit surface. The UI should make this clear rather than hiding the limitation.

@@ -1,6 +1,6 @@
 # Control Centre Pro
 
-A Windows desktop application for managing hardware devices and running custom background services. Think of it as a personal control panel: monitor connected devices, start and stop services, and get at-a-glance status for everything running on your machine.
+A Windows desktop application for managing hardware devices and running custom background services. Think of it as a personal control panel: monitor connected devices, adjust audio and display settings, and get real-time feedback for everything connected to your machine.
 
 The app is designed as an extensible shell. The MVP establishes the layout, navigation patterns, and service infrastructure; device and service plugins are added as sidebar sections over time.
 
@@ -11,54 +11,67 @@ The app is designed as an extensible shell. The MVP establishes the layout, navi
 | Layer | Choice | Version |
 |---|---|---|
 | Desktop shell | Electron | 31+ |
-| UI framework | React | 18.3+ |
-| Language | TypeScript | 5.5+ (strict mode) |
+| UI framework | React + TypeScript | 18.3+ / 5.5+ strict |
 | Bundler | electron-vite | 2.3+ |
 | Styling | Tailwind CSS + CSS custom properties | 3.4+ |
 | State management | Zustand | 4.5+ |
 | Packaging | electron-builder | 24.13+ |
-| Background services | Python subprocesses | (newline-delimited JSON over stdout) |
-| Hardware APIs | @hensm/ddcci | (latest) |
-| Audio processing | naudiodon2, fft.js | (latest) |
+| Background services | Python subprocesses | newline-delimited JSON over stdout |
+| Display control | @hensm/ddcci | Windows DDC/CI native module |
+| Audio | naudiodon2, fft.js | (latest) |
 | Auto-updates | electron-updater | 6.1+ |
 
 ---
 
 ## Features
 
-### Device Management
-- **Arctis Nova Pro headset support** — battery level (headset + dock), ANC mode, mic mute, volume, all via direct USB HID (no SteelSeries GG required)
-- **Live event-driven updates** — headset state refreshes instantly on `VolumeEvent`, `BatteryEvent`, `AncModeEvent`, `MicMuteEvent`
-- **Auto-connect / auto-disconnect** — `HeadsetCard` mounts and unmounts automatically as the device is plugged in or removed
-- **DDC/CI display control** — brightness and contrast adjustment, input source switching, and primary display detection for all DDC-capable monitors
-- **Primary display switching** — set any monitor as the primary display with a single click (via NirCmd)
+### Headset — Arctis Nova Pro Wireless
+- Direct USB HID control via Python service — no SteelSeries GG required
+- Battery level display for headset and charging dock
+- Real-time event-driven state: volume, mic mute, ANC mode, ChatMix, sidetone, Bluetooth, wireless connectivity
+- Auto-mount/unmount: `HeadsetCard` appears and disappears as the device is plugged in or removed
+- OSD notifications for every hardware event (configurable per event type)
 
-### Audio (GG Sonar)
-- **Real-time volume control** — per-channel mixing for game, chat, media, and auxiliary streams
-- **EQ and effects** — bass boost, treble boost, voice clarity adjustments
-- **Audio device routing** — redirect channels to different Windows playback devices
-- **Preset system** — favorite presets with one-click switching
-- **Preset auto-switcher** — automatic preset switching based on active application
+### Audio — GG Sonar
+- Real-time per-channel volume mixing: master, game, chat, mic, media, aux
+- Classic and streamer mode support
+- One-click preset selection per channel
+- Audio device routing display (which apps route to which channels)
+- Channel redirection: assign any Windows audio device to any Sonar channel
+- **Preset auto-switcher**: automatically activates a Sonar preset when a specific app becomes the foreground window
+- OSD notification on preset change
+
+### Display — DDC/CI
+- Brightness and contrast adjustment for all DDC-capable monitors
+- Input source switching with friendly names (HDMI 1, DisplayPort 1, USB-C, etc.)
+- Primary display detection via `EnumDisplayDevices` Win32 API
+- Set-primary-display action via NirCmd (no UAC elevation required)
+- Worker-thread architecture: all blocking DDC calls run off the main event loop
+- Optimistic UI with write-lock to prevent echoed updates clobbering in-flight slider drags
+- OSD notification on input source change
+
+### Notification System
+- **OSD overlays** rendered in a dedicated frameless `BrowserWindow` with React
+- Four overlay shapes: `circle` (icon only), `ring` (icon + progress arc), `volume` (horizontal bar), `rect` (icon + title + subtitle)
+- Notifications stack and collapse automatically; each type has a named key so rapid repeat events replace rather than pile up
+- Fully configurable per notification type: enable/disable, shape, TTL
+- Global duration setting with per-type override support
+- Fires from the renderer via `window.api.notifPush()` — event-driven, no polling
 
 ### Service System
-- Background services run as managed Python subprocesses
+- Background services run as managed Python subprocesses (Arctis HID) or native Node.js services (DDC, Sonar)
 - Each service is individually enable/disable-able from General Settings
-- Configurable Python executable path (for virtual environments)
-- Live terminal log in the About page showing all service output
-- Services persist their enabled state and config to `userData/services.json`
+- Configurable Python executable path for virtual environments
+- Live terminal log in the About page showing all service stdout/stderr
+- Services persist enabled state and config to `userData/services.json`
 
 ### UI Shell
-- **Collapsible sidebar** — collapses entirely (no icon strip); default 240px, resizable 180–320px
-- **Floating peek panel** — hover the toggle button while collapsed to preview nav without expanding
-- **Light / dark theme** — pure neutral gray palette, toggled via `data-theme` on `<html>`
-- **Settings area** — tabbed layout (General, About) accessed via chip-style button at the bottom of the sidebar
-- **About page** — version info + scrollable live service log
-
-### Architecture
-- Strict main / renderer separation; `contextIsolation: true`, `nodeIntegration: false`
-- All IPC channels typed via `IPC_CHANNELS` constants in `shared/types.ts` — no magic strings
-- All file I/O and subprocess management in the main process
-- Preload bridge (`window.api.*`) is the only surface the renderer touches
+- **Collapsible sidebar**: collapses entirely (no icon strip); default 240px, resizable 180–320px
+- **Floating peek panel**: hover the collapsed-state toggle button to preview navigation without expanding
+- **Light / dark theme**: pure neutral gray palette (`#F5F5F5` / `#1C1C1C`), toggled via `data-theme` on `<html>`
+- **Settings area**: tabbed layout (General, DDC, GG Sonar, Notifications, About) accessed via chip-style button at the bottom of the sidebar
+- **About page**: version info + scrollable live service log
+- Minimize to tray on close (configurable)
 
 ---
 
@@ -67,7 +80,7 @@ The app is designed as an extensible shell. The MVP establishes the layout, navi
 ```
 resources/
 ├── services/
-│   └── arctis_hid_service.py        # Arctis Nova Pro HID service
+│   └── arctis_hid_service.py        # Arctis Nova Pro HID subprocess
 ├── nircmd/
 │   └── nircmd.exe                   # NirCmd binary (set primary display)
 └── *.png                             # App icons
@@ -77,33 +90,48 @@ src/
 │   ├── index.ts                      # Window creation, IPC handlers, lifecycle
 │   └── services/
 │       ├── serviceManager.ts         # Spawns/monitors Python subprocesses
-│       ├── sonarService.ts           # GG Sonar HTTP REST API client
-│       ├── activeWindowMonitor.ts    # Monitor active window for preset switching
+│       ├── sonarService.ts           # GG Sonar HTTP REST polling client
+│       ├── activeWindowMonitor.ts    # Foreground window monitor (preset switcher)
+│       ├── notifications/
+│       │   ├── windowService.ts      # System notification BrowserWindows
+│       │   └── timerService.ts       # Keyed auto-close timers
 │       └── apis/ddc/
-│           └── service.ts            # DDC/CI display control service
+│           ├── service.ts            # DDC/CI async wrapper
+│           └── ddcWorker.ts          # Worker thread: blocking DDC + PowerShell calls
 ├── preload/
 │   └── index.ts                      # contextBridge — exposes window.api
 ├── shared/
 │   └── types.ts                      # IPC channel names + shared interfaces
 └── renderer/src/
     ├── App.tsx                       # Theme, IPC subscriptions, FloatingSidebar
+    ├── NotificationOverlay.tsx       # OSD renderer (separate BrowserWindow target)
     ├── stores/
     │   ├── appStore.ts               # View, sidebar width/collapse, peek panel
-    │   └── serviceStore.ts           # Services list, logs, ArctisState
+    │   ├── serviceStore.ts           # Services, logs, ArctisState, DdcMonitors, settings
+    │   ├── sonarStore.ts             # Sonar volumes, presets, routing, mode
+    │   └── notificationStore.ts      # Notification queue and stack state
+    ├── lib/
+    │   └── notifyFromEvent.ts        # Maps hardware events to OSD push calls
     ├── components/
     │   ├── layout/                   # TopBar, Sidebar, FloatingSidebar, MainLayout
     │   ├── settings/                 # SettingsLayout, SettingsSidebar
-    │   ├── home/                     # HeadsetCard, DisplayCard
-    │   └── sonar/                    # Sonar volume mixer, presets, routing
+    │   ├── home/                     # HeadsetCard, CompactHeadsetCard, DisplayCard
+    │   ├── gg-sonar/                 # ChannelMixer, ChannelStrip, PresetEditor
+    │   └── notifications/            # NotificationCircle, NotificationRect, icons
+    ├── contexts/
+    │   └── settingsFormContext.tsx   # Global dirty-state + save-handler registry
     └── pages/
-        ├── Home.tsx
-        ├── Arctis.tsx
-        ├── GgSonar.tsx
+        ├── Home.tsx                  # Dashboard (headset + displays)
+        ├── Arctis.tsx                # Full headset control panel
+        ├── GGSonar.tsx               # Audio mixer (ChannelMixer)
+        ├── Shortcuts.tsx             # Preset auto-switcher rules
+        ├── Notifications.tsx         # Notification preview and config
         └── settings/
-            ├── GeneralSettings.tsx
-            ├── DdcSettings.tsx
-            ├── SonarSettings.tsx
-            └── About.tsx
+            ├── GeneralSettings.tsx   # Theme, tray, Python path, services
+            ├── DDCSettings.tsx       # Poll interval, monitor prefs
+            ├── GGSonarSettings.tsx   # Sonar polling config
+            ├── NotificationsSettings.tsx  # Per-notification toggles and shapes
+            └── About.tsx             # Version + live service log
 ```
 
 ---
@@ -117,9 +145,8 @@ npm run build      # Production build
 npm run package    # Build + Windows installer
 ```
 
-### Required Dependencies
+### Python Packages
 
-#### Python Packages
 The Arctis HID service requires the `arctis_hid` Python package:
 
 ```powershell
@@ -128,41 +155,59 @@ python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@d
 
 If you use a non-default Python environment, set the executable path in **General Settings → Services → Python executable**.
 
-#### Native Binaries
-For primary display switching via DDC/CI, the app requires **NirCmd** (freeware):
+### Native Binaries
+
+For primary display switching, the app requires **NirCmd** (freeware, ~50 KB):
 
 1. Download `nircmd.exe` from https://www.nirsoft.net/utils/nircmd.html
-2. Place it in `resources/nircmd/nircmd.exe`
-3. The app will bundle it automatically during `npm run package`
+2. Place it at `resources/nircmd/nircmd.exe`
 
-#### Node.js Modules
-- `@hensm/ddcci` — Windows DDC/CI library (included in `package.json`, auto-unpacked by electron-builder)
-- `naudiodon2` — Audio device enumeration (requires `node-gyp` build; auto-rebuilt via `npm rebuild`)
-- `fft.js` — FFT frequency analysis (pure JS, no native build)
+The app bundles it automatically during `npm run package`.
+
+### Node.js Native Modules
+
+- `@hensm/ddcci` — Windows DDC/CI library (included in `package.json`, ASAR-unpacked by electron-builder)
+- `naudiodon2` — audio device enumeration (requires `node-gyp`; auto-rebuilt via `npm rebuild`)
+
+### GG Sonar
+
+GG Sonar integration requires **SteelSeries GG** to be installed and running. The app discovers the Sonar HTTP endpoint automatically — no configuration required.
 
 ---
 
-## Implemented Features
+## Implementation Status
 
-- ✅ Arctis Nova Pro HID device support with event-driven state updates
-- ✅ GG Sonar audio device routing and preset switching
-- ✅ Auto-preset switching based on active window
-- ✅ DDC/CI display control (brightness, contrast, input source)
-- ✅ Primary display detection and switching
-- ✅ Service enable/disable and log streaming
-- ✅ Responsive sidebar with collapse/peek functionality
-- ✅ Dark/light theme with CSS custom properties
+| Feature | Status |
+|---|---|
+| Arctis Nova Pro HID — read state | ✅ |
+| Arctis Nova Pro HID — write commands (volume, ANC, mute) | ✅ Partial |
+| GG Sonar volume mixer (classic + streamer) | ✅ |
+| GG Sonar preset selection per channel | ✅ |
+| GG Sonar channel redirection | ✅ |
+| Preset auto-switcher (active window → preset) | ✅ |
+| DDC/CI brightness + contrast | ✅ |
+| DDC/CI input source switching | ✅ |
+| Primary display detection + switching | ✅ |
+| OSD notification overlay | ✅ |
+| Per-event notification settings | ✅ |
+| Service enable/disable + log streaming | ✅ |
+| Responsive sidebar with collapse/peek | ✅ |
+| Dark/light theme | ✅ |
+| Minimize to tray | ✅ |
+| Settings persistence | ✅ |
+
+---
 
 ## Roadmap
 
 - [ ] Sidebar width and collapsed state persistence (`localStorage` / `electron-store`)
-- [ ] Settings and theme persistence (`electron-store`)
-- [ ] Headset write commands (volume, ANC mode, mute toggle, EQ adjustments)
-- [ ] HDR / advanced monitor controls via DDC/CI
+- [ ] Headset write commands — full EQ and sidetone adjustments
+- [ ] HDR and advanced monitor controls via DDC/CI
 - [ ] Empty state on Home page when no devices are connected
 - [ ] Clearable service log in About tab
 - [ ] Periodic state polling for late-attach device sync
 - [ ] Bundle JetBrains Mono font (currently loaded from Google Fonts)
 - [ ] Auto-updater (`electron-updater`) — needs a release server URL
 - [ ] Test suite (Vitest for renderer + main, Playwright for IPC integration)
-- [ ] Mobile companion app (app state sync, remote control)
+- [ ] GG Sonar: chatMix balance control
+- [ ] GG Sonar: stream monitoring toggle
