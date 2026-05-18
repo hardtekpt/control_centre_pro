@@ -101,9 +101,10 @@ function SliderInputComponent({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1"
+      className={orientation === 'vertical' ? 'relative' : 'relative flex-1'}
       style={{
-        height: orientation === 'vertical' ? 'auto' : 18,
+        height: orientation === 'vertical' ? '100%' : 18,
+        width: orientation === 'vertical' ? '100%' : 'auto',
         cursor: disabled ? 'not-allowed' : (orientation === 'vertical' ? 'ns-resize' : 'ew-resize'),
         opacity: disabled ? 0.5 : 1,
       }}
