@@ -57,6 +57,7 @@ export class ServiceManager {
   private nativeServices: NativeServiceRegistration[] = []
   private logCache: LogEntry[] = []
   private readonly MAX_CACHED_LOGS = 500
+  private logIdCounter = 0
 
   constructor() {
     this.configPath = join(app.getPath('userData'), 'services.json')
@@ -344,7 +345,7 @@ export class ServiceManager {
     message: string,
   ): void {
     const entry: LogEntry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `${Date.now()}-${this.logIdCounter++}`,
       timestamp: Date.now(),
       serviceId,
       serviceName,
