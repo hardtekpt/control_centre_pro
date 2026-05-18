@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
+import { SliderInput } from '../SliderInput'
 import type { ArctisState, Option } from '@shared/types'
 
 const GAIN_OPTIONS: Option<ArctisState['micGain']>[] = [
@@ -79,28 +80,21 @@ function Slider({
   value,
   min,
   max,
-  step = 1,
   unit = '',
   onChange,
 }: {
   value: number
   min: number
   max: number
-  step?: number
   unit?: string
   onChange: (v: number) => void
 }): JSX.Element {
+  const normalized = (value - min) / (max - min)
   return (
-    <div className="flex items-center gap-2 py-1" style={{ border: '1px solid transparent' }}>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1"
-        style={{ accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+    <div className="flex items-center gap-2 py-1">
+      <SliderInput
+        value={normalized}
+        onChange={(v) => onChange(Math.round(min + v * (max - min)))}
       />
       <span
         className="text-xs mono w-10 text-right shrink-0"

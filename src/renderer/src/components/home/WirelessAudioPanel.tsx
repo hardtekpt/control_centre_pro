@@ -1,4 +1,5 @@
 import { useServiceStore } from '../../stores/serviceStore'
+import { SliderInput } from '../SliderInput'
 import type { ArctisState, Option } from '@shared/types'
 
 const WIRELESS_MODE_OPTIONS: Option<ArctisState['wirelessMode']>[] = [
@@ -147,17 +148,11 @@ export function WirelessAudioPanel({ state }: { state: ArctisState }): JSX.Eleme
                 { label: 'Mic',  value: state.streamMic,  onChange: (v: number) => { updateArctisState({ streamMic: v });  window.api.arctisCmd('setStreamVolumes', { main: state.streamMain, aux: state.streamAux, mic: v }).catch(console.error) } },
               ] as const
             ).map(({ label, value, onChange }) => (
-              <div key={label} className="flex items-center gap-2 py-1" style={{ border: '1px solid transparent' }}>
+              <div key={label} className="flex items-center gap-2 py-1">
                 <span className="text-xs w-6 shrink-0" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={value}
-                  onChange={(e) => onChange(Number(e.target.value))}
-                  className="flex-1"
-                  style={{ accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+                <SliderInput
+                  value={value / 100}
+                  onChange={(v) => onChange(Math.round(v * 100))}
                 />
                 <span className="text-xs mono w-10 text-right shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
                   {value}%
