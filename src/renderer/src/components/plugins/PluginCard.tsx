@@ -1,5 +1,6 @@
 import type { Plugin } from '@shared/types'
 import { StatusPill } from './StatusPill'
+import { Toggle } from './Toggle'
 
 function ChevronRightIcon() {
   return (
@@ -24,16 +25,10 @@ export function PluginCard({ plugin, onClick, onToggleClick }: PluginCardProps):
       <div className="name">{plugin.name}</div>
       <div className="toggle-wrap" onClick={onToggleClick}>
         {isInstalled ? (
-          <input
-            type="checkbox"
+          <Toggle
             checked={plugin.enabled}
-            onChange={(e) => e.stopPropagation()}
-            style={{
-              width: '32px',
-              height: '18px',
-              cursor: 'pointer',
-              accentColor: 'var(--color-accent)',
-            }}
+            onChange={() => {}}
+            size="sm"
           />
         ) : (
           <button

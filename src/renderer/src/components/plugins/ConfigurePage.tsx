@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Plugin } from '@shared/types'
 import { StatusPill } from './StatusPill'
+import { Toggle } from './Toggle'
 import { useDiscordStore } from '../../stores/discordStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 
@@ -117,16 +118,10 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
           </div>
           <div className="actions">
             <div className="action-label">{plugin.enabled ? 'On' : 'Off'}</div>
-            <input
-              type="checkbox"
+            <Toggle
               checked={plugin.enabled}
               onChange={() => onTogglePlugin(plugin.id)}
-              style={{
-                width: '40px',
-                height: '22px',
-                cursor: 'pointer',
-                accentColor: 'var(--color-accent)',
-              }}
+              size="lg"
             />
           </div>
         </div>

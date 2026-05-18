@@ -1,8 +1,8 @@
+@import '../components/plugins/plugins.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import '../components/plugins/plugins.css';
 
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 
