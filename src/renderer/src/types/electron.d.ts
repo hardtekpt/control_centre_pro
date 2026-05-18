@@ -36,6 +36,7 @@ declare global {
     // Background services
     servicesList: () => Promise<ServiceInfo[]>
     setServiceEnabled: (id: string, enabled: boolean) => Promise<void>
+    getServiceLogHistory: () => Promise<LogEntry[]>
     onServicesStateChange: (callback: (services: ServiceInfo[]) => void) => () => void
     onServiceLog: (callback: (entry: LogEntry) => void) => () => void
     getServiceConfig: () => Promise<ServiceConfig>

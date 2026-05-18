@@ -76,6 +76,9 @@ const api = {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SERVICES_STATE_CHANGE, handler)
   },
 
+  getServiceLogHistory: (): Promise<LogEntry[]> =>
+    ipcRenderer.invoke('SERVICES_GET_LOG_HISTORY'),
+
   onServiceLog: (callback: (entry: LogEntry) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, entry: LogEntry): void => callback(entry)
     ipcRenderer.on(IPC_CHANNELS.SERVICE_LOG, handler)

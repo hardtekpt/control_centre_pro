@@ -21,7 +21,7 @@ export default function App(): JSX.Element {
     setMaximized, setView, setSettingsTab, toggleSidebar,
     setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
-  const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings } =
+  const { setServices, setLogs, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings } =
     useServiceStore()
   const { setSonarState } = useSonarStore()
   const { setDiscordState } = useDiscordStore()
@@ -102,6 +102,11 @@ export default function App(): JSX.Element {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [toggleSidebar])
+
+  // Load cached service logs on startup so we don't miss early logs
+  useEffect(() => {
+    window.api.getServiceLogHistory().then(setLogs).catch(console.error)
+  }, [setLogs])
 
   // Load initial service list and subscribe to changes
   useEffect(() => {

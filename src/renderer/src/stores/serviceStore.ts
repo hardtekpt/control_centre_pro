@@ -12,6 +12,7 @@ interface ServiceState {
   settings: AppSettings
 
   setServices: (services: ServiceInfo[]) => void
+  setLogs: (logs: LogEntry[]) => void
   addLog: (entry: LogEntry) => void
   setArctisConnected: (state: ArctisState) => void
   setArctisDisconnected: () => void
@@ -28,6 +29,8 @@ export const useServiceStore = create<ServiceState>((set) => ({
   settings: DEFAULT_SETTINGS,
 
   setServices: (services) => set({ services }),
+
+  setLogs: (logs) => set({ logs: logs.slice(-MAX_LOG_ENTRIES) }),
 
   addLog: (entry) =>
     set((s) => ({

@@ -54,6 +54,8 @@ export class ServiceManager {
   private window: BrowserWindow | null = null
   private lastArctisState: ArctisState | null = null
   private nativeServices: NativeServiceRegistration[] = []
+  private logCache: LogEntry[] = []
+  private readonly MAX_CACHED_LOGS = 500
 
   constructor() {
     this.configPath = join(app.getPath('userData'), 'services.json')
@@ -119,6 +121,11 @@ export class ServiceManager {
   /** Emit a log entry on behalf of a native service — appears in the About terminal */
   emitNativeLog(id: string, name: string, level: 'info' | 'warn' | 'error', message: string): void {
     this.emitLog(id, name, level, message)
+  }
+
+  /** Get cached logs (used to populate terminal on renderer startup) */
+  getCachedLogs(): LogEntry[] {
+    return [...this.logCache]
   }
 
   /** Re-broadcast the service list (call when a native service's running state changes) */
@@ -314,6 +321,12 @@ export class ServiceManager {
       level,
       message,
     }
+    // Cache the log entry
+    this.logCache.push(entry)
+    if (this.logCache.length > this.MAX_CACHED_LOGS) {
+      this.logCache.shift()
+    }
+    // Send to renderer if window is ready
     this.push(IPC_CHANNELS.SERVICE_LOG, entry)
   }
 }
