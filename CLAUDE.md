@@ -518,6 +518,165 @@ interface SonarStoreState {
 
 ---
 
+## Discord RPC Voice Integration
+
+**Service**: `src/main/services/discordService.ts` — Event-driven RPC client (no HTTP polling).
+
+**Why native service instead of subprocess?**: Discord RPC is IPC-based (Windows named pipe
+`\\.\pipe\discord-ipc-{0-9}`), not HTTP. RPC client must run in Node.js main process. Native
+registration simplifies the connection lifecycle — no subprocess protocol overhead, direct
+event subscription, immediate state updates.
+
+**Architecture**: Event-driven rather than polling. Connects to local Discord desktop client
+via `discord-rpc` npm package. Subscribes to voice events; emits state changes to renderer
+immediately when they arrive.
+
+**Connection flow**:
+1. `connect()` → `client.connect(clientId)` opens IPC socket, fires `ready` event
+2. Inside `ready` → `client.login()` performs OAuth with Discord browser popup (first time only)
+3. OAuth grants scopes: `rpc`, `rpc.voice.read`, `rpc.voice.write`
+4. On success: fetch initial voice settings, check if in a voice channel, subscribe to events
+5. On disconnect: emit `available: false`, schedule 10-second reconnect timer
+6. `stopped` flag prevents reconnect after explicit `stop()`
+
+**DiscordState interface** (shared type in `types.ts`):
+```typescript
+export interface DiscordState {
+  available: boolean                           // RPC socket connected
+  authenticated: boolean                       // OAuth token valid
+  error: string | null                         // last connection error, or null
+  voiceChannel: { id: string; name: string; guildName: string } | null  // null when not in voice
+  participants: DiscordParticipant[]
+  selfMuted: boolean
+  selfDeafened: boolean
+  inputVolume: number                          // 0–100
+  outputVolume: number                         // 0–100
+}
+
+export interface DiscordParticipant {
+  userId: string
+  username: string
+  nick: string                                 // display name or username
+  muted: boolean                               // their self-mute
+  deafened: boolean
+  localMuted: boolean                          // we've locally muted them
+  localVolume: number                          // 0–200 (100 = normal)
+  speaking: boolean
+  avatar: string | null                        // Discord CDN URL
+}
+```
+
+**DiscordService public API** (`src/main/services/discordService.ts`):
+- `start() / stop()` — opens/closes RPC socket and event subscriptions
+- `getState()` — synchronous; returns current `DiscordState` snapshot
+- `isAvailable()` — true if RPC connected and authenticated
+- `setSelfMute(muted)` → `SET_VOICE_SETTINGS { mute }`
+- `setSelfDeaf(deafened)` → `SET_VOICE_SETTINGS { deaf }`
+- `setInputVolume(0-100)` → `SET_VOICE_SETTINGS { input: { volume } }`
+- `setOutputVolume(0-100)` → `SET_VOICE_SETTINGS { output: { volume } }`
+- `setLocalVolume(userId, 0-200)` → `SET_LOCAL_VOLUME`
+- `setLocalMute(userId, muted)` → `SET_LOCAL_MUTE`
+- `reconnect()` — destroy and re-open RPC connection
+- `setClientId(clientId)` — set Discord app client ID for auth
+- `setWindow(window)`, `setLogEmitter(fn)`, `setStateChangeNotifier(fn)` — wiring hooks
+
+**Event subscriptions** (after login):
+- `VOICE_CHANNEL_SELECT` — fired when user joins/leaves/switches voice channel
+  - Re-subscribe to per-channel events (`VOICE_STATE_UPDATE`, `SPEAKING_START/STOP`) when channel changes
+  - Channel ID determines which participants we monitor
+- `VOICE_STATE_UPDATE` — fired per participant when mute/deafen/speaking status changes
+  - Only subscribed for the current channel
+  - Updates or adds participant to list
+- `SPEAKING_START` — fires when a participant starts speaking (channel-specific)
+- `SPEAKING_STOP` — fires when a participant stops speaking
+
+**IPC channels** (defined in `src/shared/types.ts`):
+| Channel | Direction | Payload |
+|---------|-----------|---------|
+| `DISCORD_GET_STATE` | invoke | — returns `DiscordState` |
+| `DISCORD_STATE_CHANGE` | push | `DiscordState` |
+| `DISCORD_SET_SELF_MUTE` | invoke | `muted: boolean` |
+| `DISCORD_SET_SELF_DEAF` | invoke | `deafened: boolean` |
+| `DISCORD_SET_INPUT_VOLUME` | invoke | `volume: 0-100` |
+| `DISCORD_SET_OUTPUT_VOLUME` | invoke | `volume: 0-100` |
+| `DISCORD_SET_LOCAL_VOLUME` | invoke | `userId: string, volume: 0-200` |
+| `DISCORD_SET_LOCAL_MUTE` | invoke | `userId: string, muted: boolean` |
+| `DISCORD_RECONNECT` | invoke | — |
+
+**Settings integration** (`src/renderer/src/pages/settings/DiscordSettings.tsx`):
+- Client ID text input (persisted to `AppSettings.discordClientId`)
+- Connection status indicator (colored dot + text)
+- Reconnect button (manual force-reconnect)
+- Self voice controls: Mute Mic / Deafen buttons (toggle red when active)
+- Input/Output volume sliders (0-100)
+- Live participant list (when in voice channel):
+  - Avatar, nick (green when speaking), muted/deafened badges
+  - Per-participant volume slider (0-200) with live value display
+  - Per-participant local mute toggle (red when active)
+
+**Optimistic writes**: All write commands patch `this.state` immediately in `DiscordService`,
+then call `push()` to emit to renderer without waiting for Discord RPC acknowledgment. No
+confirmation polling — Discord events (`VOICE_STATE_UPDATE`, etc.) confirm the actual new
+state asynchronously, and any divergence (user reverted in Discord app) is corrected by
+the next event.
+
+**Auto-reconnect strategy**:
+- On `client.on('disconnected')`: emit `available: false`, schedule 10-second reconnect
+- Timer respects `stopped` flag — no reconnect after explicit `stop()`
+- Used when Discord desktop app closes/restarts or network drops
+- Requires no explicit action from user
+
+**Authentication & token persistence**:
+- First connect: `client.login()` opens browser OAuth popup
+- User grants scopes, browser redirects back to app with authorization code
+- discord-rpc library exchanges code for token and caches it in memory
+- Token lives for session only — user must re-auth on next app startup
+- Client ID stored in `AppSettings.discordClientId`, persisted to `settings.json`
+- If Client ID not set or empty: service logs warning, stays in `available: false`
+
+**Renderer integration** (`App.tsx`):
+```typescript
+const { setDiscordState } = useDiscordStore()
+// Load initial state + subscribe to push events
+useEffect(() => {
+  window.api.discordGetState().then(setDiscordState)
+  const cleanup = window.api.onDiscordStateChange(setDiscordState)
+  return cleanup
+}, [setDiscordState])
+```
+
+**Store pattern** (`src/renderer/src/stores/discordStore.ts`):
+- `discordState: DiscordState | null` — `null` until first connection
+- `setDiscordState(state)` — full replace on push events
+- `patchParticipantVolume(userId, volume)` — optimistic UI patch during slider drag
+- `patchParticipantMute(userId, muted)` — optimistic UI patch on mute click
+
+**Architectural lessons**:
+1. **Event-driven over polling**: RPC is naturally event-based — Discord sends you changes,
+   you don't query. Much lower latency and CPU usage than HTTP polling.
+2. **Per-channel subscriptions**: Discord RPC requires channel ID when subscribing to
+   voice events. Must re-subscribe when user changes channels.
+3. **Two-phase OAuth**: Socket connection (`connect()`) is separate from authentication
+   (`login()`). The `ready` event is the gate for calling `login()`.
+4. **Type assertion for request method**: `discord-rpc` package's TypeScript types don't
+   export `request()` method, but it exists at runtime. Module declaration adds it:
+   ```typescript
+   declare module 'discord-rpc' {
+     interface Client {
+       request(command: string, args?: Record<string, unknown>): Promise<unknown>
+     }
+   }
+   ```
+5. **Immutable state updates**: All state changes use spread operator (`{ ...this.state, ...patch }`).
+   Ensures predictable, traceable updates and simplifies debugging.
+6. **Avatar URL format**: Discord provides avatar hash. Full URL:
+   `https://cdn.discordapp.com/avatars/{userId}/{hash}.webp?size=64`
+   Always include size param for responsive images.
+7. **Local mute is separate from mute**: `muted` (their self-mute state) vs `localMuted`
+   (we've suppressed them). Both are user-controllable but represent different things.
+
+---
+
 ## Preset Auto-Switcher & App-Triggered Actions
 
 **Service**: `src/main/services/activeWindowMonitor.ts`
