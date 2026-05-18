@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useShortcutStore } from '../stores/shortcutStore'
 import { CATEGORIES, ACTIONS, actionById, formatActionValue } from '../lib/shortcuts/catalog'
-import { formatCombo, combinationFromEvent } from '../lib/shortcuts/keys'
+import { formatCombo } from '../lib/shortcuts/keys'
 import { ShortcutRow } from '../components/shortcuts/ShortcutRow'
 import { NewShortcutPanel } from '../components/shortcuts/NewShortcutPanel'
 import { IconSearch, IconPlus } from '../components/shortcuts/icons'
@@ -14,31 +14,10 @@ export function Shortcuts(): JSX.Element {
   const [showNew, setShowNew] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  // Load shortcuts on mount
+  // Reload shortcuts when this page mounts (picks up any changes made outside the app)
   useEffect(() => {
     window.api.shortcutsGet().then(load).catch(console.error)
   }, [load])
-
-  // Handle focused-scope keydown dispatches
-  useEffect(() => {
-    const handler = (e: KeyboardEvent): void => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
-
-      const combo = combinationFromEvent(e)
-      if (!combo) return
-
-      const match = items.find(
-        (s) => s.scope === 'focused' && s.enabled && JSON.stringify(s.keys) === JSON.stringify(combo)
-      )
-      if (match) {
-        e.preventDefault()
-        void window.api.shortcutsDispatch(match.actionId, match.value)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [items])
 
   // ⌘K / Ctrl+K focuses search; N opens new panel
   useEffect(() => {

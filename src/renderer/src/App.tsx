@@ -4,6 +4,8 @@ import { useAppStore } from './stores/appStore'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
 import { useDiscordStore } from './stores/discordStore'
+import { useShortcutStore } from './stores/shortcutStore'
+import { combinationFromEvent } from './lib/shortcuts/keys'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 import { FloatingSidebar } from './components/layout/FloatingSidebar'
@@ -25,6 +27,7 @@ export default function App(): JSX.Element {
     useServiceStore()
   const { setSonarState } = useSonarStore()
   const { setDiscordState } = useDiscordStore()
+  const { items: shortcutItems, load: loadShortcuts } = useShortcutStore()
 
   // Track whether initial settings have been loaded so we don't auto-save before loading
   const settingsLoadedRef = useRef(false)
@@ -102,6 +105,30 @@ export default function App(): JSX.Element {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [toggleSidebar])
+
+  // Load user-defined shortcuts on startup
+  useEffect(() => {
+    window.api.shortcutsGet().then(loadShortcuts).catch(console.error)
+  }, [loadShortcuts])
+
+  // Dispatch focused-scope shortcuts app-wide (not just on the Shortcuts page)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      const combo = combinationFromEvent(e)
+      if (!combo) return
+      const match = shortcutItems.find(
+        (s) => s.scope === 'focused' && s.enabled && JSON.stringify(s.keys) === JSON.stringify(combo)
+      )
+      if (match) {
+        e.preventDefault()
+        void window.api.shortcutsDispatch(match.actionId, match.value)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [shortcutItems])
 
   // Load cached service logs on startup so we don't miss early logs
   useEffect(() => {
