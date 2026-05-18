@@ -574,7 +574,7 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
       </div>
 
       {/* ── Volume (always visible, controllable) ── */}
-      <div className="mb-3" style={{ opacity: state.baseStationConnected ? 1 : 0.4, pointerEvents: state.baseStationConnected ? 'auto' : 'none' }}>
+      <div className="mb-3">
         <ControlRow label="Volume">
           <Slider
             value={volume}
@@ -587,7 +587,7 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
       </div>
 
       {/* ── ChatMix balance (hardware dial — display only) ── */}
-      <div className="flex items-center gap-3" style={{ opacity: state.baseStationConnected ? 1 : 0.4, pointerEvents: state.baseStationConnected ? 'auto' : 'none' }}>
+      <div className="flex items-center gap-3">
         <button
           onClick={() => cmd('setChatmixEnabled', !state.chatmixEnabled, { chatmixEnabled: !state.chatmixEnabled })}
           className="text-xs shrink-0 w-32 text-left"

@@ -16,23 +16,15 @@ export function Arctis(): JSX.Element {
     )
   }
 
-  const panelStyle = !arctisState.baseStationConnected
-    ? { opacity: 0.4, pointerEvents: 'none' as const }
-    : undefined
-
   return (
     <div className="flex flex-col gap-6 p-6">
       <HeadsetCard state={arctisState} expandByDefault={true} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start', ...panelStyle }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
         <AudioOptionsPanel state={arctisState} expandByDefault={true} />
         <WirelessAudioPanel state={arctisState} />
       </div>
-      <div style={panelStyle}>
-        <BaseStationPanel state={arctisState} expandByDefault={true} />
-      </div>
-      <div style={panelStyle}>
-        <EqPanel state={arctisState} expandByDefault={true} />
-      </div>
+      <BaseStationPanel state={arctisState} expandByDefault={true} />
+      <EqPanel state={arctisState} expandByDefault={true} />
     </div>
   )
 }
