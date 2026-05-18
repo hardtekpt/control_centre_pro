@@ -161,11 +161,29 @@ class DiscordRpcTransport extends EventEmitter {
   }
 
   subscribe(evt: string, args?: object): Promise<void> {
-    return this.request('SUBSCRIBE', { evt, args }).then(() => undefined)
+    const nonce = randomUUID()
+    return new Promise((resolve, reject) => {
+      this.pending.set(nonce, { resolve, reject })
+      try {
+        this.send(1, { cmd: 'SUBSCRIBE', evt, args: args ?? {}, nonce })
+      } catch (e) {
+        this.pending.delete(nonce)
+        reject(e)
+      }
+    }).then(() => undefined)
   }
 
   unsubscribe(evt: string, args?: object): Promise<void> {
-    return this.request('UNSUBSCRIBE', { evt, args }).then(() => undefined)
+    const nonce = randomUUID()
+    return new Promise((resolve, reject) => {
+      this.pending.set(nonce, { resolve, reject })
+      try {
+        this.send(1, { cmd: 'UNSUBSCRIBE', evt, args: args ?? {}, nonce })
+      } catch (e) {
+        this.pending.delete(nonce)
+        reject(e)
+      }
+    }).then(() => undefined)
   }
 
   destroy(): void {
