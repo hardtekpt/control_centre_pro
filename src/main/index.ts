@@ -8,6 +8,7 @@ import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, Prese
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
+import { DiscordService } from './services/discordService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 import { DdcService } from './services/apis/ddc/service'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
@@ -20,6 +21,7 @@ let minimizeToTray = true
 let isQuitting = false
 let serviceManager: ServiceManager
 let sonarService: SonarService
+let discordService: DiscordService
 let ddcService: DdcService
 let activeWindowMonitor: ActiveWindowMonitor | null = null
 
@@ -387,6 +389,9 @@ function registerIpcHandlers(): void {
     if (typeof settings.minimizeToTray === 'boolean') {
       minimizeToTray = settings.minimizeToTray
     }
+    if (typeof settings.discordClientId === 'string') {
+      discordService.setClientId(settings.discordClientId)
+    }
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
@@ -465,6 +470,37 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.SONAR_REFRESH_DEVICES, () =>
     sonarService.refreshDevices()
+  )
+
+  // ── Discord RPC Voice Control ──────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.DISCORD_GET_STATE, () => discordService.getState())
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_SET_SELF_MUTE, (_, muted: boolean) =>
+    discordService.setSelfMute(muted)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_SET_SELF_DEAF, (_, deafened: boolean) =>
+    discordService.setSelfDeaf(deafened)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_SET_INPUT_VOLUME, (_, volume: number) =>
+    discordService.setInputVolume(volume)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_SET_OUTPUT_VOLUME, (_, volume: number) =>
+    discordService.setOutputVolume(volume)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_SET_LOCAL_VOLUME, (_, userId: string, volume: number) =>
+    discordService.setLocalVolume(userId, volume)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_SET_LOCAL_MUTE, (_, userId: string, muted: boolean) =>
+    discordService.setLocalMute(userId, muted)
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DISCORD_RECONNECT, () =>
+    discordService.reconnect()
   )
 
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, (_, url: string) =>
@@ -718,6 +754,22 @@ app.whenReady().then(() => {
     isRunning: () => ddcService.isAvailable(),
   })
 
+  discordService = new DiscordService()
+  discordService.setLogEmitter((level, msg) => {
+    serviceManager.emitNativeLog('discord', 'Discord Voice', level, msg)
+  })
+  discordService.setStateChangeNotifier(() => {
+    serviceManager.broadcastServiceState()
+  })
+  serviceManager.registerNativeService({
+    id: 'discord',
+    name: 'Discord Voice',
+    description: 'Discord RPC voice control — mute, deafen, and per-participant volume',
+    onEnable: () => discordService.start(),
+    onDisable: () => discordService.stop(),
+    isRunning: () => discordService.isAvailable(),
+  })
+
   // Register keyboard shortcuts service (tracks enable/disable + logs)
   let shortcutsServiceEnabled = true
   serviceManager.registerNativeService({
@@ -769,6 +821,7 @@ app.whenReady().then(() => {
   serviceManager.setWindow(mainWindow!)
   initDispatcher(mainWindow!, serviceManager, sonarService, ddcService)
   sonarService.setWindow(mainWindow!)
+  discordService.setWindow(mainWindow!)
 
   // Initialize preset switcher monitor
   activeWindowMonitor = new ActiveWindowMonitor(mainWindow!, sonarService)
@@ -799,6 +852,9 @@ app.whenReady().then(() => {
       }
       if (typeof saved.minimizeToTray === 'boolean') {
         minimizeToTray = saved.minimizeToTray
+      }
+      if (typeof saved.discordClientId === 'string' && saved.discordClientId) {
+        discordService.setClientId(saved.discordClientId)
       }
     }
   } catch { /* use default */ }

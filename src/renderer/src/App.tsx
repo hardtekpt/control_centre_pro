@@ -3,6 +3,7 @@ import './styles/globals.css'
 import { useAppStore } from './stores/appStore'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
+import { useDiscordStore } from './stores/discordStore'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 import { FloatingSidebar } from './components/layout/FloatingSidebar'
@@ -23,6 +24,7 @@ export default function App(): JSX.Element {
   const { setServices, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings } =
     useServiceStore()
   const { setSonarState } = useSonarStore()
+  const { setDiscordState } = useDiscordStore()
 
   // Track whether initial settings have been loaded so we don't auto-save before loading
   const settingsLoadedRef = useRef(false)
@@ -235,6 +237,13 @@ export default function App(): JSX.Element {
     const cleanup = window.api.onSonarStateChange(setSonarState)
     return cleanup
   }, [setSonarState])
+
+  // Load initial Discord state and subscribe to RPC push events
+  useEffect(() => {
+    window.api.discordGetState().then(setDiscordState)
+    const cleanup = window.api.onDiscordStateChange(setDiscordState)
+    return cleanup
+  }, [setDiscordState])
 
   // Load initial DDC monitor list and subscribe to updates
   useEffect(() => {

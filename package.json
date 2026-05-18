@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
+    "discord-rpc": "^4.0.1",
     "electron-updater": "^6.1.7",
     "fft.js": "*",
     "naudiodon2": "*"
@@ -22,13 +23,14 @@
   },
   "build": {
     "files": ["out", "resources"],
-    "asarUnpack": ["**/node_modules/naudiodon2/**"],
+    "asarUnpack": ["**/node_modules/naudiodon2/**", "**/node_modules/discord-rpc/**"],
     "extraResources": [
       { "from": "resources/MultiMonitorTool.exe", "to": "MultiMonitorTool.exe" }
     ],
     "buildDependenciesFromSource": false
   },
   "devDependencies": {
+    "@types/discord-rpc": "^4.0.8",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

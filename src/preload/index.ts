@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
-  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
+  DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent,
 } from '../shared/types'
 
@@ -150,6 +150,39 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, state: SonarState): void => callback(state)
     ipcRenderer.on(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)
+  },
+
+  // ── Discord Voice Control ──────────────────────────────────────────────────
+
+  discordGetState: (): Promise<DiscordState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_GET_STATE),
+
+  discordSetSelfMute: (muted: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_SET_SELF_MUTE, muted),
+
+  discordSetSelfDeaf: (deafened: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_SET_SELF_DEAF, deafened),
+
+  discordSetInputVolume: (volume: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_SET_INPUT_VOLUME, volume),
+
+  discordSetOutputVolume: (volume: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_SET_OUTPUT_VOLUME, volume),
+
+  discordSetLocalVolume: (userId: string, volume: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_SET_LOCAL_VOLUME, userId, volume),
+
+  discordSetLocalMute: (userId: string, muted: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_SET_LOCAL_MUTE, userId, muted),
+
+  discordReconnect: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DISCORD_RECONNECT),
+
+  onDiscordStateChange: (callback: (state: DiscordState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: DiscordState): void =>
+      callback(state)
+    ipcRenderer.on(IPC_CHANNELS.DISCORD_STATE_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.DISCORD_STATE_CHANGE, handler)
   },
 
   // ── Preset Switcher ────────────────────────────────────────────────────────

@@ -86,6 +86,17 @@ export const IPC_CHANNELS = {
   SHORTCUTS_GET:      'shortcuts:get',      // renderer → main invoke → Shortcut[]
   SHORTCUTS_SAVE:     'shortcuts:save',     // renderer → main invoke (Shortcut[]) → void
   SHORTCUTS_DISPATCH: 'shortcuts:dispatch', // main → renderer push ({ actionId, value })
+
+  // Discord RPC voice integration
+  DISCORD_GET_STATE: 'discord:getState',           // renderer → main invoke
+  DISCORD_STATE_CHANGE: 'discord:stateChange',     // main → renderer push
+  DISCORD_SET_SELF_MUTE: 'discord:setSelfMute',    // renderer → main invoke
+  DISCORD_SET_SELF_DEAF: 'discord:setSelfDeaf',    // renderer → main invoke
+  DISCORD_SET_INPUT_VOLUME: 'discord:setInputVolume', // renderer → main invoke
+  DISCORD_SET_OUTPUT_VOLUME: 'discord:setOutputVolume', // renderer → main invoke
+  DISCORD_SET_LOCAL_VOLUME: 'discord:setLocalVolume',   // renderer → main invoke
+  DISCORD_SET_LOCAL_MUTE: 'discord:setLocalMute',       // renderer → main invoke
+  DISCORD_RECONNECT: 'discord:reconnect',               // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -213,6 +224,7 @@ export interface AppSettings {
   ddcSyncBrightness: boolean
   minimizeToTray: boolean
   notifications: NotificationSettings
+  discordClientId: string
 }
 
 /** Defaults applied when no saved settings exist */
@@ -229,6 +241,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     display: DEFAULT_DISPLAY_NOTIFICATIONS,
     durationMs: 2400,
   },
+  discordClientId: '',
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
@@ -243,7 +256,7 @@ export type AppView =
   | 'settings'
 
 /** Tabs within the settings view */
-export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'about'
+export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'discord' | 'about'
 
 /** Navigate targets that can be pushed from the main process */
 export type NavigateTarget = AppView | 'settings:about'
@@ -468,6 +481,32 @@ export interface SonarState {
 
 export interface SonarPollingConfig {
   pollingIntervalMs: number  // Polling interval (ms) — default 1000
+}
+
+// ─── Discord RPC Voice Integration ────────────────────────────────────────────
+
+export interface DiscordParticipant {
+  userId: string
+  username: string
+  nick: string
+  muted: boolean        // their self-mute
+  deafened: boolean
+  localMuted: boolean   // we locally muted them
+  localVolume: number   // 0-200 (100 = normal)
+  speaking: boolean
+  avatar: string | null
+}
+
+export interface DiscordState {
+  available: boolean
+  authenticated: boolean
+  error: string | null
+  voiceChannel: { id: string; name: string; guildName: string } | null
+  participants: DiscordParticipant[]
+  selfMuted: boolean
+  selfDeafened: boolean
+  inputVolume: number   // 0-100
+  outputVolume: number  // 0-100
 }
 
 // ─── Preset Switcher ──────────────────────────────────────────────────────────

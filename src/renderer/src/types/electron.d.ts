@@ -1,7 +1,7 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
-  ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
+  DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent,
 } from '../../../shared/types'
 
@@ -62,6 +62,17 @@ declare global {
     sonarRouteProcess: (processId: number, targetChannel: string) => Promise<void>
     sonarRefreshDevices: () => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
+
+    // Discord Voice Control
+    discordGetState: () => Promise<DiscordState>
+    discordSetSelfMute: (muted: boolean) => Promise<void>
+    discordSetSelfDeaf: (deafened: boolean) => Promise<void>
+    discordSetInputVolume: (volume: number) => Promise<void>
+    discordSetOutputVolume: (volume: number) => Promise<void>
+    discordSetLocalVolume: (userId: string, volume: number) => Promise<void>
+    discordSetLocalMute: (userId: string, muted: boolean) => Promise<void>
+    discordReconnect: () => Promise<void>
+    onDiscordStateChange: (callback: (state: DiscordState) => void) => () => void
 
     // Preset Switcher
     onActiveWindowChange: (callback: (info: ActiveWindowInfo) => void) => () => void
