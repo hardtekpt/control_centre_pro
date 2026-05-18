@@ -194,6 +194,7 @@ export function EqPanel({ state, expandByDefault = false }: { state: ArctisState
               display: 'grid',
               gridTemplateColumns: 'repeat(10, 1fr)',
               gap: '0 4px',
+              marginTop: '10px',
             }}
           >
             {EQ_BAND_FREQS.map((freq, i) => {
