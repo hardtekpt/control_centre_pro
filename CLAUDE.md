@@ -102,6 +102,15 @@
 - **Deduplication**: same `key` replaces existing notification (no stacking)
 - **Pattern**: `notifyFromEvent.ts` maps hardware events → `window.api.notifPush(spec)` → main process → OSD window
 
+### Slider Input Pattern
+- **Component**: `SliderInput` in `src/renderer/src/components/SliderInput.tsx` — the canonical slider style
+- **Features**: Custom track/thumb rendering (no native input styling), drag/keyboard/wheel support, optional muted state indicator
+- **Visual design**: 6px tall track with 1px border, 10×18px thumb with subtle shadow, rounded-full styling
+- **Usage**: Import `SliderInput`, pass `value` (0-1), `onChange` callback, optional `muted`/`showMuted` props, optional `onDragStart`/`onDragEnd` for state coordination
+- **Wrapper pattern**: For fixed min/max ranges (e.g., 0-100 or 0-10), wrap `SliderInput` in a component that normalizes values (e.g., `Slider` in `CompactHeadsetCard.tsx`)
+- **Applied to**: Volume sliders (Arctis, Sonar), brightness slider (Display), ChatMix custom bar (keep as-is for Arctis)
+- **Drag coordination**: Sonar card calls `useSonarStore.getState().beginDrag()` / `endDrag()` via callbacks to prevent animations during drag
+
 ---
 
 ## Key Architectural Lessons
@@ -153,6 +162,22 @@
 - **OAuth**: AUTHORIZE → POST `/oauth2/token` with `Content-Type: application/x-www-form-urlencoded` (not set automatically by `net.request`) → AUTHENTICATE; token cached to `userData/discord-token.json`
 - **Settings**: `discordClientId` + `discordClientSecret` in `AppSettings`; secret only sent to `discord.com` during token exchange
 - See `agents/DISCORD_SERVICE.md` for full protocol reference and bug history
+
+### Adding a New Slider
+1. Import `SliderInput` from `components/SliderInput.tsx`
+2. If the slider has a fixed min/max range (e.g., 0-100), create a wrapper component that normalizes the value to 0-1:
+   ```tsx
+   function VolumeSlider({ value, onChange }) {
+     return (
+       <div className="flex items-center gap-2 py-1">
+         <SliderInput value={value / 100} onChange={(v) => onChange(v * 100)} />
+         <span className="text-xs shrink-0">{value}%</span>
+       </div>
+     )
+   }
+   ```
+3. For optional drag state coordination (e.g., Sonar needs `beginDrag`), pass `onDragStart`/`onDragEnd` callbacks
+4. If the slider needs a muted state indicator (fill color changes), pass `muted` and `showMuted={true}`
 
 ---
 

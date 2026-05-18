@@ -1,6 +1,8 @@
-import { useMemo, useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import ReactDOM from 'react-dom'
 import { useSonarStore } from '../../stores/sonarStore'
+import { useAppStore } from '../../stores/appStore'
+import { SliderInput } from '../SliderInput'
 import { notifySonarPresetChange } from '../../lib/notifyFromEvent'
 import type { SonarChannel, SonarDeviceChannel, SonarConfig } from '@shared/types'
 
@@ -56,137 +58,6 @@ function MicIcon({ muted }: { muted: boolean }): JSX.Element {
   )
 }
 
-// ─── Horizontal fader ─────────────────────────────────────────────────────────
-
-function HorizontalFaderComponent({
-  value,
-  onChange,
-  muted,
-}: {
-  value: number
-  onChange: (v: number) => void
-  muted: boolean
-}): JSX.Element {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
-  const dragValueRef = useRef<number | null>(null)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const [dragValue, setDragValue] = useState<number | null>(null)
-
-  const displayValue = dragValue !== null ? dragValue : value
-
-  function valueFromClientX(clientX: number): number {
-    const el = containerRef.current
-    if (!el) return displayValue
-    const rect = el.getBoundingClientRect()
-    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-  }
-
-  function triggerChange(v: number): void {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
-    debounceTimerRef.current = setTimeout(() => {
-      onChange(v)
-      debounceTimerRef.current = null
-    }, 50)
-  }
-
-  function onWheel(e: React.WheelEvent): void {
-    e.preventDefault()
-    const newValue = Math.max(0, Math.min(1, displayValue - e.deltaY * 0.001))
-    setDragValue(newValue)
-    triggerChange(newValue)
-  }
-
-  function onMouseDown(e: React.MouseEvent): void {
-    e.preventDefault()
-    dragging.current = true
-    useSonarStore.getState().beginDrag()
-    const newValue = valueFromClientX(e.clientX)
-    dragValueRef.current = newValue
-    setDragValue(newValue)
-
-    function onMove(ev: MouseEvent): void {
-      if (!dragging.current) return
-      const v = valueFromClientX(ev.clientX)
-      dragValueRef.current = v
-      setDragValue(v)
-      triggerChange(v)
-    }
-    function onUp(): void {
-      dragging.current = false
-      const finalValue = dragValueRef.current
-      dragValueRef.current = null
-      setDragValue(null)
-      useSonarStore.getState().endDrag()
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-        debounceTimerRef.current = null
-      }
-      if (finalValue !== null) onChange(finalValue)
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
-  // Thumb sits centred on the value position within the padded track area.
-  // Track padding: 6px each side. Thumb: 10px wide, 18px tall.
-  const thumbLeft = `calc(6px + ${displayValue} * (100% - 12px) - 5px)`
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative flex-1 cursor-ew-resize"
-      style={{ height: 18 }}
-      onMouseDown={onMouseDown}
-      onWheel={onWheel}
-    >
-      {/* Track */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          top: '50%',
-          transform: 'translateY(-50%)',
-          left: 6,
-          right: 6,
-          height: 6,
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
-        }}
-      />
-      {/* Fill */}
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          top: '50%',
-          transform: 'translateY(-50%)',
-          left: 6,
-          width: `calc(${displayValue} * (100% - 12px))`,
-          height: 6,
-          background: muted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
-          opacity: muted ? 0.35 : 1,
-          transition: dragging.current ? 'none' : 'opacity 150ms ease',
-        }}
-      />
-      {/* Thumb */}
-      <div
-        className="absolute pointer-events-none rounded"
-        style={{
-          top: '50%',
-          transform: 'translateY(-50%)',
-          left: thumbLeft,
-          width: 10,
-          height: 18,
-          background: 'var(--color-text-primary)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-        }}
-      />
-    </div>
-  )
-}
-
-const HorizontalFader = memo(HorizontalFaderComponent)
 
 // ─── Preset selector ──────────────────────────────────────────────────────────
 
@@ -312,12 +183,17 @@ function InlinePresetSelector({
 
 // ─── Channel row ──────────────────────────────────────────────────────────────
 
+// ─── Channel definitions ──────────────────────────────────────────────────────
+
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
   { channel: 'game', label: 'Game' },
   { channel: 'media', label: 'Media' },
   { channel: 'chatRender', label: 'Chat' },
+  { channel: 'chatCapture', label: 'Mic' },
 ]
+
+// ─── Channel row ──────────────────────────────────────────────────────────────
 
 function ChannelRow({
   channel,
@@ -327,6 +203,7 @@ function ChannelRow({
   presets,
   activePresetId,
   hasAnyPresets,
+  hasActiveApps,
   onVolume,
   onMute,
   onPresetSelect,
@@ -338,6 +215,7 @@ function ChannelRow({
   presets: SonarConfig[]
   activePresetId?: string
   hasAnyPresets: boolean
+  hasActiveApps: boolean
   onVolume: (channel: SonarChannel, v: number) => void
   onMute: (channel: SonarChannel) => void
   onPresetSelect: (channel: SonarChannel, id: string) => void
@@ -345,53 +223,78 @@ function ChannelRow({
   const isMic = channel === 'chatCapture'
   const pct = Math.round(volume * 100)
   const channelHasPresets = presets.filter((p) => p.isFavorite).length > 0
-  const handleFader = useCallback((v: number) => onVolume(channel, v), [channel, onVolume])
+  const handleVolume = useCallback((v: number) => onVolume(channel, v), [channel, onVolume])
+  const handleDragStart = useCallback(() => useSonarStore.getState().beginDrag(), [])
+  const handleDragEnd = useCallback(() => useSonarStore.getState().endDrag(), [])
 
   return (
-    <div className="flex items-center gap-2 py-0.5">
-      <span
-        className="text-xs shrink-0 text-right"
-        style={{ color: 'var(--color-text-secondary)', width: 36 }}
-      >
-        {label}
-      </span>
+    <div className="flex items-center gap-3 py-1">
+      <div className="flex items-center gap-1 shrink-0" style={{ minWidth: '60px' }}>
+        <span
+          className="text-xs"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          {label}
+        </span>
+        {hasActiveApps && (
+          <div
+            title="Active routed app"
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              background: '#22c55e',
+              flexShrink: 0,
+            }}
+          />
+        )}
+      </div>
 
-      <HorizontalFader value={volume} onChange={handleFader} muted={muted} />
+      <div className="flex items-center gap-2 flex-1">
+        <SliderInput
+          value={volume}
+          onChange={handleVolume}
+          muted={muted}
+          showMuted={true}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        />
 
-      <span
-        className="mono shrink-0 text-right"
-        style={{ color: 'var(--color-text-secondary)', fontSize: 11, width: 30 }}
-      >
-        {pct}%
-      </span>
+        <span
+          className="text-xs shrink-0"
+          style={{ color: 'var(--color-text-secondary)', width: 28 }}
+        >
+          {pct}%
+        </span>
 
-      <button
-        onClick={() => onMute(channel)}
-        title={muted ? 'Unmute' : 'Mute'}
-        className="shrink-0 w-6 h-6 flex items-center justify-center rounded"
-        style={{
-          background: muted ? 'rgba(239,68,68,0.12)' : 'transparent',
-          border: muted ? '1px solid rgba(239,68,68,0.35)' : '1px solid transparent',
-          color: muted ? '#ef4444' : 'var(--color-text-secondary)',
-          cursor: 'pointer',
-          transition: 'all 150ms ease',
-        }}
-      >
-        {isMic ? <MicIcon muted={muted} /> : <SpeakerIcon muted={muted} />}
-      </button>
+        <button
+          onClick={() => onMute(channel)}
+          title={muted ? 'Unmute' : 'Mute'}
+          className="shrink-0 w-6 h-6 flex items-center justify-center rounded"
+          style={{
+            background: muted ? 'rgba(239,68,68,0.12)' : 'transparent',
+            border: '1px solid var(--color-border)',
+            color: muted ? '#ef4444' : 'var(--color-text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 150ms ease',
+          }}
+        >
+          {isMic ? <MicIcon muted={muted} /> : <SpeakerIcon muted={muted} />}
+        </button>
 
-      {/* Preset slot — always rendered to keep rows aligned */}
-      {hasAnyPresets && (
-        <div style={{ width: 88, flexShrink: 0 }}>
-          {channelHasPresets && (
-            <InlinePresetSelector
-              presets={presets}
-              activePresetId={activePresetId}
-              onSelect={(id) => onPresetSelect(channel, id)}
-            />
-          )}
-        </div>
-      )}
+        {/* Preset slot — always rendered to keep rows aligned */}
+        {hasAnyPresets && (
+          <div style={{ width: 88, flexShrink: 0 }}>
+            {channelHasPresets && (
+              <InlinePresetSelector
+                presets={presets}
+                activePresetId={activePresetId}
+                onSelect={(id) => onPresetSelect(channel, id)}
+              />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -400,6 +303,7 @@ function ChannelRow({
 
 export function CompactSonarCard(): JSX.Element {
   const { sonarState, activePresetIds, patchClassicVolume, setActivePreset } = useSonarStore()
+  const { setView } = useAppStore()
 
   const presetsByChannel = useMemo(() => {
     const map: Record<string, SonarConfig[]> = {}
@@ -411,6 +315,18 @@ export function CompactSonarCard(): JSX.Element {
     }
     return map
   }, [sonarState?.configs])
+
+  const activeChannels = useMemo(() => {
+    const set = new Set<string>()
+    if (!sonarState?.routing) return set
+    for (const route of sonarState.routing) {
+      const activeSessions = route.audioSessions.filter((s) => s.state === 'active')
+      if (activeSessions.length > 0) {
+        set.add(route.role)
+      }
+    }
+    return set
+  }, [sonarState?.routing])
 
   const hasAnyPresets = useMemo(
     () => Object.values(presetsByChannel).some((ps) => ps.some((p) => p.isFavorite)),
@@ -427,9 +343,19 @@ export function CompactSonarCard(): JSX.Element {
       >
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--color-accent)' }}><SonarIcon /></span>
-          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+          <button
+            onClick={() => setView('gg-sonar')}
+            className="text-sm font-medium"
+            style={{
+              color: 'var(--color-text-primary)',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
             GG Sonar
-          </span>
+          </button>
           <div
             title="Unavailable"
             style={{
@@ -479,9 +405,19 @@ export function CompactSonarCard(): JSX.Element {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--color-accent)' }}><SonarIcon /></span>
-          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+          <button
+            onClick={() => setView('gg-sonar')}
+            className="text-sm font-medium"
+            style={{
+              color: 'var(--color-text-primary)',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
             GG Sonar
-          </span>
+          </button>
           <div
             title="Active"
             style={{
@@ -512,6 +448,7 @@ export function CompactSonarCard(): JSX.Element {
               presets={presetsByChannel[channel] ?? []}
               activePresetId={activePresetIds[channel]}
               hasAnyPresets={hasAnyPresets}
+              hasActiveApps={activeChannels.has(channel)}
               onVolume={handleVolume}
               onMute={handleMute}
               onPresetSelect={handlePresetSelect}

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
+import { useAppStore } from '../../stores/appStore'
+import { SliderInput } from '../SliderInput'
 import type { ArctisState } from '@shared/types'
 
-// ─── Slider ───────────────────────────────────────────────────────────────────
+// ─── Slider Wrapper ───────────────────────────────────────────────────────────
 
 function Slider({
   value,
@@ -19,21 +21,15 @@ function Slider({
   unit?: string
   onChange: (v: number) => void
 }): JSX.Element {
+  const normalized = (value - min) / (max - min)
+  const handleChange = (v: number) => onChange(Math.round(min + v * (max - min)))
+
   return (
     <div className="flex items-center gap-2 py-1">
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1"
-        style={{ accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-      />
+      <SliderInput value={normalized} onChange={handleChange} />
       <span
-        className="text-xs mono w-10 text-right shrink-0"
-        style={{ color: 'var(--color-text-secondary)' }}
+        className="text-xs shrink-0"
+        style={{ color: 'var(--color-text-secondary)', width: 28 }}
       >
         {value}{unit}
       </span>
@@ -52,7 +48,7 @@ function ControlRow({
 }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs shrink-0 w-24" style={{ color: 'var(--color-text-secondary)' }}>
+      <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', minWidth: '50px' }}>
         {label}
       </span>
       <div className="flex-1">{children}</div>
@@ -319,6 +315,7 @@ const SIDETONE_OPTIONS: Option<ArctisState['sidetone']>[] = [
 
 export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Element {
   const { updateArctisState } = useServiceStore()
+  const { setView } = useAppStore()
 
   function cmd<K extends keyof ArctisState>(
     cmdName: string,
@@ -342,9 +339,19 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
-            <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+            <button
+              onClick={() => setView('arctis')}
+              className="text-sm font-medium"
+              style={{
+                color: 'var(--color-text-primary)',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            >
               Arctis Nova Pro Wireless
-            </span>
+            </button>
           </div>
           <ConnectivityDot
             icon={<UsbIcon />}
@@ -365,9 +372,19 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
-          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+          <button
+            onClick={() => setView('arctis')}
+            className="text-sm font-medium"
+            style={{
+              color: 'var(--color-text-primary)',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
             Arctis Nova Pro Wireless
-          </span>
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />

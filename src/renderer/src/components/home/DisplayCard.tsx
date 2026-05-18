@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
+import { SliderInput } from '../SliderInput'
 import { notifyDisplayInputChange } from '../../lib/notifyFromEvent'
 import type { DdcMonitor } from '@shared/types'
 
@@ -143,22 +144,25 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
           <label htmlFor={`brightness-${monitor.monitor_id}`} className="text-xs font-medium block mb-1" style={{ color: 'var(--color-text-primary)' }}>
             Brightness
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              id={`brightness-${monitor.monitor_id}`}
-              type="range"
-              min="0"
-              max="100"
-              value={displayBrightness}
-              onChange={handleBrightnessChange}
-              onPointerUp={handleBrightnessRelease}
-              onKeyUp={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') handleBrightnessRelease()
+          <div className="flex items-center gap-2 py-1">
+            <SliderInput
+              value={displayBrightness / 100}
+              onChange={(v) => {
+                const newValue = Math.round(v * 100)
+                handleBrightnessChange({ currentTarget: { value: String(newValue) } } as React.ChangeEvent<HTMLInputElement>)
+                lockedUntilRef.current = Date.now() + 1200
+                setConfirmedBrightness(newValue)
+                setDraftBrightness(null)
+                window.api.ddcSetBrightness(monitor.monitor_id, newValue).catch(console.error)
+                if (syncBrightness && allMonitors) {
+                  const otherMonitors = allMonitors.filter((m) => m.monitor_id !== monitor.monitor_id && m.supports.includes('brightness'))
+                  otherMonitors.forEach((m) => {
+                    window.api.ddcSetBrightness(m.monitor_id, newValue).catch(console.error)
+                  })
+                }
               }}
-              className="flex-1"
-              style={{ accentColor: 'var(--color-accent)' }}
             />
-            <span className="mono text-xs w-12 text-right" style={{ color: 'var(--color-text-secondary)' }}>
+            <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', width: 28 }}>
               {displayBrightness}%
             </span>
           </div>

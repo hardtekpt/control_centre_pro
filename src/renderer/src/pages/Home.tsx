@@ -48,6 +48,7 @@ export function Home(): JSX.Element {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
               gap: '12px',
+              alignItems: 'start',
             }}
           >
             {arctisState && <CompactHeadsetCard state={arctisState} />}
