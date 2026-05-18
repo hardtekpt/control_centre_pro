@@ -20,15 +20,18 @@ class DiscordRpcTransport extends EventEmitter {
   private socket: Socket | null = null
   private buffer = Buffer.alloc(0)
   private pending = new Map<string, PendingRequest>()
+  logFn?: (level: 'info' | 'warn' | 'error', msg: string) => void
 
   async connect(clientId: string): Promise<void> {
     // Try pipes 0–9 sequentially
     for (let i = 0; i < 10; i++) {
       try {
+        this.logFn?.('info', `Discord: trying IPC pipe discord-ipc-${i}`)
         const socket = await this.openPipe(i)
         this.socket = socket
         this.setupSocket()
 
+        this.logFn?.('info', `Discord: opened pipe discord-ipc-${i}, sending handshake (clientId: ${clientId})`)
         // Send HANDSHAKE frame
         this.send(0, { v: 1, client_id: clientId })
 
@@ -37,6 +40,7 @@ class DiscordRpcTransport extends EventEmitter {
           const onReady = () => {
             this.off('ready', onReady)
             this.off('error', onError)
+            this.logFn?.('info', `Discord: received READY on pipe discord-ipc-${i}`)
             resolve()
           }
           const onError = (e: Error) => {
@@ -47,7 +51,8 @@ class DiscordRpcTransport extends EventEmitter {
           this.once('ready', onReady)
           this.once('error', onError)
         })
-      } catch {
+      } catch (e) {
+        this.logFn?.('warn', `Discord: pipe discord-ipc-${i} failed: ${e instanceof Error ? e.message : String(e)}`)
         if (this.socket) {
           this.socket.destroy()
           this.socket = null
@@ -55,7 +60,7 @@ class DiscordRpcTransport extends EventEmitter {
         continue
       }
     }
-    throw new Error('Failed to connect to Discord IPC pipe')
+    throw new Error('Failed to connect to Discord IPC pipe (tried pipes 0–9; is Discord running?)')
   }
 
   private openPipe(index: number): Promise<Socket> {
@@ -101,8 +106,8 @@ class DiscordRpcTransport extends EventEmitter {
       try {
         const frame = JSON.parse(body.toString('utf8'))
         this.handleFrame(frame, opcode)
-      } catch {
-        // Ignore malformed frames
+      } catch (e) {
+        this.logFn?.('warn', `Discord: malformed IPC frame (opcode ${opcode}): ${e instanceof Error ? e.message : String(e)}`)
       }
     }
   }
@@ -113,7 +118,9 @@ class DiscordRpcTransport extends EventEmitter {
       const cb = this.pending.get(frame.nonce)!
       this.pending.delete(frame.nonce)
       if (frame.evt === 'ERROR') {
-        cb.reject(new Error(frame.data?.message ?? 'RPC error'))
+        const msg = frame.data?.message ?? 'RPC error'
+        this.logFn?.('error', `Discord: RPC error for cmd=${frame.cmd}: ${msg} (code=${frame.data?.code})`)
+        cb.reject(new Error(msg))
       } else {
         cb.resolve(frame.data)
       }
@@ -216,15 +223,17 @@ async function exchangeCode(
   code: string,
   clientId: string,
   clientSecret: string,
+  logFn?: (level: 'info' | 'warn' | 'error', msg: string) => void,
 ): Promise<{ access_token: string; expires_in: number }> {
   return new Promise((resolve, reject) => {
-    const body = new URLSearchParams({
+    const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: 'http://127.0.0.1',
       client_id: clientId,
       client_secret: clientSecret,
-    }).toString()
+    })
+    logFn?.('info', `Discord: POST discord.com/api/oauth2/token (grant_type=authorization_code, client_id=${clientId})`)
 
     const req = net.request({
       method: 'POST',
@@ -240,27 +249,41 @@ async function exchangeCode(
 
       res.on('end', () => {
         try {
+          logFn?.('info', `Discord: OAuth token endpoint responded with HTTP ${res.statusCode}`)
           if (res.statusCode !== 200) {
-            reject(new Error(`OAuth exchange failed: ${res.statusCode}`))
+            logFn?.('error', `Discord: OAuth exchange failed — HTTP ${res.statusCode}, body: ${responseData}`)
+            reject(new Error(`OAuth exchange failed: HTTP ${res.statusCode} — ${responseData}`))
             return
           }
           const parsed = JSON.parse(responseData) as {
             access_token?: string
             expires_in?: number
+            error?: string
+            error_description?: string
+          }
+          if (parsed.error) {
+            logFn?.('error', `Discord: OAuth error: ${parsed.error} — ${parsed.error_description}`)
+            reject(new Error(`OAuth error: ${parsed.error} — ${parsed.error_description}`))
+            return
           }
           if (!parsed.access_token || !parsed.expires_in) {
-            reject(new Error('Invalid OAuth response'))
+            logFn?.('error', `Discord: OAuth response missing access_token or expires_in: ${responseData}`)
+            reject(new Error('Invalid OAuth response: missing access_token or expires_in'))
             return
           }
           resolve({ access_token: parsed.access_token, expires_in: parsed.expires_in })
         } catch (e) {
+          logFn?.('error', `Discord: failed to parse OAuth response: ${e instanceof Error ? e.message : String(e)}, raw: ${responseData}`)
           reject(e)
         }
       })
     })
 
-    req.on('error', reject)
-    req.write(body)
+    req.on('error', (e) => {
+      logFn?.('error', `Discord: OAuth HTTP request error: ${e instanceof Error ? e.message : String(e)}`)
+      reject(e)
+    })
+    req.write(params.toString())
     req.end()
   })
 }
@@ -345,6 +368,7 @@ export class DiscordService {
 
     // Guard on required credentials
     if (!this.clientId || !this.clientSecret) {
+      this.logFn?.('warn', `Discord: missing credentials — clientId=${this.clientId ? 'set' : 'MISSING'}, clientSecret=${this.clientSecret ? 'set' : 'MISSING'}`)
       this.state = {
         ...this.state,
         available: false,
@@ -355,28 +379,34 @@ export class DiscordService {
       return
     }
 
+    this.logFn?.('info', `Discord: starting connection (clientId: ${this.clientId})`)
+
     try {
       this.destroyTransport()
 
       const transport = new DiscordRpcTransport()
+      transport.logFn = this.logFn ?? undefined
       this.transport = transport
 
       transport.on('close', () => this.handleDisconnect())
       transport.on('error', (e: Error) => this.handleDisconnect(e))
 
       await transport.connect(this.clientId)
+      this.logFn?.('info', 'Discord: IPC transport established')
       this.state = { ...this.state, available: true, authenticated: false }
       this.push()
 
       // Check for cached token
       const cachedToken = loadCachedToken()
       if (cachedToken) {
+        this.logFn?.('info', 'Discord: found cached token, skipping OAuth flow')
         await this.authenticate(cachedToken)
       } else {
+        this.logFn?.('info', 'Discord: no cached token, starting OAuth authorization flow')
         await this.authorize()
       }
     } catch (e) {
-      this.logFn?.('error', `Discord connect failed: ${e instanceof Error ? e.message : String(e)}`)
+      this.logFn?.('error', `Discord: connect failed: ${e instanceof Error ? e.message : String(e)}`)
       this.handleDisconnect()
     }
   }
@@ -385,27 +415,33 @@ export class DiscordService {
     if (!this.transport) return
 
     try {
+      this.logFn?.('info', `Discord: sending AUTHORIZE RPC (scopes: rpc, rpc.voice.read, rpc.voice.write)`)
       const response = (await this.transport.request('AUTHORIZE', {
         client_id: this.clientId,
         scopes: ['rpc', 'rpc.voice.read', 'rpc.voice.write'],
       })) as { code?: string }
 
-      if (!response.code) throw new Error('No authorization code received')
+      if (!response.code) throw new Error('No authorization code received from Discord RPC')
+      this.logFn?.('info', 'Discord: received authorization code, exchanging for access token')
 
       const { access_token, expires_in } = await exchangeCode(
         response.code,
         this.clientId,
         this.clientSecret,
+        this.logFn ?? undefined,
       )
 
+      this.logFn?.('info', `Discord: token exchange succeeded (expires_in: ${expires_in}s), caching token`)
       saveCachedToken(access_token, expires_in)
       await this.authenticate(access_token)
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Authorization failed'
+      this.logFn?.('error', `Discord: authorize() failed: ${msg}`)
       clearCachedToken()
       this.state = {
         ...this.state,
         authenticated: false,
-        error: e instanceof Error ? e.message : 'Authorization failed',
+        error: msg,
       }
       this.push()
     }
@@ -415,7 +451,9 @@ export class DiscordService {
     if (!this.transport) return
 
     try {
+      this.logFn?.('info', 'Discord: sending AUTHENTICATE RPC')
       await this.transport.request('AUTHENTICATE', { access_token: token })
+      this.logFn?.('info', 'Discord: authenticated successfully')
 
       this.state = {
         ...this.state,
@@ -495,11 +533,13 @@ export class DiscordService {
         this.push()
       })
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Authentication failed'
+      this.logFn?.('error', `Discord: authenticate() failed: ${msg}`)
       clearCachedToken()
       this.state = {
         ...this.state,
         authenticated: false,
-        error: e instanceof Error ? e.message : 'Authentication failed',
+        error: msg,
       }
       this.push()
     }
@@ -704,7 +744,9 @@ export class DiscordService {
 
   private handleDisconnect(error?: Error) {
     if (error) {
-      this.logFn?.('warn', `Discord disconnected: ${error.message}`)
+      this.logFn?.('warn', `Discord: disconnected with error: ${error.message}`)
+    } else {
+      this.logFn?.('info', 'Discord: disconnected')
     }
     this.state = {
       ...this.state,
@@ -716,6 +758,7 @@ export class DiscordService {
     this.push()
 
     if (!this.stopped) {
+      this.logFn?.('info', 'Discord: scheduling reconnect in 10s')
       this.scheduleReconnect()
     }
   }
