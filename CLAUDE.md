@@ -4,7 +4,7 @@
 
 **Control Centre Pro** is a Windows desktop app for managing hardware devices and services via a clean sidebar-based UI. Monitor headsets (Arctis Nova Pro), control display settings (DDC/CI), manage audio (GG Sonar), and configure keyboard shortcuts with real-time OSD notifications.
 
-**Architecture**: Extensible shell pattern. Main process spawns Python subprocesses (services) that emit newline-delimited JSON events. Renderer (React) consumes these via Zustand stores. All state persists to `app.getPath('userData')`.
+**Architecture**: Extensible shell pattern. Main process spawns Python subprocesses (services) that emit newline-delimited JSON events, and also runs native Node.js services (DDC, Sonar, Discord). Renderer (React) consumes these via Zustand stores. All state persists to `app.getPath('userData')`.
 
 ---
 
@@ -112,6 +112,7 @@
 4. **Don't trust monitor capabilities** — use fixed common input code list; always include current input
 5. **Separate IPC protocol from business logic** — JSON schema for subprocesses makes them swappable
 6. **Immutable state updates** — use spread operator; enables debuggability and prevents subtle mutations
+7. **Direct wire-protocol transport beats package wrappers** — the Discord RPC IPC is a simple 8-byte header + JSON frame; implementing it directly removes stale dependencies and avoids undocumented internal commands
 
 ---
 
@@ -143,6 +144,15 @@
 3. Add IPC channels to `IPC_CHANNELS`
 4. Handle messages in `ServiceManager.handleMessage()`
 5. Subscribe to push events in `App.tsx`
+
+### Discord RPC Service (reference implementation)
+- **Transport**: `DiscordRpcTransport` in `discordService.ts` — hand-rolled named-pipe client, no npm package
+- **Wire protocol**: opcode 0 = HANDSHAKE, opcode 1 = FRAME; 8-byte LE header + JSON body
+- **READY frame**: Discord sends READY as `{ cmd: "DISPATCH", evt: "READY" }` — check inside the DISPATCH branch
+- **SUBSCRIBE**: `evt` must be top-level on the frame, not inside `args`
+- **OAuth**: AUTHORIZE → POST `/oauth2/token` with `Content-Type: application/x-www-form-urlencoded` (not set automatically by `net.request`) → AUTHENTICATE; token cached to `userData/discord-token.json`
+- **Settings**: `discordClientId` + `discordClientSecret` in `AppSettings`; secret only sent to `discord.com` during token exchange
+- See `agents/DISCORD_SERVICE.md` for full protocol reference and bug history
 
 ---
 
@@ -185,6 +195,8 @@ python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@d
 - [ ] Auto-updater not configured (needs release server URL)
 - [ ] Service log not clearable (add Clear button)
 - [ ] Home page no empty state when devices disconnected
+- [ ] Discord: add mute/deafen shortcuts integration
+- [ ] Discord: show voice status on Home page / sidebar
 
 ---
 

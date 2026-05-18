@@ -137,7 +137,7 @@ export function DiscordSettings(): JSX.Element {
           <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
             Setup (one-time):
           </p>
-          <ol className="space-y-1 list-none">
+          <ol className="space-y-2 list-none">
             {[
               <>
                 Open{' '}
@@ -156,25 +156,37 @@ export function DiscordSettings(): JSX.Element {
                   }
                 >
                   discord.com/developers/applications
-                </button>{' '}
-                and create a new application.
+                </button>
+                , sign in, and click <strong>New Application</strong>. Give it any name (e.g.
+                "Control Centre Pro"). You land on the <strong>General Information</strong> page.
               </>,
               <>
-                Go to <strong>OAuth2</strong> → <strong>Redirects</strong> and add exactly:{' '}
+                On <strong>General Information</strong>, find <strong>Application ID</strong> and
+                click <strong>Copy</strong>. This is your <strong>Client ID</strong> — paste it in
+                the field below.
+              </>,
+              <>
+                Click <strong>OAuth2</strong> in the left sidebar. Under{' '}
+                <strong>Client Secret</strong>, click <strong>Reset Secret</strong> (you may need to
+                confirm with your 2FA). Copy the secret that appears and paste it in the{' '}
+                <strong>Client Secret</strong> field below. You can only see it once — if you
+                navigate away, reset it again.
+              </>,
+              <>
+                Still on <strong>OAuth2</strong>, scroll to <strong>Redirects</strong>. Click{' '}
+                <strong>Add Redirect</strong> and enter exactly{' '}
                 <code className="mono" style={{ fontSize: '0.75rem' }}>
                   http://127.0.0.1
-                </code>
-                . This is required for the OAuth popup to work.
+                </code>{' '}
+                (no trailing slash, no port). Click <strong>Save Changes</strong>. This URI is
+                where Discord sends the OAuth code during the one-time authorisation flow.
               </>,
               <>
-                Copy the <strong>Client ID</strong> from the <strong>General Information</strong>{' '}
-                tab and the <strong>Client Secret</strong> from the <strong>OAuth2</strong> tab, and
-                paste both below.
-              </>,
-              <>
-                Make sure Discord desktop is running, then click <strong>Save</strong>. A browser
-                popup will ask you to authorise the app — click <strong>Authorise</strong>. This
-                only happens once.
+                Make sure the <strong>Discord desktop app</strong> is running and you are logged in.
+                Paste your Client ID and Client Secret below, then click <strong>Save</strong> at
+                the top of the page. A Discord popup will ask you to authorise the app — click{' '}
+                <strong>Authorise</strong>. This only happens once; the token is saved locally and
+                reused on every subsequent start.
               </>,
             ].map((step, i) => (
               <li key={i} className="flex gap-2">
@@ -193,6 +205,7 @@ export function DiscordSettings(): JSX.Element {
             <code className="mono" style={{ fontSize: '0.75rem' }}>
               rpc rpc.voice.read rpc.voice.write
             </code>
+            . To revoke access later, open Discord → User Settings → Authorised Apps.
           </p>
         </div>
         <div>

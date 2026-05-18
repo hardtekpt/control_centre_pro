@@ -58,8 +58,18 @@ The app is designed as an extensible shell. The MVP establishes the layout, navi
 - Global duration setting with per-type override support
 - Fires from the renderer via `window.api.notifPush()` — event-driven, no polling
 
+### Discord Voice
+- Direct RPC connection to the Discord desktop client via local named-pipe IPC (`\\.\pipe\discord-ipc-{0-9}`)
+- Hand-rolled wire protocol — no `discord-rpc` npm package
+- Self mic mute/unmute and deafen/undeafen
+- Input and output volume control
+- Per-participant local volume (0–200) and local mute
+- Live speaking indicators
+- OAuth2 authorization code flow with token persistence — browser consent popup appears once
+- Auto-reconnect on disconnect
+
 ### Service System
-- Background services run as managed Python subprocesses (Arctis HID) or native Node.js services (DDC, Sonar)
+- Background services run as managed Python subprocesses (Arctis HID) or native Node.js services (DDC, Sonar, Discord)
 - Each service is individually enable/disable-able from General Settings
 - Configurable Python executable path for virtual environments
 - Live terminal log in the About page showing all service stdout/stderr
@@ -109,6 +119,7 @@ src/
     │   ├── appStore.ts               # View, sidebar width/collapse, peek panel
     │   ├── serviceStore.ts           # Services, logs, ArctisState, DdcMonitors, settings
     │   ├── sonarStore.ts             # Sonar volumes, presets, routing, mode
+    │   ├── discordStore.ts           # Discord RPC voice state
     │   └── notificationStore.ts      # Notification queue and stack state
     ├── lib/
     │   └── notifyFromEvent.ts        # Maps hardware events to OSD push calls
@@ -131,6 +142,7 @@ src/
             ├── DDCSettings.tsx       # Poll interval, monitor prefs
             ├── GGSonarSettings.tsx   # Sonar polling config
             ├── NotificationsSettings.tsx  # Per-notification toggles and shapes
+            ├── DiscordSettings.tsx   # Discord RPC Client ID/Secret, voice controls
             └── About.tsx             # Version + live service log
 ```
 
@@ -191,6 +203,7 @@ GG Sonar integration requires **SteelSeries GG** to be installed and running. Th
 | OSD notification overlay | ✅ |
 | Per-event notification settings | ✅ |
 | Service enable/disable + log streaming | ✅ |
+| Discord voice control (mute, deafen, volumes, participants) | ✅ |
 | Responsive sidebar with collapse/peek | ✅ |
 | Dark/light theme | ✅ |
 | Minimize to tray | ✅ |
