@@ -10,34 +10,51 @@ export function DiscordSettings(): JSX.Element {
   const [draftClientId, setDraftClientId] = useState('')
   const draftClientIdRef = useRef(draftClientId)
 
+  const [savedClientSecret, setSavedClientSecret] = useState('')
+  const [draftClientSecret, setDraftClientSecret] = useState('')
+  const draftClientSecretRef = useRef(draftClientSecret)
+
   useEffect(() => {
     draftClientIdRef.current = draftClientId
   }, [draftClientId])
 
-  // Load persisted Client ID on mount
+  useEffect(() => {
+    draftClientSecretRef.current = draftClientSecret
+  }, [draftClientSecret])
+
+  // Load persisted settings on mount
   useEffect(() => {
     window.api
       .getSettings()
       .then((s) => {
         setSavedClientId(s.discordClientId ?? '')
         setDraftClientId(s.discordClientId ?? '')
+        setSavedClientSecret(s.discordClientSecret ?? '')
+        setDraftClientSecret(s.discordClientSecret ?? '')
       })
       .catch(console.error)
   }, [])
 
   // Dirty detection
   useEffect(() => {
-    setDirty(draftClientId !== savedClientId)
-  }, [draftClientId, savedClientId, setDirty])
+    setDirty(draftClientId !== savedClientId || draftClientSecret !== savedClientSecret)
+  }, [draftClientId, savedClientId, draftClientSecret, savedClientSecret, setDirty])
 
   // Register save handler
   useEffect(() => {
     registerSave(async () => {
-      const trimmed = draftClientIdRef.current.trim()
+      const trimmedId = draftClientIdRef.current.trim()
+      const trimmedSecret = draftClientSecretRef.current.trim()
       const current = await window.api.getSettings()
-      await window.api.setSettings({ ...current, discordClientId: trimmed })
-      setSavedClientId(trimmed)
-      setDraftClientId(trimmed)
+      await window.api.setSettings({
+        ...current,
+        discordClientId: trimmedId,
+        discordClientSecret: trimmedSecret,
+      })
+      setSavedClientId(trimmedId)
+      setDraftClientId(trimmedId)
+      setSavedClientSecret(trimmedSecret)
+      setDraftClientSecret(trimmedSecret)
       await window.api.discordReconnect()
     })
     return () => registerSave(null)
@@ -151,11 +168,13 @@ export function DiscordSettings(): JSX.Element {
               </>,
               <>
                 Copy the <strong>Client ID</strong> from the <strong>General Information</strong>{' '}
-                tab and paste it below.
+                tab and the <strong>Client Secret</strong> from the <strong>OAuth2</strong> tab, and
+                paste both below.
               </>,
               <>
                 Make sure Discord desktop is running, then click <strong>Save</strong>. A browser
-                popup will ask you to authorise the app — click <strong>Authorise</strong>.
+                popup will ask you to authorise the app — click <strong>Authorise</strong>. This
+                only happens once.
               </>,
             ].map((step, i) => (
               <li key={i} className="flex gap-2">
@@ -199,8 +218,36 @@ export function DiscordSettings(): JSX.Element {
             spellCheck={false}
           />
           <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-            On first connect a browser popup will ask you to authorise the app. The token is
-            held in memory — you will be prompted again each time the app starts.
+            The token is saved locally and reused. You will only be prompted in the browser once,
+            unless you revoke access in Discord's Authorised Apps settings.
+          </p>
+        </div>
+        <div className="mt-3">
+          <label
+            className="block text-xs mb-1.5"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            Client Secret
+          </label>
+          <input
+            type="password"
+            value={draftClientSecret}
+            onChange={(e) => setDraftClientSecret(e.target.value)}
+            placeholder="Your app's OAuth2 client secret"
+            className="text-sm mono px-3 py-2 rounded"
+            style={{
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              outline: 'none',
+              width: 320,
+            }}
+            spellCheck={false}
+          />
+          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+            Found in the <strong>OAuth2</strong> tab of your Discord application. Stored locally
+            in app settings — never sent anywhere except discord.com during the one-time token
+            exchange.
           </p>
         </div>
       </section>

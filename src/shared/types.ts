@@ -225,6 +225,7 @@ export interface AppSettings {
   minimizeToTray: boolean
   notifications: NotificationSettings
   discordClientId: string
+  discordClientSecret: string
 }
 
 /** Defaults applied when no saved settings exist */
@@ -242,6 +243,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     durationMs: 2400,
   },
   discordClientId: '',
+  discordClientSecret: '',
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
