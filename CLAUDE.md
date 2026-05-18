@@ -847,6 +847,53 @@ Commit format: `type: short description` where type is `feat`, `fix`, `chore`, `
 immediately without waiting for the user to ask. Stage only the files that were modified as part
 of the task — never include `.claude/`, `tsconfig.*.tsbuildinfo`, or other build/tooling artifacts.
 
+## Automated Feature Development Workflow
+
+**For complex features (multi-file, multi-step implementation), Claude should:**
+
+1. **Automatically create a feature branch** when starting a significant feature:
+   - If on `development`, create `feat/<feature-name>` via `git checkout -b feat/<feature-name>`
+   - Example: `git checkout -b feat/discord-voice-control`
+   - Include a description-based slug (e.g., `discord-voice-control`, not `feature-1`)
+
+2. **Commit incrementally** after each logical step or component:
+   - After types/interfaces are added
+   - After service class is created
+   - After IPC wiring is complete
+   - After renderer integration is done
+   - Keep commits small and atomic — each should be reviewable independently
+
+3. **Merge back to `development`** once the feature is complete:
+   - Ensure `npm run typecheck` passes (fix any pre-existing codebase issues)
+   - Use `git merge --no-ff feat/<feature-name>` to preserve branch history
+   - Delete the feature branch: `git branch -d feat/<feature-name>`
+   - Do **not** push to remote unless explicitly requested by the user
+
+4. **Create supporting documentation**:
+   - Export implementation plan to `agents/` folder for future reference
+   - Create a quick-reference guide for the feature (e.g., `agents/FEATURE_REFERENCE.md`)
+   - Update CLAUDE.md if the feature introduces new patterns or architectural decisions
+
+5. **Example: Discord Voice Control Service** (2026-05-18):
+   - Created `feat/discord-voice-control` from `development`
+   - Committed progressively: types → service → IPC → store → settings page → integration
+   - Final commit message detailed all files and architectural choices
+   - Exported plan and reference guides to `agents/` folder
+   - Merged back to `development` via `git merge --no-ff`
+   - Deleted feature branch
+
+**When to NOT create a branch:**
+- Bug fixes to a single file or localized component
+- Typo fixes or documentation-only changes
+- Small enhancements (< 3 files modified)
+- These can commit directly to `development`
+
+**Branch naming conventions:**
+- `feat/` — new features (e.g., `feat/discord-voice-control`)
+- `fix/` — bug fixes (e.g., `fix/sonar-slider-race-condition`)
+- `docs/` — documentation (e.g., `docs/shortcuts-system`)
+- `refactor/` — code reorganization (e.g., `refactor/extract-notification-components`)
+
 ---
 
 ## Running the App (once `npm install` is done)
