@@ -216,6 +216,13 @@ export default function App(): JSX.Element {
           case 'EqBandEvent':
             updateArctisState({ eqBands: (data as { eqBands: number[] }).eqBands })
             break
+          // ── Base Station USB ──────────────────────────────────────────────
+          case 'DeviceDisconnectedEvent':
+            updateArctisState({ baseStationConnected: false })
+            break
+          case 'DeviceReconnectedEvent':
+            updateArctisState({ baseStationConnected: true })
+            break
         }
       }),
     ]

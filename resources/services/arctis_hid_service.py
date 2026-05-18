@@ -132,6 +132,7 @@ def _read_full_state(headset) -> dict:
         "streamAux":   getattr(mic_eq, "stream_aux_vol",  getattr(mic_eq, "stream_aux",  getattr(mic_eq, "aux",  100))),
         "streamMic":   getattr(mic_eq, "stream_mic_vol",  getattr(mic_eq, "stream_mic",  getattr(mic_eq, "mic",  100))),
         # ── Base Station (from display object if available) ───────────────────
+        "baseStationConnected": True,   # if we got here, USB HID is active
         "oledBrightness": getattr(display, "oled_brightness", 5) if display else 5,
         "dimTimeout":     enum_name(display, "dim_timeout", default="OFF") if display else "OFF",
         "homescreenMode": enum_name(display, "home_screen_mode", default="DETAILED") if display else "DETAILED",
@@ -502,6 +503,26 @@ def main() -> None:
                     emit({"type": "event", "event": "UsbInputEvent",
                           "data": {"usbInput": e.input.name}}),
                     log("info", f"USB input: {e.input.name}"),
+                ))
+            except ImportError:
+                pass
+
+            try:
+                from arctis_hid import DeviceDisconnectedEvent as _DDE  # noqa: F401
+                headset.on("DeviceDisconnectedEvent", lambda e: (
+                    emit({"type": "event", "event": "DeviceDisconnectedEvent",
+                          "data": {"baseStationConnected": False}}),
+                    log("info", "Base station USB disconnected"),
+                ))
+            except ImportError:
+                pass
+
+            try:
+                from arctis_hid import DeviceReconnectedEvent as _DRE  # noqa: F401
+                headset.on("DeviceReconnectedEvent", lambda e: (
+                    emit({"type": "event", "event": "DeviceReconnectedEvent",
+                          "data": {"baseStationConnected": True}}),
+                    log("info", "Base station USB reconnected"),
                 ))
             except ImportError:
                 pass

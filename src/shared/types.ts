@@ -333,6 +333,7 @@ export interface ArctisState {
   streamMic: number              // 0–100
 
   // ── Base Station ─────────────────────────────────────────────────────────────
+  baseStationConnected: boolean  // USB HID connection to base station is active
   oledBrightness: number         // 1–10
   dimTimeout: TimeoutStep        // TimeoutStep enum
   homescreenMode: 'DETAILED' | 'SIMPLE'             // HomeScreenMode enum

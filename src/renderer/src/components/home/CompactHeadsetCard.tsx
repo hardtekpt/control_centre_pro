@@ -121,6 +121,18 @@ function BluetoothIcon(): JSX.Element {
   )
 }
 
+function UsbIcon(): JSX.Element {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v12" />
+      <path d="M9 8l3-6 3 6" />
+      <path d="M9 14v3a3 3 0 0 0 6 0v-3" />
+      <circle cx="7.5" cy="14" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="16.5" cy="14" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 const GREEN = '#22c55e'
 const RED   = '#ef4444'
 const BLUE  = '#3b82f6'
@@ -339,6 +351,11 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
           <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
           <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
           <div className="flex items-center gap-1.5">
+            <ConnectivityDot
+              icon={<UsbIcon />}
+              dotState={state.baseStationConnected ? 'on' : 'off'}
+              title={`Base station USB — ${state.baseStationConnected ? 'Connected' : 'Disconnected'}`}
+            />
             <ConnectivityDot
               icon={<WirelessIcon />}
               dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
