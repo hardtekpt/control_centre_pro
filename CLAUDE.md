@@ -527,17 +527,21 @@ interface SonarStoreState {
 registration simplifies the connection lifecycle — no subprocess protocol overhead, direct
 event subscription, immediate state updates.
 
-**Architecture**: Event-driven rather than polling. Connects to local Discord desktop client
-via `discord-rpc` npm package. Subscribes to voice events; emits state changes to renderer
-immediately when they arrive.
+**Architecture**: Event-driven rather than polling. Direct IPC transport speaks the Discord RPC
+wire protocol (8-byte header + JSON frames over Windows named pipes `\\.\pipe\discord-ipc-{0-9}`).
+Subscribes to voice events; emits state changes to renderer immediately when they arrive.
 
 **Connection flow**:
-1. `connect()` → `client.connect(clientId)` opens IPC socket, fires `ready` event
-2. Inside `ready` → `client.login()` performs OAuth with Discord browser popup (first time only)
-3. OAuth grants scopes: `rpc`, `rpc.voice.read`, `rpc.voice.write`
-4. On success: fetch initial voice settings, check if in a voice channel, subscribe to events
-5. On disconnect: emit `available: false`, schedule 10-second reconnect timer
-6. `stopped` flag prevents reconnect after explicit `stop()`
+1. `connect()` → `DiscordRpcTransport.connect(clientId)` tries pipes 0–9 sequentially, sends HANDSHAKE, waits for READY
+2. State: `available: true, authenticated: false`
+3. Check `loadCachedToken()` — if found, skip to authenticate; if not, send AUTHORIZE command
+4. AUTHORIZE fires OAuth browser popup → user grants scopes `rpc`, `rpc.voice.read`, `rpc.voice.write` → receives authorization code
+5. Exchange code via `POST /oauth2/token` with `client_secret` → get access token + expiration
+6. Save token to `userData/discord-token.json` (expires in ~10 hours)
+7. Send AUTHENTICATE with access token → state: `authenticated: true`
+8. Fetch initial voice settings; check if in a voice channel; subscribe to events
+9. On disconnect: emit `available: false`, schedule 10-second reconnect timer
+10. `stopped` flag prevents reconnect after explicit `stop()`
 
 **DiscordState interface** (shared type in `types.ts`):
 ```typescript
@@ -574,21 +578,25 @@ export interface DiscordParticipant {
 - `setSelfDeaf(deafened)` → `SET_VOICE_SETTINGS { deaf }`
 - `setInputVolume(0-100)` → `SET_VOICE_SETTINGS { input: { volume } }`
 - `setOutputVolume(0-100)` → `SET_VOICE_SETTINGS { output: { volume } }`
-- `setLocalVolume(userId, 0-200)` → `SET_LOCAL_VOLUME`
-- `setLocalMute(userId, muted)` → `SET_LOCAL_MUTE`
-- `reconnect()` — destroy and re-open RPC connection
+- `setLocalVolume(userId, 0-200)` → `SET_USER_VOICE_SETTINGS { user_id, volume }`
+- `setLocalMute(userId, muted)` → `SET_USER_VOICE_SETTINGS { user_id, mute }`
+- `reconnect()` — destroy and re-open RPC connection (clears cached token)
 - `setClientId(clientId)` — set Discord app client ID for auth
+- `setClientSecret(secret)` — set Discord app client secret for OAuth token exchange
 - `setWindow(window)`, `setLogEmitter(fn)`, `setStateChangeNotifier(fn)` — wiring hooks
 
 **Event subscriptions** (after login):
 - `VOICE_CHANNEL_SELECT` — fired when user joins/leaves/switches voice channel
-  - Re-subscribe to per-channel events (`VOICE_STATE_UPDATE`, `SPEAKING_START/STOP`) when channel changes
+  - Re-subscribe to per-channel events when channel changes
   - Channel ID determines which participants we monitor
-- `VOICE_STATE_UPDATE` — fired per participant when mute/deafen/speaking status changes
-  - Only subscribed for the current channel
-  - Updates or adds participant to list
-- `SPEAKING_START` — fires when a participant starts speaking (channel-specific)
-- `SPEAKING_STOP` — fires when a participant stops speaking
+- `VOICE_STATE_CREATE` — fired when a participant joins the channel (per-channel)
+  - Adds participant to list
+- `VOICE_STATE_UPDATE` — fired per participant when mute/deafen status changes (per-channel)
+  - Updates existing participant; if not found, adds (same as CREATE)
+- `VOICE_STATE_DELETE` — fired when a participant leaves the channel (per-channel) — **bug fix**
+  - Removes participant by `user.id` from list
+- `SPEAKING_START` — fires when a participant starts speaking (per-channel)
+- `SPEAKING_STOP` — fires when a participant stops speaking (per-channel)
 
 **IPC channels** (defined in `src/shared/types.ts`):
 | Channel | Direction | Payload |
@@ -605,8 +613,9 @@ export interface DiscordParticipant {
 
 **Settings integration** (`src/renderer/src/pages/settings/DiscordSettings.tsx`):
 - Client ID text input (persisted to `AppSettings.discordClientId`)
+- Client Secret password input (persisted to `AppSettings.discordClientSecret`, masked)
 - Connection status indicator (colored dot + text)
-- Reconnect button (manual force-reconnect)
+- Reconnect button (manual force-reconnect, clears cached token)
 - Self voice controls: Mute Mic / Deafen buttons (toggle red when active)
 - Input/Output volume sliders (0-100)
 - Live participant list (when in voice channel):
@@ -627,12 +636,14 @@ the next event.
 - Requires no explicit action from user
 
 **Authentication & token persistence**:
-- First connect: `client.login()` opens browser OAuth popup
-- User grants scopes, browser redirects back to app with authorization code
-- discord-rpc library exchanges code for token and caches it in memory
-- Token lives for session only — user must re-auth on next app startup
-- Client ID stored in `AppSettings.discordClientId`, persisted to `settings.json`
-- If Client ID not set or empty: service logs warning, stays in `available: false`
+- First connect: AUTHORIZE command opens browser OAuth popup
+- User grants scopes `rpc`, `rpc.voice.read`, `rpc.voice.write`; browser redirects to `http://127.0.0.1` with authorization code
+- Service exchanges code via `POST /oauth2/token` with both `client_id` and `client_secret`
+- Access token persisted to `userData/discord-token.json` with expiration time (~10 hours)
+- On next app start: cached token reused, OAuth popup skipped (unless token expired or revoked)
+- Both Client ID and Secret stored in `AppSettings`, persisted to `settings.json`
+- If either Client ID or Secret not set: service emits error state, stays in `available: false`
+- If cached token rejected on reconnect: cleared from disk, next connect re-runs AUTHORIZE
 
 **Renderer integration** (`App.tsx`):
 ```typescript
@@ -656,22 +667,18 @@ useEffect(() => {
    you don't query. Much lower latency and CPU usage than HTTP polling.
 2. **Per-channel subscriptions**: Discord RPC requires channel ID when subscribing to
    voice events. Must re-subscribe when user changes channels.
-3. **Two-phase OAuth**: Socket connection (`connect()`) is separate from authentication
-   (`login()`). The `ready` event is the gate for calling `login()`.
-4. **Type assertion for request method**: `discord-rpc` package's TypeScript types don't
-   export `request()` method, but it exists at runtime. Module declaration adds it:
-   ```typescript
-   declare module 'discord-rpc' {
-     interface Client {
-       request(command: string, args?: Record<string, unknown>): Promise<unknown>
-     }
-   }
-   ```
+3. **VOICE_STATE_DELETE subscription**: Previous implementations missed this event, causing
+   participants to accumulate forever when they left. Must explicitly subscribe and handle
+   to remove participants by `user.id`.
+4. **Direct pipe transport**: The Discord RPC wire protocol is simple — 8-byte header (opcode + length)
+   + JSON body, delivered over Windows named pipes. Implementing it directly eliminates the need
+   for a package wrapper, avoids relying on undocumented internal commands (`SET_LOCAL_VOLUME`),
+   and enables token persistence (the package cached tokens in memory only).
 5. **Immutable state updates**: All state changes use spread operator (`{ ...this.state, ...patch }`).
    Ensures predictable, traceable updates and simplifies debugging.
-6. **Avatar URL format**: Discord provides avatar hash. Full URL:
-   `https://cdn.discordapp.com/avatars/{userId}/{hash}.webp?size=64`
-   Always include size param for responsive images.
+6. **Token persistence for UX**: Persisting tokens to `userData/discord-token.json` with expiration
+   time eliminates the OAuth popup on every app start. Requires standard OAuth2 `client_secret`
+   (not the undocumented `/oauth2/token/rpc` bypass), which users copy from the Developer Portal.
 7. **Local mute is separate from mute**: `muted` (their self-mute state) vs `localMuted`
    (we've suppressed them). Both are user-controllable but represent different things.
 
