@@ -178,10 +178,9 @@ export function DDCSettings(): JSX.Element {
         </SettingSection>
       )}
 
-      <SettingSection title="State Polling">
+      <SettingSection title="Features">
         <SettingRow
           label="Refresh Interval"
-          last
         >
           <div className="flex items-center gap-2">
             <input
@@ -203,9 +202,6 @@ export function DDCSettings(): JSX.Element {
             <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>seconds</span>
           </div>
         </SettingRow>
-      </SettingSection>
-
-      <SettingSection title="Features">
         <SettingRow
           label="Sync Brightness"
           description="When enabled, adjusting brightness on one monitor will sync to all connected monitors"
