@@ -96,31 +96,32 @@ export function About(): JSX.Element {
               ))}
             </div>
           </SettingSection>
+          <SettingSection>
+            <div
+              ref={logContainerRef}
+              className="overflow-y-auto"
+              style={{
+                height: 240,
+                background: 'var(--color-code-bg)',
+                fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
+                fontSize: '12px',
+              }}
+            >
+              {logs.length === 0 ? (
+                <div
+                  className="px-3 py-2"
+                  style={{ color: 'var(--color-text-secondary)', opacity: 0.6 }}
+                >
+                  Waiting for service output…
+                </div>
+              ) : (
+                logs.map((entry) => <LogRow key={entry.id} entry={entry} />)
+              )}
+            </div>
+          </SettingSection>
         </SettingsPageWrapper>
 
-        <div
-          ref={logContainerRef}
-          className="overflow-y-auto"
-          style={{
-            height: 240,
-            background: 'var(--color-code-bg)',
-            fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
-            fontSize: '12px',
-          }}
-        >
-          {logs.length === 0 ? (
-            <div
-              className="px-3 py-2"
-              style={{ color: 'var(--color-text-secondary)', opacity: 0.6 }}
-            >
-              Waiting for service output…
-            </div>
-          ) : (
-            logs.map((entry) => <LogRow key={entry.id} entry={entry} />)
-          )}
-        </div>
-
-        <div className="px-5 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+        <div className="px-5 pb-4">
           <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <span>Log file: </span>
             <span className="font-mono text-xs" style={{ wordBreak: 'break-all' }}>
