@@ -15,6 +15,8 @@ export function GeneralSettings(): JSX.Element {
   const [draftTheme, setDraftTheme] = useState<Theme>(theme)
   const [draftMinimizeToTray, setDraftMinimizeToTray] = useState(true)
   const [savedMinimizeToTray, setSavedMinimizeToTray] = useState(true)
+  const [draftOpenOnActiveDisplay, setDraftOpenOnActiveDisplay] = useState(false)
+  const [savedOpenOnActiveDisplay, setSavedOpenOnActiveDisplay] = useState(false)
   const [draftPythonPath, setDraftPythonPath] = useState('')
   const [savedPythonPath, setSavedPythonPath] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -27,13 +29,16 @@ export function GeneralSettings(): JSX.Element {
     window.api.getSettings().then((s) => {
       setDraftMinimizeToTray(s.minimizeToTray)
       setSavedMinimizeToTray(s.minimizeToTray)
+      setDraftOpenOnActiveDisplay(s.openOnActiveDisplay ?? false)
+      setSavedOpenOnActiveDisplay(s.openOnActiveDisplay ?? false)
     })
   }, [])
 
   const isDirtyLocal =
     draftTheme !== theme ||
     draftPythonPath !== savedPythonPath ||
-    draftMinimizeToTray !== savedMinimizeToTray
+    draftMinimizeToTray !== savedMinimizeToTray ||
+    draftOpenOnActiveDisplay !== savedOpenOnActiveDisplay
   useEffect(() => {
     setDirty(isDirtyLocal)
   }, [isDirtyLocal, setDirty])
@@ -45,9 +50,11 @@ export function GeneralSettings(): JSX.Element {
         ...currentSettings,
         theme: draftTheme,
         minimizeToTray: draftMinimizeToTray,
+        openOnActiveDisplay: draftOpenOnActiveDisplay,
       })
       setTheme(draftTheme)
       setSavedMinimizeToTray(draftMinimizeToTray)
+      setSavedOpenOnActiveDisplay(draftOpenOnActiveDisplay)
 
       const trimmedPath = draftPythonPath.trim()
       if (trimmedPath) {
@@ -56,7 +63,7 @@ export function GeneralSettings(): JSX.Element {
       }
     })
     return () => registerSave(null)
-  }, [draftTheme, draftMinimizeToTray, draftPythonPath, registerSave, setTheme])
+  }, [draftTheme, draftMinimizeToTray, draftOpenOnActiveDisplay, draftPythonPath, registerSave, setTheme])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
@@ -93,11 +100,20 @@ export function GeneralSettings(): JSX.Element {
         <SettingRow
           label="Minimize to tray"
           description="Keep the app running in the system tray when the window is closed"
-          last
         >
           <ToggleSetting
             checked={draftMinimizeToTray}
             onChange={() => setDraftMinimizeToTray((v) => !v)}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Open on active display"
+          description="Open the app and notifications on the display where the cursor is. When off, always uses the primary display."
+          last
+        >
+          <ToggleSetting
+            checked={draftOpenOnActiveDisplay}
+            onChange={() => setDraftOpenOnActiveDisplay((v) => !v)}
           />
         </SettingRow>
       </SettingSection>

@@ -29,6 +29,7 @@ let mainWindow: BrowserWindow | null = null
 let notifWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let minimizeToTray = true
+let openOnActiveDisplay = false
 let isQuitting = false
 let serviceManager: ServiceManager
 let sonarService: SonarService
@@ -216,15 +217,30 @@ function applyWindowIcon(): void {
   }
 }
 
+function getTargetDisplay() {
+  if (openOnActiveDisplay) {
+    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  }
+  return screen.getPrimaryDisplay()
+}
+
 /**
  * Creates the frameless main window.
  * frame:false lets us draw our own title bar in React.
  * backgroundColor matches --color-bg dark mode to prevent white flash on load.
  */
 function createWindow(): void {
+  const { bounds } = getTargetDisplay()
+  const width = 1200
+  const height = 800
+  const x = Math.round(bounds.x + (bounds.width - width) / 2)
+  const y = Math.round(bounds.y + (bounds.height - height) / 2)
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width,
+    height,
+    x,
+    y,
     minWidth: 800,
     minHeight: 600,
     show: false,
@@ -288,7 +304,7 @@ function createWindow(): void {
  * is minimised to the tray.
  */
 function createNotifWindow(): void {
-  const { workArea } = screen.getPrimaryDisplay()
+  const { workArea } = getTargetDisplay()
   const width = 480
   const height = 300
 
@@ -388,6 +404,9 @@ function registerIpcHandlers(): void {
     writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
     if (typeof settings.minimizeToTray === 'boolean') {
       minimizeToTray = settings.minimizeToTray
+    }
+    if (typeof settings.openOnActiveDisplay === 'boolean') {
+      openOnActiveDisplay = settings.openOnActiveDisplay
     }
     if (typeof settings.discordClientId === 'string') {
       discordService.setClientId(settings.discordClientId)
@@ -672,6 +691,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.NOTIF_PUSH, (_, spec: SerializedNotification) => {
     if (!notificationsEnabled) return
     if (!notifWindow || notifWindow.isDestroyed()) return
+    const { workArea } = getTargetDisplay()
+    const [w, h] = notifWindow.getSize()
+    notifWindow.setPosition(
+      Math.round(workArea.x + (workArea.width - w) / 2),
+      Math.round(workArea.y + workArea.height - h),
+    )
     if (!notifWindow.isVisible()) notifWindow.show()
     notifWindow.webContents.send(IPC_CHANNELS.NOTIF_RECEIVE, spec)
   })
@@ -863,8 +888,11 @@ app.whenReady().then(() => {
   }
 
   registerIpcHandlers()
+  const bootSettings = loadAppSettings()
+  if (typeof bootSettings.minimizeToTray === 'boolean') minimizeToTray = bootSettings.minimizeToTray
+  if (typeof bootSettings.openOnActiveDisplay === 'boolean') openOnActiveDisplay = bootSettings.openOnActiveDisplay
   createWindow()
-  kvmDetector.start(loadAppSettings())
+  kvmDetector.start(bootSettings)
   serviceManager.setWindow(mainWindow!)
   initDispatcher(mainWindow!, serviceManager, sonarService, ddcService)
   sonarService.setWindow(mainWindow!)

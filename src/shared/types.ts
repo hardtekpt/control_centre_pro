@@ -230,6 +230,7 @@ export interface AppSettings {
   ddcPollIntervalSeconds: number
   ddcSyncBrightness: boolean
   minimizeToTray: boolean
+  openOnActiveDisplay: boolean
   notifications: NotificationSettings
   discordClientId: string
   discordClientSecret: string
@@ -247,6 +248,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarCollapsed: false,
   ddcPollIntervalSeconds: 60,
   ddcSyncBrightness: false,
+  openOnActiveDisplay: false,
   minimizeToTray: true,
   notifications: {
     headset: DEFAULT_HEADSET_NOTIFICATIONS,
