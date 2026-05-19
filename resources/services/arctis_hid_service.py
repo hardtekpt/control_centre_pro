@@ -109,7 +109,7 @@ def _read_full_state(headset) -> dict:
         "volume":         getattr(mic_eq, "volume_pct", 0),
         # ── Connectivity ────────────────────────────────────────────────────
         "wirelessConnected": wireless,
-        "wirelessLinkState": enum_name(status, "wireless_link_state", default="ACTIVE"),
+        "wirelessLinkState": enum_name(status, "wireless_link_state", default="ACTIVE" if wireless else "ABSENT"),
         "headsetPowered":    getattr(status, "headset_powered", True),
         "btActive":    bt_active,
         "btConnected": bt_connected,
@@ -178,7 +178,7 @@ def _get_default_state() -> dict:
         "micMuted": False,
         "volume": 0,
         "wirelessConnected": False,
-        "wirelessLinkState": "SEARCHING",
+        "wirelessLinkState": "ABSENT",
         "headsetPowered": False,
         "btActive": False,
         "btConnected": False,
@@ -507,7 +507,7 @@ def main() -> None:
                 bt_pairing   = (mode_name == "BT_PAIRING")
                 wireless     = getattr(e, "wireless", False)
                 wls_val      = getattr(e, "wireless_link_state", None)
-                wls_name     = getattr(wls_val, "name", "ACTIVE" if wireless else "SEARCHING")
+                wls_name     = getattr(wls_val, "name", "ACTIVE" if wireless else "ABSENT")
                 emit({
                     "type": "event", "event": "ConnectivityEvent",
                     "data": {
