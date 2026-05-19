@@ -303,13 +303,22 @@ const api = {
   kvmGetState: (): Promise<KvmState> =>
     ipcRenderer.invoke(IPC_CHANNELS.KVM_GET_STATE),
 
-  kvmListUsbDevices: (): Promise<UsbDevice[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.KVM_LIST_USB_DEVICES),
+  kvmIdentifyStart: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.KVM_IDENTIFY_START),
+
+  kvmIdentifyCancel: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.KVM_IDENTIFY_CANCEL),
 
   onKvmStateChange: (callback: (state: KvmState) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: KvmState): void => callback(state)
     ipcRenderer.on(IPC_CHANNELS.KVM_STATE_CHANGE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.KVM_STATE_CHANGE, handler)
+  },
+
+  onKvmIdentifyResult: (callback: (device: UsbDevice | null) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, device: UsbDevice | null): void => callback(device)
+    ipcRenderer.on(IPC_CHANNELS.KVM_IDENTIFY_RESULT, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.KVM_IDENTIFY_RESULT, handler)
   },
 }
 

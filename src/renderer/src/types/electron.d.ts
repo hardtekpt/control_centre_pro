@@ -116,8 +116,10 @@ declare global {
 
     // KVM Detector
     kvmGetState: () => Promise<KvmState>
-    kvmListUsbDevices: () => Promise<UsbDevice[]>
+    kvmIdentifyStart: () => Promise<void>
+    kvmIdentifyCancel: () => Promise<void>
     onKvmStateChange: (callback: (state: KvmState) => void) => () => void
+    onKvmIdentifyResult: (callback: (device: UsbDevice | null) => void) => () => void
     }
   }
 }

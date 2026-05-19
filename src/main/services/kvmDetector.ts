@@ -2,11 +2,18 @@ import { execFile } from 'child_process'
 import type { AppSettings, KvmState, MonitorInputAction, UsbDevice } from '../../shared/types'
 
 const POLL_INTERVAL_MS = 2000
+const IDENTIFY_POLL_MS = 350
+const IDENTIFY_TIMEOUT_MS = 30_000
 
 export class KvmDetector {
   private pollTimer: NodeJS.Timeout | null = null
   private lastConnected: boolean | null = null
   private settings: AppSettings
+
+  private identifyTimer: NodeJS.Timeout | null = null
+  private identifyTimeout: NodeJS.Timeout | null = null
+  private identifySnapshot: UsbDevice[] = []
+  private identifyCallback: ((device: UsbDevice | null) => void) | null = null
 
   constructor(
     private readonly onStateChange: (state: KvmState) => void,
@@ -34,12 +41,10 @@ export class KvmDetector {
 
     if (!settings.kvmEnabled) {
       this.stop()
-      // Reset tracked state so next enable triggers a fresh check
       this.lastConnected = null
       return
     }
 
-    // Device changed — reset state so the new device triggers a transition event
     if (prevDevice !== settings.kvmDeviceInstanceId) {
       this.lastConnected = null
     }
@@ -56,21 +61,67 @@ export class KvmDetector {
     }
   }
 
-  async listDevices(): Promise<UsbDevice[]> {
-    return this.queryDevices()
+  // ── Identify flow ───────────────────────────────────────────────────────────
+
+  async startIdentify(onResult: (device: UsbDevice | null) => void): Promise<void> {
+    this.cancelIdentify()
+    this.identifyCallback = onResult
+    this.identifySnapshot = await this.queryDevices()
+
+    // Auto-cancel after timeout
+    this.identifyTimeout = setTimeout(() => {
+      this.cancelIdentify()
+    }, IDENTIFY_TIMEOUT_MS)
+
+    this.scheduleIdentifyPoll()
   }
+
+  cancelIdentify(): void {
+    if (this.identifyTimer) { clearTimeout(this.identifyTimer); this.identifyTimer = null }
+    if (this.identifyTimeout) { clearTimeout(this.identifyTimeout); this.identifyTimeout = null }
+    if (this.identifyCallback) {
+      const cb = this.identifyCallback
+      this.identifyCallback = null
+      cb(null)
+    }
+    this.identifySnapshot = []
+  }
+
+  private scheduleIdentifyPoll(): void {
+    this.identifyTimer = setTimeout(() => { this.identifyPoll().catch(console.error) }, IDENTIFY_POLL_MS)
+  }
+
+  private async identifyPoll(): Promise<void> {
+    if (!this.identifyCallback) return
+
+    const current = await this.queryDevices()
+    const currentIds = new Set(current.map((d) => d.instanceId.toLowerCase()))
+    const disappeared = this.identifySnapshot.find(
+      (d) => !currentIds.has(d.instanceId.toLowerCase()),
+    )
+
+    if (disappeared) {
+      if (this.identifyTimeout) { clearTimeout(this.identifyTimeout); this.identifyTimeout = null }
+      const cb = this.identifyCallback
+      this.identifyCallback = null
+      this.identifySnapshot = []
+      cb(disappeared)
+      return
+    }
+
+    this.scheduleIdentifyPoll()
+  }
+
+  // ── Connection polling ──────────────────────────────────────────────────────
 
   private schedulePoll(): void {
     if (this.pollTimer) clearTimeout(this.pollTimer)
-    // Run immediately, then on interval
     this.poll().catch(console.error)
   }
 
   private reschedule(): void {
     if (!this.settings.kvmEnabled) return
-    this.pollTimer = setTimeout(() => {
-      this.poll().catch(console.error)
-    }, POLL_INTERVAL_MS)
+    this.pollTimer = setTimeout(() => { this.poll().catch(console.error) }, POLL_INTERVAL_MS)
   }
 
   private async poll(): Promise<void> {
@@ -89,12 +140,10 @@ export class KvmDetector {
         const actions = present
           ? (this.settings.kvmConnectedActions ?? [])
           : (this.settings.kvmDisconnectedActions ?? [])
-        if (actions.length > 0) {
-          this.onSwitchInputs(actions)
-        }
+        if (actions.length > 0) this.onSwitchInputs(actions)
       }
     } catch {
-      // Swallow errors — device may be temporarily unavailable
+      // Swallow — device may be temporarily unavailable
     }
 
     this.reschedule()
@@ -115,25 +164,16 @@ export class KvmDetector {
         ['-NonInteractive', '-NoProfile', '-Command', ps],
         { timeout: 8000 },
         (err, stdout) => {
-          if (err || !stdout.trim()) {
-            resolve([])
-            return
-          }
+          if (err || !stdout.trim()) { resolve([]); return }
           try {
             const raw = JSON.parse(stdout.trim())
-            const items: Array<{ FriendlyName: string | null; InstanceId: string }> = Array.isArray(
-              raw,
+            const items: Array<{ FriendlyName: string | null; InstanceId: string }> = Array.isArray(raw) ? raw : [raw]
+            resolve(
+              items
+                .filter((d) => d.InstanceId)
+                .map((d) => ({ instanceId: d.InstanceId, friendlyName: d.FriendlyName ?? d.InstanceId }))
+                .sort((a, b) => a.friendlyName.localeCompare(b.friendlyName)),
             )
-              ? raw
-              : [raw]
-            const devices: UsbDevice[] = items
-              .filter((d) => d.InstanceId)
-              .map((d) => ({
-                instanceId: d.InstanceId,
-                friendlyName: d.FriendlyName ?? d.InstanceId,
-              }))
-              .sort((a, b) => a.friendlyName.localeCompare(b.friendlyName))
-            resolve(devices)
           } catch {
             resolve([])
           }

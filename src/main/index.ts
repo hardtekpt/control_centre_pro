@@ -401,7 +401,16 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.KVM_GET_STATE, () => kvmDetector.getState())
-  ipcMain.handle(IPC_CHANNELS.KVM_LIST_USB_DEVICES, () => kvmDetector.listDevices())
+
+  ipcMain.handle(IPC_CHANNELS.KVM_IDENTIFY_START, () => {
+    kvmDetector.startIdentify((device) => {
+      mainWindow?.webContents.send(IPC_CHANNELS.KVM_IDENTIFY_RESULT, device)
+    }).catch(console.error)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.KVM_IDENTIFY_CANCEL, () => {
+    kvmDetector.cancelIdentify()
+  })
 
   kvmDetector.start(loadAppSettings())
 

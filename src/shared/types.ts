@@ -101,7 +101,9 @@ export const IPC_CHANNELS = {
   // KVM Detector plugin
   KVM_GET_STATE:        'kvm:getState',        // renderer → main invoke
   KVM_STATE_CHANGE:     'kvm:stateChange',     // main → renderer push
-  KVM_LIST_USB_DEVICES: 'kvm:listUsbDevices',  // renderer → main invoke
+  KVM_IDENTIFY_START:   'kvm:identifyStart',   // renderer → main invoke
+  KVM_IDENTIFY_CANCEL:  'kvm:identifyCancel',  // renderer → main invoke
+  KVM_IDENTIFY_RESULT:  'kvm:identifyResult',  // main → renderer push (UsbDevice | null)
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -233,6 +235,7 @@ export interface AppSettings {
   discordClientSecret: string
   kvmEnabled: boolean
   kvmDeviceInstanceId: string
+  kvmDeviceName: string
   kvmConnectedActions: MonitorInputAction[]
   kvmDisconnectedActions: MonitorInputAction[]
 }
@@ -255,6 +258,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   discordClientSecret: '',
   kvmEnabled: false,
   kvmDeviceInstanceId: '',
+  kvmDeviceName: '',
   kvmConnectedActions: [],
   kvmDisconnectedActions: [],
 }

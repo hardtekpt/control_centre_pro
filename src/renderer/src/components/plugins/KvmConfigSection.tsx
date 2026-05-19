@@ -1,139 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactDOM from 'react-dom'
 import type { MonitorInputAction, UsbDevice } from '@shared/types'
 import { DDC_INPUT_NAMES } from '@shared/types'
 import type { Plugin } from '@shared/types'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { useServiceStore } from '../../stores/serviceStore'
-
-// ── Custom device dropdown ────────────────────────────────────────────────────
-
-interface DropdownOption {
-  value: string
-  label: string
-}
-
-interface DeviceOptionProps {
-  label: string
-  value: string
-  isSelected: boolean
-  onSelect: (value: string) => void
-}
-
-function DeviceOption({ label, value, isSelected, onSelect }: DeviceOptionProps): JSX.Element {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const labelRef = useRef<HTMLSpanElement>(null)
-  const [dist, setDist] = useState(0)
-
-  const handleMouseEnter = (): void => {
-    if (labelRef.current && containerRef.current) {
-      const overflow = labelRef.current.scrollWidth - containerRef.current.clientWidth
-      setDist(overflow > 0 ? overflow + 8 : 0)
-    }
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className={`kvm-option${isSelected ? ' selected' : ''}`}
-      onClick={() => onSelect(value)}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setDist(0)}
-      style={{ '--kvm-dist': `-${dist}px` } as React.CSSProperties}
-    >
-      <span ref={labelRef} className={dist > 0 ? 'scrolling' : ''}>
-        {label}
-      </span>
-    </div>
-  )
-}
-
-interface DeviceSelectProps {
-  value: string
-  onChange: (value: string) => void
-  options: DropdownOption[]
-  placeholder?: string
-  loading?: boolean
-}
-
-function DeviceSelect({ value, onChange, options, placeholder = '— None selected —', loading }: DeviceSelectProps): JSX.Element {
-  const [open, setOpen] = useState(false)
-  const triggerRef = useRef<HTMLDivElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const [rect, setRect] = useState<DOMRect | null>(null)
-
-  const selected = options.find((o) => o.value === value)
-
-  const openDropdown = (): void => {
-    const r = triggerRef.current?.getBoundingClientRect()
-    if (r) setRect(r)
-    setOpen(true)
-  }
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent): void => {
-      if (
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-        triggerRef.current && !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-      }
-    }
-    window.addEventListener('mousedown', handler)
-    return () => window.removeEventListener('mousedown', handler)
-  }, [open])
-
-  return (
-    <>
-      <div
-        ref={triggerRef}
-        className={`kvm-trigger${open ? ' open' : ''}`}
-        onClick={openDropdown}
-        role="combobox"
-        aria-expanded={open}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDropdown() }
-          if (e.key === 'Escape') setOpen(false)
-        }}
-      >
-        <span className="kvm-trigger-text">
-          {loading ? 'Loading…' : (selected?.label ?? placeholder)}
-        </span>
-        <svg className="kvm-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </div>
-
-      {open && rect && ReactDOM.createPortal(
-        <div
-          ref={dropdownRef}
-          className="kvm-dropdown"
-          style={{ top: rect.bottom + 4, left: rect.left, width: rect.width }}
-        >
-          <DeviceOption
-            label={placeholder}
-            value=""
-            isSelected={!value}
-            onSelect={(v) => { onChange(v); setOpen(false) }}
-          />
-          {options.map((o) => (
-            <DeviceOption
-              key={o.value}
-              label={o.label}
-              value={o.value}
-              isSelected={o.value === value}
-              onSelect={(v) => { onChange(v); setOpen(false) }}
-            />
-          ))}
-        </div>,
-        document.body,
-      )}
-    </>
-  )
-}
 
 // ── Action row ────────────────────────────────────────────────────────────────
 
@@ -250,21 +120,44 @@ function ActionListSection({ title, desc, actions, monitorOptions, getInputsForM
   )
 }
 
+// ── Identify pulse animation ──────────────────────────────────────────────────
+
+function PulseIcon(): JSX.Element {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: '8px',
+        height: '8px',
+        borderRadius: '50%',
+        background: 'var(--color-accent)',
+        flexShrink: 0,
+        animation: 'kvm-pulse 1.2s ease-in-out infinite',
+      }}
+    />
+  )
+}
+
 // ── Main section ──────────────────────────────────────────────────────────────
 
 interface Props {
   plugin: Plugin
 }
 
+type IdentifyPhase = 'idle' | 'waiting'
+
 export function KvmConfigSection({ plugin }: Props): JSX.Element {
   const { setDirty, registerSave } = useSettingsForm()
   const { ddcMonitors } = useServiceStore()
 
-  const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([])
-  const [loadingDevices, setLoadingDevices] = useState(false)
+  const [identifyPhase, setIdentifyPhase] = useState<IdentifyPhase>('idle')
+  const [countdown, setCountdown] = useState(30)
+  const countdownRef = useRef<NodeJS.Timeout | null>(null)
 
   const [savedDeviceId, setSavedDeviceId] = useState('')
+  const [savedDeviceName, setSavedDeviceName] = useState('')
   const [draftDeviceId, setDraftDeviceId] = useState('')
+  const [draftDeviceName, setDraftDeviceName] = useState('')
 
   const [savedConnected, setSavedConnected] = useState<MonitorInputAction[]>([])
   const [draftConnected, setDraftConnected] = useState<MonitorInputAction[]>([])
@@ -273,47 +166,59 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
   const [draftDisconnected, setDraftDisconnected] = useState<MonitorInputAction[]>([])
 
   const draftDeviceIdRef = useRef(draftDeviceId)
+  const draftDeviceNameRef = useRef(draftDeviceName)
   const draftConnectedRef = useRef(draftConnected)
   const draftDisconnectedRef = useRef(draftDisconnected)
 
   useEffect(() => { draftDeviceIdRef.current = draftDeviceId }, [draftDeviceId])
+  useEffect(() => { draftDeviceNameRef.current = draftDeviceName }, [draftDeviceName])
   useEffect(() => { draftConnectedRef.current = draftConnected }, [draftConnected])
   useEffect(() => { draftDisconnectedRef.current = draftDisconnected }, [draftDisconnected])
 
-  const loadDevices = (): void => {
-    setLoadingDevices(true)
-    window.api.kvmListUsbDevices()
-      .then(setUsbDevices)
-      .catch(console.error)
-      .finally(() => setLoadingDevices(false))
-  }
-
+  // Load saved settings on mount
   useEffect(() => {
     window.api.getSettings()
       .then((s) => {
         const devId = s.kvmDeviceInstanceId ?? ''
+        const devName = s.kvmDeviceName ?? ''
         const connected = s.kvmConnectedActions ?? []
         const disconnected = s.kvmDisconnectedActions ?? []
         setSavedDeviceId(devId)
         setDraftDeviceId(devId)
+        setSavedDeviceName(devName)
+        setDraftDeviceName(devName)
         setSavedConnected(connected)
         setDraftConnected(connected)
         setSavedDisconnected(disconnected)
         setDraftDisconnected(disconnected)
       })
       .catch(console.error)
-
-    loadDevices()
   }, [])
 
+  // Subscribe to identify result from main process
+  useEffect(() => {
+    const cleanup = window.api.onKvmIdentifyResult((device: UsbDevice | null) => {
+      stopCountdown()
+      setIdentifyPhase('idle')
+      if (device) {
+        setDraftDeviceId(device.instanceId)
+        setDraftDeviceName(device.friendlyName)
+      }
+    })
+    return () => { cleanup(); stopCountdown() }
+  }, [])
+
+  // Dirty tracking
   useEffect(() => {
     const isDirty =
       draftDeviceId !== savedDeviceId ||
+      draftDeviceName !== savedDeviceName ||
       JSON.stringify(draftConnected) !== JSON.stringify(savedConnected) ||
       JSON.stringify(draftDisconnected) !== JSON.stringify(savedDisconnected)
     setDirty(isDirty)
-  }, [draftDeviceId, savedDeviceId, draftConnected, savedConnected, draftDisconnected, savedDisconnected, setDirty])
+  }, [draftDeviceId, savedDeviceId, draftDeviceName, savedDeviceName, draftConnected, savedConnected, draftDisconnected, savedDisconnected, setDirty])
 
+  // Save handler
   useEffect(() => {
     registerSave(async () => {
       const current = await window.api.getSettings()
@@ -321,15 +226,43 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
         ...current,
         kvmEnabled: plugin.enabled,
         kvmDeviceInstanceId: draftDeviceIdRef.current,
+        kvmDeviceName: draftDeviceNameRef.current,
         kvmConnectedActions: draftConnectedRef.current,
         kvmDisconnectedActions: draftDisconnectedRef.current,
       })
       setSavedDeviceId(draftDeviceIdRef.current)
+      setSavedDeviceName(draftDeviceNameRef.current)
       setSavedConnected(draftConnectedRef.current)
       setSavedDisconnected(draftDisconnectedRef.current)
     })
     return () => registerSave(null)
   }, [registerSave, plugin.enabled])
+
+  const stopCountdown = (): void => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current)
+      countdownRef.current = null
+    }
+  }
+
+  const startIdentify = (): void => {
+    setIdentifyPhase('waiting')
+    setCountdown(30)
+    stopCountdown()
+    countdownRef.current = setInterval(() => {
+      setCountdown((n) => {
+        if (n <= 1) { stopCountdown(); return 0 }
+        return n - 1
+      })
+    }, 1000)
+    window.api.kvmIdentifyStart().catch(console.error)
+  }
+
+  const cancelIdentify = (): void => {
+    stopCountdown()
+    setIdentifyPhase('idle')
+    window.api.kvmIdentifyCancel().catch(console.error)
+  }
 
   const handleReset = async (): Promise<void> => {
     const current = await window.api.getSettings()
@@ -337,11 +270,14 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
       ...current,
       kvmEnabled: false,
       kvmDeviceInstanceId: '',
+      kvmDeviceName: '',
       kvmConnectedActions: [],
       kvmDisconnectedActions: [],
     })
     setDraftDeviceId('')
     setSavedDeviceId('')
+    setDraftDeviceName('')
+    setSavedDeviceName('')
     setDraftConnected([])
     setSavedConnected([])
     setDraftDisconnected([])
@@ -349,25 +285,18 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
   }
 
   const monitorOptions = ddcMonitors.map((m) => ({ id: m.monitor_id, name: m.name }))
-  const getInputsForMonitor = (id: number): string[] => {
-    const m = ddcMonitors.find((mon) => mon.monitor_id === id)
-    return m?.available_inputs ?? []
-  }
+  const getInputsForMonitor = (id: number): string[] =>
+    ddcMonitors.find((m) => m.monitor_id === id)?.available_inputs ?? []
 
-  const deviceOptions: DropdownOption[] = usbDevices.map((d) => ({
-    value: d.instanceId,
-    label: d.friendlyName,
-  }))
-
-  const noDevice = !draftDeviceId
+  const hasDevice = Boolean(draftDeviceId)
 
   return (
     <>
-      {noDevice && (
+      {!hasDevice && identifyPhase === 'idle' && (
         <div className="banner info">
           <div className="banner-content">
             <div className="banner-title">No device configured</div>
-            <div className="banner-sub">Select a USB device below to start tracking KVM connection state.</div>
+            <div className="banner-sub">Use the identify button below to detect your KVM switch automatically.</div>
           </div>
         </div>
       )}
@@ -377,29 +306,55 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
           <h3>KVM Device</h3>
           <span className="desc">USB device that represents the KVM connection</span>
         </div>
+
         <div className="ff">
           <div className="ff-label">
             <div className="ff-label-title">Tracked device</div>
-            <div className="ff-label-desc">Present = KVM connected to this PC</div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <DeviceSelect
-                value={draftDeviceId}
-                onChange={setDraftDeviceId}
-                options={deviceOptions}
-                loading={loadingDevices}
-              />
+            <div className="ff-label-desc">
+              {identifyPhase === 'waiting'
+                ? 'Disconnect your KVM switch now…'
+                : hasDevice
+                  ? 'Present = KVM connected to this PC'
+                  : 'No device selected yet'}
             </div>
-            <button
-              onClick={loadDevices}
-              className="btn-ghost"
-              disabled={loadingDevices}
-              style={{ flexShrink: 0 }}
-            >
-              Refresh
-            </button>
           </div>
+
+          {identifyPhase === 'waiting' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PulseIcon />
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                  Waiting… {countdown}s
+                </span>
+              </div>
+              <button className="btn-ghost" onClick={cancelIdentify}>Cancel</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {hasDevice && (
+                <div
+                  title={draftDeviceId}
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--color-text-primary)',
+                    background: 'var(--color-code-bg)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '6px',
+                    padding: '5px 9px',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {draftDeviceName || draftDeviceId}
+                </div>
+              )}
+              <button className="btn-ghost" onClick={startIdentify}>
+                {hasDevice ? 'Re-identify' : 'Identify KVM…'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
