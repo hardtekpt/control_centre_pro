@@ -25,37 +25,36 @@ export function PageHeader({
 }): JSX.Element {
   return (
     <div
-      className="sticky top-0 z-10"
       style={{
+        padding: '24px 32px 14px',
         borderBottom: '1px solid var(--color-border)',
+        position: 'sticky',
+        top: 0,
         background: 'var(--color-bg)',
+        zIndex: 2,
       }}
     >
-      <div style={{ padding: '24px 32px 14px' }}>
-        <h1
-          className="text-lg font-semibold tracking-tight"
+      <h1
+        style={{
+          margin: 0,
+          fontSize: '18px',
+          fontWeight: 600,
+          color: 'var(--color-text-primary)',
+        }}
+      >
+        {title}
+      </h1>
+      {description && (
+        <p
           style={{
-            color: 'var(--color-text-primary)',
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: 600,
+            margin: '2px 0 0 0',
+            fontSize: '12px',
+            color: 'var(--color-text-secondary)',
           }}
         >
-          {title}
-        </h1>
-        {description && (
-          <p
-            className="text-sm"
-            style={{
-              color: 'var(--color-text-secondary)',
-              margin: '2px 0 0 0',
-              fontSize: '12px',
-            }}
-          >
-            {description}
-          </p>
-        )}
-      </div>
+          {description}
+        </p>
+      )}
     </div>
   )
 }
