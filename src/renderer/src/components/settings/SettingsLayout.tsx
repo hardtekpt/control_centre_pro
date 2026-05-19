@@ -12,8 +12,8 @@ import { SettingsFormProvider, useSettingsForm } from '../../contexts/settingsFo
 import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import type { SettingsTab } from '@shared/types'
 
-// About is read-only — no save footer needed
-const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins']
+// All settings tabs show the save footer for consistent layout (About shows disabled button)
+const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins', 'about']
 
 function SettingsLayoutInner(): JSX.Element {
   const { currentSettingsTab, setSettingsTab, goBack } = useAppStore()
