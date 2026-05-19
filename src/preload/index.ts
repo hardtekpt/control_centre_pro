@@ -4,7 +4,7 @@ import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
-  SerializedNotification, Shortcut, ShortcutDispatchEvent,
+  SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
 } from '../shared/types'
 
 /**
@@ -296,6 +296,20 @@ const api = {
       callback(event)
     ipcRenderer.on(IPC_CHANNELS.SHORTCUTS_DISPATCH, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SHORTCUTS_DISPATCH, handler)
+  },
+
+  // ── KVM Detector ──────────────────────────────────────────────────────────
+
+  kvmGetState: (): Promise<KvmState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.KVM_GET_STATE),
+
+  kvmListUsbDevices: (): Promise<UsbDevice[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.KVM_LIST_USB_DEVICES),
+
+  onKvmStateChange: (callback: (state: KvmState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: KvmState): void => callback(state)
+    ipcRenderer.on(IPC_CHANNELS.KVM_STATE_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.KVM_STATE_CHANGE, handler)
   },
 }
 

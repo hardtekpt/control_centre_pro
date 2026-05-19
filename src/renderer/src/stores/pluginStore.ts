@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Plugin, ServiceInfo } from '@shared/types'
+import type { Plugin, ServiceInfo, KvmState } from '@shared/types'
 import { DEFAULT_PLUGINS } from '../lib/plugins/catalog'
 
 interface PluginStoreState {
@@ -9,6 +9,7 @@ interface PluginStoreState {
   patchField: (pluginId: string, sectionId: string, fieldId: string, value: unknown) => void
   fieldAction: (pluginId: string, sectionId: string, fieldId: string, kind: string) => Promise<void>
   syncDiscordServiceState: (discordService: ServiceInfo | undefined) => void
+  syncKvmState: (kvmState: KvmState, enabled: boolean) => void
 }
 
 export const usePluginStore = create<PluginStoreState>((set, get) => ({
@@ -65,6 +66,30 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
         if (p.id !== 'discord') return p
         const nextStatus = discordService.enabled && discordService.running ? 'connected' : 'disabled'
         return { ...p, enabled: discordService.enabled, status: nextStatus }
+      }),
+    })
+  },
+
+  syncKvmState: (kvmState, enabled) => {
+    set({
+      plugins: get().plugins.map((p) => {
+        if (p.id !== 'kvm-detector') return p
+        let status: Plugin['status']
+        let statusLine: string
+        if (!enabled) {
+          status = 'disabled'
+          statusLine = 'Disabled'
+        } else if (!kvmState.deviceInstanceId) {
+          status = 'installed'
+          statusLine = 'No device selected'
+        } else if (kvmState.connected) {
+          status = 'connected'
+          statusLine = 'Connected'
+        } else {
+          status = 'installed'
+          statusLine = 'Disconnected'
+        }
+        return { ...p, status, statusLine }
       }),
     })
   },

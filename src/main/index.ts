@@ -11,6 +11,7 @@ import { SonarService } from './services/sonarService'
 import { DiscordService } from './services/discordService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 import { DdcService } from './services/apis/ddc/service'
+import { KvmDetector } from './services/kvmDetector'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
 
@@ -23,6 +24,7 @@ let serviceManager: ServiceManager
 let sonarService: SonarService
 let discordService: DiscordService
 let ddcService: DdcService
+let kvmDetector: KvmDetector
 let activeWindowMonitor: ActiveWindowMonitor | null = null
 
 // Resolve MultiMonitorTool.exe path for primary display switching
@@ -395,7 +397,13 @@ function registerIpcHandlers(): void {
     if (typeof settings.discordClientSecret === 'string') {
       discordService.setClientSecret(settings.discordClientSecret)
     }
+    kvmDetector.applySettings(settings)
   })
+
+  ipcMain.handle(IPC_CHANNELS.KVM_GET_STATE, () => kvmDetector.getState())
+  ipcMain.handle(IPC_CHANNELS.KVM_LIST_USB_DEVICES, () => kvmDetector.listDevices())
+
+  kvmDetector.start(loadAppSettings())
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
@@ -718,6 +726,10 @@ app.whenReady().then(() => {
   serviceManager = new ServiceManager()
   sonarService = new SonarService()
   ddcService = new DdcService()
+  kvmDetector = new KvmDetector(
+    (state) => mainWindow?.webContents.send(IPC_CHANNELS.KVM_STATE_CHANGE, state),
+    (actions) => { for (const a of actions) ddcService.setInputSource(a.monitorId, a.inputValue) },
+  )
 
   // Wire SonarService into the service infrastructure so it appears in the
   // service list and About terminal alongside the Python services

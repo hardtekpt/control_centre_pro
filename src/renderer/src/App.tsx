@@ -6,6 +6,7 @@ import { useSonarStore } from './stores/sonarStore'
 import { useDiscordStore } from './stores/discordStore'
 import { useShortcutStore } from './stores/shortcutStore'
 import { usePluginStore } from './stores/pluginStore'
+import { useKvmStore } from './stores/kvmStore'
 import { combinationFromEvent } from './lib/shortcuts/keys'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
@@ -29,7 +30,8 @@ export default function App(): JSX.Element {
   const { setSonarState } = useSonarStore()
   const { setDiscordState } = useDiscordStore()
   const { items: shortcutItems, load: loadShortcuts } = useShortcutStore()
-  const { syncDiscordServiceState } = usePluginStore()
+  const { syncDiscordServiceState, syncKvmState } = usePluginStore()
+  const { setKvmState } = useKvmStore()
 
   // Track whether initial settings have been loaded so we don't auto-save before loading
   const settingsLoadedRef = useRef(false)
@@ -284,6 +286,21 @@ export default function App(): JSX.Element {
     const cleanup = window.api.onDiscordStateChange(setDiscordState)
     return cleanup
   }, [setDiscordState])
+
+  // Load initial KVM state and subscribe to connection change events
+  useEffect(() => {
+    window.api.getSettings().then((s) => {
+      window.api.kvmGetState().then((state) => {
+        setKvmState(state)
+        syncKvmState(state, s.kvmEnabled)
+      }).catch(console.error)
+    }).catch(console.error)
+    const cleanup = window.api.onKvmStateChange((state) => {
+      setKvmState(state)
+      window.api.getSettings().then((s) => syncKvmState(state, s.kvmEnabled)).catch(console.error)
+    })
+    return cleanup
+  }, [setKvmState, syncKvmState])
 
   // Load initial DDC monitor list and subscribe to updates
   useEffect(() => {

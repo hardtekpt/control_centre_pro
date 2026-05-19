@@ -4,6 +4,7 @@ import { StatusPill } from './StatusPill'
 import { Toggle } from './Toggle'
 import { useDiscordStore } from '../../stores/discordStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
+import { KvmConfigSection } from './KvmConfigSection'
 
 function BackIcon() {
   return (
@@ -129,6 +130,9 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
 
       {/* Body */}
       <div className="cfg-body">
+        {/* KVM Detector configuration */}
+        {plugin.id === 'kvm-detector' && <KvmConfigSection plugin={plugin} />}
+
         {/* Discord-specific configuration */}
         {plugin.id === 'discord' && (
           <>

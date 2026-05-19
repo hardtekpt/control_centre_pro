@@ -97,6 +97,11 @@ export const IPC_CHANNELS = {
   DISCORD_SET_LOCAL_VOLUME: 'discord:setLocalVolume',   // renderer → main invoke
   DISCORD_SET_LOCAL_MUTE: 'discord:setLocalMute',       // renderer → main invoke
   DISCORD_RECONNECT: 'discord:reconnect',               // renderer → main invoke
+
+  // KVM Detector plugin
+  KVM_GET_STATE:        'kvm:getState',        // renderer → main invoke
+  KVM_STATE_CHANGE:     'kvm:stateChange',     // main → renderer push
+  KVM_LIST_USB_DEVICES: 'kvm:listUsbDevices',  // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -226,6 +231,10 @@ export interface AppSettings {
   notifications: NotificationSettings
   discordClientId: string
   discordClientSecret: string
+  kvmEnabled: boolean
+  kvmDeviceInstanceId: string
+  kvmConnectedActions: MonitorInputAction[]
+  kvmDisconnectedActions: MonitorInputAction[]
 }
 
 /** Defaults applied when no saved settings exist */
@@ -244,6 +253,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   discordClientId: '',
   discordClientSecret: '',
+  kvmEnabled: false,
+  kvmDeviceInstanceId: '',
+  kvmConnectedActions: [],
+  kvmDisconnectedActions: [],
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
@@ -618,4 +631,31 @@ export interface DdcMonitor {
   input_source: string    // Current input: hex string (e.g. "0x11") or empty if unsupported
   available_inputs: string[]  // Available input options: hex strings
   supports: string[]      // Features available: ['brightness', 'contrast', 'input_source']
+}
+
+/** VCP 0x60 input source code → human-readable label (shared between main and renderer) */
+export const DDC_INPUT_NAMES: Record<string, string> = {
+  '0x01': 'VGA 1',
+  '0x02': 'VGA 2',
+  '0x03': 'DVI 1',
+  '0x04': 'DVI 2',
+  '0x0f': 'DisplayPort 1',
+  '0x10': 'DisplayPort 2',
+  '0x11': 'HDMI 1',
+  '0x12': 'HDMI 2',
+  '0x1b': 'USB-C',
+}
+
+// ─── KVM Detector Plugin ──────────────────────────────────────────────────────
+
+/** A USB device visible to Windows PnP */
+export interface UsbDevice {
+  instanceId: string    // Unique PnP InstanceId (e.g. USB\VID_1234&PID_5678\...)
+  friendlyName: string  // Human-readable label shown in Device Manager
+}
+
+/** Live KVM connection state pushed from main → renderer */
+export interface KvmState {
+  connected: boolean         // true = tracked USB device is present on this PC
+  deviceInstanceId: string   // currently tracked device ('' = none configured)
 }

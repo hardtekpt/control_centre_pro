@@ -2,6 +2,19 @@ import type { Plugin } from '@shared/types'
 
 export const DEFAULT_PLUGINS: Plugin[] = [
   {
+    id: 'kvm-detector',
+    name: 'KVM Detector',
+    glyph: 'K',
+    author: 'mission-control.kvm',
+    version: '1.0.0',
+    blurb: 'Track KVM connection state and auto-switch display inputs.',
+    status: 'disabled',
+    enabled: false,
+    statusLine: 'Not configured',
+    category: 'peripheral',
+    sections: [],
+  },
+  {
     id: 'discord',
     name: 'Discord',
     glyph: 'D',

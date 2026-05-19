@@ -2,7 +2,7 @@ import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
-  SerializedNotification, Shortcut, ShortcutDispatchEvent,
+  SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
 } from '../../../shared/types'
 
 /**
@@ -113,6 +113,11 @@ declare global {
     shortcutsSave: (shortcuts: Shortcut[]) => Promise<void>
     shortcutsDispatch: (actionId: string, value?: string | number) => Promise<void>
     onShortcutsDispatch: (callback: (event: ShortcutDispatchEvent) => void) => () => void
+
+    // KVM Detector
+    kvmGetState: () => Promise<KvmState>
+    kvmListUsbDevices: () => Promise<UsbDevice[]>
+    onKvmStateChange: (callback: (state: KvmState) => void) => () => void
     }
   }
 }
