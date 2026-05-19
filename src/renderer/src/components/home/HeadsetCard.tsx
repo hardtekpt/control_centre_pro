@@ -556,8 +556,8 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
             <div className="flex items-center gap-1.5">
               <ConnectivityDot
                 icon={<WirelessIcon />}
-                dotState={state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
-                title={`2.4 GHz Wireless — ${state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
+                dotState={!state.wirelessConnected ? 'off' : state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
+                title={`2.4 GHz Wireless — ${!state.wirelessConnected ? 'Absent' : state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
               />
               <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
             </div>
