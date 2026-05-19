@@ -113,6 +113,7 @@ function ActionListSection({ title, desc, actions, monitorOptions, getInputsForM
           onClick={addRow}
           className="btn-ghost"
           disabled={monitorOptions.length === 0}
+          style={{ border: 'none' }}
         >
           + Add rule
         </button>
