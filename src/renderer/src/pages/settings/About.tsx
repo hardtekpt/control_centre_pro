@@ -68,68 +68,60 @@ export function About(): JSX.Element {
       <div className="flex-1 overflow-y-auto">
         <SettingsPageWrapper>
           <SettingSection title="Application">
-        <div>
-          {[
-            { label: 'Version', value: '0.1.0' },
-            { label: 'Platform', value: 'Windows' },
-            { label: 'Framework', value: 'Electron + React' },
-            { label: 'Build', value: 'Development' },
-          ].map((row, i, arr) => (
-            <div
-              key={row.label}
-              className="px-5 py-3.5"
-              style={{
-                borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 'none',
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                gap: '16px',
-                alignItems: 'center',
-              }}
-            >
-              <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                {row.label}
-              </span>
-              <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
-                {row.value}
-              </span>
+            <div>
+              {[
+                { label: 'Version', value: '0.1.0' },
+                { label: 'Platform', value: 'Windows' },
+                { label: 'Framework', value: 'Electron + React' },
+                { label: 'Build', value: 'Development' },
+              ].map((row, i, arr) => (
+                <div
+                  key={row.label}
+                  className="px-5 py-3.5"
+                  style={{
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--color-border)' : 'none',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: '16px',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                    {row.label}
+                  </span>
+                  <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
+                    {row.value}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </SettingSection>
+        </SettingsPageWrapper>
+
+        <div
+          ref={logContainerRef}
+          className="overflow-y-auto"
+          style={{
+            height: 240,
+            background: 'var(--color-code-bg)',
+            fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
+            fontSize: '12px',
+          }}
+        >
+          {logs.length === 0 ? (
+            <div
+              className="px-3 py-2"
+              style={{ color: 'var(--color-text-secondary)', opacity: 0.6 }}
+            >
+              Waiting for service output…
+            </div>
+          ) : (
+            logs.map((entry) => <LogRow key={entry.id} entry={entry} />)
+          )}
         </div>
-      </SettingSection>
 
-      <SettingSection title="Service Log">
-        <div className="px-5 py-4">
-          <div
-            ref={logContainerRef}
-            className="rounded overflow-y-auto font-mono text-xs"
-            style={{
-              height: 240,
-              background: 'var(--color-code-bg)',
-              border: '1px solid var(--color-border)',
-              fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace",
-              fontSize: '12px',
-            }}
-          >
-            {logs.length === 0 ? (
-              <div
-                className="px-3 py-2"
-                style={{
-                  color: 'var(--color-text-secondary)',
-                  opacity: 0.6,
-                }}
-              >
-                Waiting for service output…
-              </div>
-            ) : (
-              <>
-                {logs.map((entry) => (
-                  <LogRow key={entry.id} entry={entry} />
-                ))}
-              </>
-            )}
-          </div>
-
-          <div className="mt-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="px-5 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+          <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <span>Log file: </span>
             <span className="font-mono text-xs" style={{ wordBreak: 'break-all' }}>
               {logFilePath || 'Loading…'}
@@ -139,8 +131,6 @@ export function About(): JSX.Element {
             Logs are cleared and a new file is created each time the app starts
           </div>
         </div>
-      </SettingSection>
-        </SettingsPageWrapper>
       </div>
     </div>
   )
