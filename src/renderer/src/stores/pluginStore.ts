@@ -26,9 +26,14 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
         if (p.status === 'connected' && !nextEnabled) nextStatus = 'disabled'
         else if (p.status === 'disabled' && nextEnabled) nextStatus = 'connected'
 
-        // Sync Discord plugin toggle with service state
+        // Sync plugin toggle with persistent settings
         if (id === 'discord') {
           window.api.setServiceEnabled('discord', nextEnabled)
+        }
+        if (id === 'kvm-detector') {
+          window.api.getSettings()
+            .then((s) => window.api.setSettings({ ...s, kvmEnabled: nextEnabled }))
+            .catch(console.error)
         }
 
         return { ...p, enabled: nextEnabled, status: nextStatus }
@@ -89,7 +94,7 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
           status = 'installed'
           statusLine = 'Disconnected'
         }
-        return { ...p, status, statusLine }
+        return { ...p, enabled: enabled, status, statusLine }
       }),
     })
   },
