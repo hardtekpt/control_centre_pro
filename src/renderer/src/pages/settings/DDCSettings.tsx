@@ -181,8 +181,6 @@ export function DDCSettings(): JSX.Element {
       <SettingSection title="State Polling">
         <SettingRow
           label="Refresh Interval"
-          description="How often the app polls displays for changes (10–3600 seconds)"
-          stacked
           last
         >
           <div className="flex items-center gap-2">
@@ -239,14 +237,6 @@ export function DDCSettings(): JSX.Element {
           >
             {monitors.length > 0 ? JSON.stringify(monitors, null, 2) : 'No monitor data available'}
           </div>
-        </div>
-      </SettingSection>
-
-      <SettingSection>
-        <div className="px-5 py-3.5">
-          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            DDC/CI (Display Data Channel/Command Interface) allows software control of display brightness and other features. Not all monitors support this protocol.
-          </p>
         </div>
       </SettingSection>
         </SettingsPageWrapper>
