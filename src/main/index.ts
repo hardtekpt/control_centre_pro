@@ -219,7 +219,8 @@ function applyWindowIcon(): void {
 
 function getTargetDisplay() {
   if (openOnActiveDisplay) {
-    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+    const center = activeWindowMonitor?.getActiveWindowCenter()
+    if (center) return screen.getDisplayNearestPoint(center)
   }
   return screen.getPrimaryDisplay()
 }
