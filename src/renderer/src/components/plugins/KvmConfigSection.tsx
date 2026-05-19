@@ -266,26 +266,6 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
     window.api.kvmIdentifyCancel().catch(console.error)
   }
 
-  const handleReset = async (): Promise<void> => {
-    const current = await window.api.getSettings()
-    await window.api.setSettings({
-      ...current,
-      kvmEnabled: false,
-      kvmDeviceInstanceId: '',
-      kvmDeviceName: '',
-      kvmConnectedActions: [],
-      kvmDisconnectedActions: [],
-    })
-    setDraftDeviceId('')
-    setSavedDeviceId('')
-    setDraftDeviceName('')
-    setSavedDeviceName('')
-    setDraftConnected([])
-    setSavedConnected([])
-    setDraftDisconnected([])
-    setSavedDisconnected([])
-  }
-
   const monitorOptions = ddcMonitors.map((m) => ({ id: m.monitor_id, name: m.name }))
   const getInputsForMonitor = (id: number): string[] =>
     ddcMonitors.find((m) => m.monitor_id === id)?.available_inputs ?? []
@@ -389,18 +369,6 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
         onChange={setDraftDisconnected}
       />
 
-      <div className="cfg-section">
-        <div className="cfg-section-h">
-          <h3>Plugin Lifecycle</h3>
-        </div>
-        <div className="ff">
-          <div className="ff-label">
-            <div className="ff-label-title">Reset configuration</div>
-            <div className="ff-label-desc">Clear device selection and all input rules</div>
-          </div>
-          <button className="btn-ghost danger" onClick={handleReset}>Reset</button>
-        </div>
-      </div>
     </>
   )
 }

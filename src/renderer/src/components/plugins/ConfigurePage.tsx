@@ -59,10 +59,12 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
   }, [])
 
   useEffect(() => {
+    if (plugin.id !== 'discord') return
     setDirty(draftClientId !== savedClientId || draftClientSecret !== savedClientSecret)
-  }, [draftClientId, savedClientId, draftClientSecret, savedClientSecret, setDirty])
+  }, [plugin.id, draftClientId, savedClientId, draftClientSecret, savedClientSecret, setDirty])
 
   useEffect(() => {
+    if (plugin.id !== 'discord') return
     registerSave(async () => {
       const trimmedId = draftClientIdRef.current.trim()
       const trimmedSecret = draftClientSecretRef.current.trim()
@@ -79,7 +81,7 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
       await window.api.discordReconnect()
     })
     return () => registerSave(null)
-  }, [registerSave])
+  }, [plugin.id, registerSave])
 
   const connected = discordState?.available && discordState?.authenticated
 
