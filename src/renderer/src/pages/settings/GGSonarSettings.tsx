@@ -122,7 +122,7 @@ export function GGSonarSettings(): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title="GG Sonar" />
+      <PageHeader title="GG Sonar" description="Audio mixer mode, channel visibility, and preset switching configuration" />
       <div className="flex-1 overflow-y-auto">
         <SettingsPageWrapper>
           <SettingSection title="Mixer Mode">

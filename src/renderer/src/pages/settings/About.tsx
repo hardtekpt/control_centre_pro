@@ -64,7 +64,7 @@ export function About(): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title="About" />
+      <PageHeader title="About" description="Application information and live service logs" />
       <div className="flex-1 overflow-y-auto">
         <SettingsPageWrapper>
           <SettingSection title="Application">

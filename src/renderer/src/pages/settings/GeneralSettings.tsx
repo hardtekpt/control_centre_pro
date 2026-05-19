@@ -64,7 +64,7 @@ export function GeneralSettings(): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title="General" />
+      <PageHeader title="General" description="Application theme, startup behavior, and service configuration" />
       <div className="flex-1 overflow-y-auto">
         <SettingsPageWrapper>
           <SettingSection title="Appearance">
