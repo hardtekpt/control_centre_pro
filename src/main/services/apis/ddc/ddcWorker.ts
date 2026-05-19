@@ -203,6 +203,14 @@ const INPUT_NAME_MAP: Record<string, string> = {
 // Persistent cache of normalized DDC path → GDI device name, survives across refreshes
 const gdiDeviceNamesByPath = new Map<string, string>()
 
+// Track known monitor paths to detect connect/disconnect events between polls
+let prevMonitorPaths: Set<string> | null = null
+
+function monitorDisplayName(devicePath: string): string {
+  const parts = devicePath.split('#')
+  return parts.length > 1 ? parts[1] : devicePath
+}
+
 function log(level: 'info' | 'warn' | 'error', message: string): void {
   parentPort?.postMessage({ type: 'log', level, message })
 }
@@ -224,9 +232,28 @@ function doRefresh(): RefreshResult {
   }
 
   if (!Array.isArray(rawPaths) || rawPaths.length === 0) {
-    log('info', 'No DDC-capable monitors found')
+    if (prevMonitorPaths === null || prevMonitorPaths.size > 0) {
+      log('info', 'No DDC-capable monitors found')
+    }
+    prevMonitorPaths = new Set()
     return { monitors: [], devicePaths: [] }
   }
+
+  // Log connect/disconnect events relative to the previous refresh
+  if (prevMonitorPaths !== null) {
+    const currentSet = new Set(rawPaths)
+    for (const p of currentSet) {
+      if (!prevMonitorPaths.has(p)) {
+        log('info', `Monitor connected: ${monitorDisplayName(p)}`)
+      }
+    }
+    for (const p of prevMonitorPaths) {
+      if (!currentSet.has(p)) {
+        log('info', `Monitor disconnected: ${monitorDisplayName(p)}`)
+      }
+    }
+  }
+  prevMonitorPaths = new Set(rawPaths)
 
   const primaryNorm = queryPrimaryNorm()
   const gdiMap = queryDeviceMap()
