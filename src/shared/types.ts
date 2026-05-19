@@ -239,6 +239,7 @@ export interface AppSettings {
   kvmDeviceName: string
   kvmConnectedActions: MonitorInputAction[]
   kvmDisconnectedActions: MonitorInputAction[]
+  runAtStartup: boolean
 }
 
 /** Defaults applied when no saved settings exist */
@@ -263,6 +264,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   kvmDeviceName: '',
   kvmConnectedActions: [],
   kvmDisconnectedActions: [],
+  runAtStartup: false,
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────

@@ -416,6 +416,9 @@ function registerIpcHandlers(): void {
       discordService.setClientSecret(settings.discordClientSecret)
     }
     kvmDetector.applySettings(settings)
+    if (typeof settings.runAtStartup === 'boolean') {
+      app.setLoginItemSettings({ openAtLogin: settings.runAtStartup })
+    }
   })
 
   ipcMain.handle(IPC_CHANNELS.KVM_GET_STATE, () => kvmDetector.getState())

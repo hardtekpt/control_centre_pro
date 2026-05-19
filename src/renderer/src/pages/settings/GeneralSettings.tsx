@@ -17,6 +17,8 @@ export function GeneralSettings(): JSX.Element {
   const [savedMinimizeToTray, setSavedMinimizeToTray] = useState(true)
   const [draftOpenOnActiveDisplay, setDraftOpenOnActiveDisplay] = useState(false)
   const [savedOpenOnActiveDisplay, setSavedOpenOnActiveDisplay] = useState(false)
+  const [draftRunAtStartup, setDraftRunAtStartup] = useState(false)
+  const [savedRunAtStartup, setSavedRunAtStartup] = useState(false)
   const [draftPythonPath, setDraftPythonPath] = useState('')
   const [savedPythonPath, setSavedPythonPath] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -31,6 +33,8 @@ export function GeneralSettings(): JSX.Element {
       setSavedMinimizeToTray(s.minimizeToTray)
       setDraftOpenOnActiveDisplay(s.openOnActiveDisplay ?? false)
       setSavedOpenOnActiveDisplay(s.openOnActiveDisplay ?? false)
+      setDraftRunAtStartup(s.runAtStartup ?? false)
+      setSavedRunAtStartup(s.runAtStartup ?? false)
     })
   }, [])
 
@@ -38,7 +42,8 @@ export function GeneralSettings(): JSX.Element {
     draftTheme !== theme ||
     draftPythonPath !== savedPythonPath ||
     draftMinimizeToTray !== savedMinimizeToTray ||
-    draftOpenOnActiveDisplay !== savedOpenOnActiveDisplay
+    draftOpenOnActiveDisplay !== savedOpenOnActiveDisplay ||
+    draftRunAtStartup !== savedRunAtStartup
   useEffect(() => {
     setDirty(isDirtyLocal)
   }, [isDirtyLocal, setDirty])
@@ -51,10 +56,12 @@ export function GeneralSettings(): JSX.Element {
         theme: draftTheme,
         minimizeToTray: draftMinimizeToTray,
         openOnActiveDisplay: draftOpenOnActiveDisplay,
+        runAtStartup: draftRunAtStartup,
       })
       setTheme(draftTheme)
       setSavedMinimizeToTray(draftMinimizeToTray)
       setSavedOpenOnActiveDisplay(draftOpenOnActiveDisplay)
+      setSavedRunAtStartup(draftRunAtStartup)
 
       const trimmedPath = draftPythonPath.trim()
       if (trimmedPath) {
@@ -63,7 +70,7 @@ export function GeneralSettings(): JSX.Element {
       }
     })
     return () => registerSave(null)
-  }, [draftTheme, draftMinimizeToTray, draftOpenOnActiveDisplay, draftPythonPath, registerSave, setTheme])
+  }, [draftTheme, draftMinimizeToTray, draftOpenOnActiveDisplay, draftRunAtStartup, draftPythonPath, registerSave, setTheme])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
@@ -109,11 +116,20 @@ export function GeneralSettings(): JSX.Element {
         <SettingRow
           label="Open on active display"
           description="Open the app and notifications on the display where the cursor is. When off, always uses the primary display."
-          last
         >
           <ToggleSetting
             checked={draftOpenOnActiveDisplay}
             onChange={() => setDraftOpenOnActiveDisplay((v) => !v)}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Run at startup"
+          description="Automatically launch Control Centre Pro when you log in to Windows"
+          last
+        >
+          <ToggleSetting
+            checked={draftRunAtStartup}
+            onChange={() => setDraftRunAtStartup((v) => !v)}
           />
         </SettingRow>
       </SettingSection>
