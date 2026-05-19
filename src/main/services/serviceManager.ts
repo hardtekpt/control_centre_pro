@@ -138,10 +138,11 @@ export class ServiceManager {
    * Register a non-Python service so it appears in the service list, the About
    * terminal, and the Settings enable/disable toggle alongside Python services.
    * Must be called before startAll().
+   * Native services default to disabled until explicitly enabled by the user.
    */
   registerNativeService(reg: NativeServiceRegistration): void {
     this.nativeServices.push(reg)
-    if (!(reg.id in this.enabled)) this.enabled[reg.id] = true
+    if (!(reg.id in this.enabled)) this.enabled[reg.id] = false
   }
 
   /** Emit a log entry on behalf of a native service — appears in the About terminal */

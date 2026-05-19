@@ -232,6 +232,26 @@ function HeadphonesIcon(): JSX.Element {
   )
 }
 
+function ControllerIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 12c0-1.104.895-2 2-2s2 .896 2 2-.895 2-2 2-2-.896-2-2z" />
+      <path d="M16 12c0-1.104.895-2 2-2s2 .896 2 2-.895 2-2 2-2-.896-2-2z" />
+      <path d="M12 9v6" />
+      <path d="M9 12h6" />
+      <path d="M2 10c0-1.657 1.79-3 4-3h12c2.21 0 4 1.343 4 3v4c0 1.657-1.79 3-4 3H6c-2.21 0-4-1.343-4-3v-4z" />
+    </svg>
+  )
+}
+
+function ChatIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
 // ─── ANC mode control ─────────────────────────────────────────────────────────
 
 function AncModeControl({
@@ -418,7 +438,7 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
         <div className="flex items-center gap-3">
           <button
             onClick={() => cmd('setChatmixEnabled', !state.chatmixEnabled, { chatmixEnabled: !state.chatmixEnabled })}
-            className="text-xs shrink-0 w-24 text-left"
+            className="text-xs shrink-0 text-left"
             style={{
               textDecoration: state.chatmixEnabled ? 'none' : 'line-through',
               background: 'none',
@@ -426,20 +446,21 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
               padding: 0,
               cursor: 'pointer',
               color: 'var(--color-text-secondary)',
+              minWidth: '50px',
             }}
           >
             ChatMix
           </button>
           <div
-            className="flex-1 flex items-center gap-1.5"
+            className="flex-1 flex items-center gap-2"
             style={{ opacity: state.chatmixEnabled ? 1 : 0.3, transition: 'opacity 150ms ease', pointerEvents: 'none' }}
           >
-            <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-              Game {state.chatmixGame}
+            <span style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}>
+              <ControllerIcon />
             </span>
             <div
               className="flex-1 rounded-full overflow-hidden"
-              style={{ height: 4, background: 'var(--color-border)' }}
+              style={{ height: 6, background: 'var(--color-border)' }}
             >
               <div
                 className="h-full rounded-full"
@@ -450,8 +471,8 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
                 }}
               />
             </div>
-            <span className="text-xs mono shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-              {state.chatmixChat} Chat
+            <span style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}>
+              <ChatIcon />
             </span>
           </div>
         </div>

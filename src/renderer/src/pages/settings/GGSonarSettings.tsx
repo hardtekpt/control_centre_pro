@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
+import { PageHeader, SettingSection, SettingRow, ToggleSetting, SettingsPageWrapper } from '../../components/SettingsComponents'
 import type { SonarChannel, SonarMode, SonarPollingConfig } from '@shared/types'
 import { SONAR_CHANNELS } from '@shared/types'
 
@@ -17,29 +18,6 @@ function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
   if (a.size !== b.size) return false
   for (const v of a) if (!b.has(v)) return false
   return true
-}
-
-function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className="flex-shrink-0 flex items-center justify-center rounded transition-colors"
-      style={{
-        width: 16,
-        height: 16,
-        background: checked ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-        border: '1px solid var(--color-border)',
-        cursor: 'pointer',
-      }}
-    >
-      {checked && (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      )}
-    </button>
-  )
 }
 
 export function GGSonarSettings(): JSX.Element {
@@ -100,9 +78,11 @@ export function GGSonarSettings(): JSX.Element {
     registerSave(async () => {
       // Preset switcher — save first so it's never skipped by an error below
       const psEnabled = draftPresetSwitcherEnabledRef.current
-      await window.api.setPresetSwitcherEnabled(psEnabled)
-      setSavedPresetSwitcherEnabled(psEnabled)
-      setDraftPresetSwitcherEnabled(psEnabled)
+      if (psEnabled !== null) {
+        await window.api.setPresetSwitcherEnabled(psEnabled)
+        setSavedPresetSwitcherEnabled(psEnabled)
+        setDraftPresetSwitcherEnabled(psEnabled)
+      }
 
       // Polling config
       const pollingMs = Math.max(100, parseInt(draftPollingIntervalRef.current, 10) || 1000)
@@ -141,116 +121,93 @@ export function GGSonarSettings(): JSX.Element {
   }
 
   return (
-    <div>
-      <h1 className="text-xl font-semibold mb-7 tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-        GG Sonar
-      </h1>
+    <SettingsPageWrapper>
+      <PageHeader title="GG Sonar" />
 
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-          Mixer Mode
-        </h2>
+      <SettingSection title="Mixer Mode">
         {sonarState && (
-          <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--color-border)', width: 'fit-content' }}>
-            {(['classic', 'streamer'] as SonarMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => handleModeChange(m)}
-                className="text-xs px-4 py-2 capitalize transition-colors font-medium"
-                style={{
-                  background: sonarState.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                  color: sonarState.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                  cursor: 'pointer',
-                  border: 'none',
-                  outline: 'none',
-                }}
-              >
-                {m}
-              </button>
-            ))}
+          <div className="px-5 py-3.5">
+            <div className="flex rounded overflow-hidden w-fit" style={{ border: '1px solid var(--color-border)' }}>
+              {(['classic', 'streamer'] as SonarMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => handleModeChange(m)}
+                  className="text-xs px-4 py-2 capitalize transition-colors font-medium"
+                  style={{
+                    background: sonarState.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                    color: sonarState.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                    cursor: 'pointer',
+                    border: 'none',
+                    outline: 'none',
+                  }}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
         )}
-      </div>
+      </SettingSection>
 
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-          Visible Channels
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {CHANNEL_DEFS.map(({ channel, label }) => (
-            <button
+      <SettingSection title="Visible Channels">
+        <div className="grid grid-cols-2 gap-0">
+          {CHANNEL_DEFS.map(({ channel, label }, idx, arr) => (
+            <SettingRow
               key={channel}
-              type="button"
-              onClick={() => handleToggleChannel(channel)}
-              className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left"
-              style={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-raised)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)' }}
+              label={label}
+              last={idx === arr.length - 1}
             >
-              <Checkbox checked={draftVisibleChannels.has(channel)} onChange={() => handleToggleChannel(channel)} />
-              <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                {label}
-              </span>
-            </button>
+              <ToggleSetting
+                checked={draftVisibleChannels.has(channel)}
+                onChange={() => handleToggleChannel(channel)}
+              />
+            </SettingRow>
           ))}
         </div>
-      </div>
+      </SettingSection>
 
-      {savedPresetSwitcherEnabled !== null && (
-        <div className="mb-8">
-          <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-            Preset Switcher
-          </h2>
-          <button
-            type="button"
-            onClick={handleTogglePresetSwitcher}
-            className="flex items-center gap-3 p-3 rounded cursor-pointer transition-colors text-left w-fit"
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-raised)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)' }}
+      {savedPresetSwitcherEnabled !== null && draftPresetSwitcherEnabled !== null && (
+        <SettingSection title="Preset Switcher">
+          <SettingRow
+            label="Enable Automatic Preset Switching"
+            description="Automatically switch presets based on active window"
+            last
           >
-            <Checkbox checked={draftPresetSwitcherEnabled ?? false} onChange={() => {}} />
-            <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-              Enable Automatic Preset Switching
-            </span>
-          </button>
-        </div>
+            <ToggleSetting
+              checked={draftPresetSwitcherEnabled}
+              onChange={handleTogglePresetSwitcher}
+            />
+          </SettingRow>
+        </SettingSection>
       )}
 
-      <div>
-        <h2 className="text-sm font-semibold mb-4 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-          State Polling
-        </h2>
-        <div className="space-y-3 max-w-sm">
-          <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-              Polling Interval (ms)
-            </label>
+      <SettingSection title="State Polling">
+        <SettingRow
+          label="Polling Interval"
+          description="Updates all state: mode, volumes, presets, routing, and devices"
+          stacked
+          last
+        >
+          <div className="flex items-center gap-2">
             <input
               type="number"
               min="100"
               step="100"
               value={draftPollingInterval}
               onChange={(e) => setDraftPollingInterval(e.target.value)}
-              className="w-full px-3 py-2 rounded text-sm"
+              className="px-3 py-2 rounded text-sm font-mono"
               style={{
                 background: 'var(--color-surface-raised)',
                 color: 'var(--color-text-primary)',
                 border: '1px solid var(--color-border)',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '13px',
               }}
             />
-            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Updates all state: mode, volumes, presets, routing, and devices
-            </p>
+            <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>ms</span>
           </div>
-        </div>
-      </div>
-    </div>
+        </SettingRow>
+      </SettingSection>
+    </SettingsPageWrapper>
   )
 }

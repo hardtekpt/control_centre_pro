@@ -5,6 +5,7 @@ import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
 import { useDiscordStore } from './stores/discordStore'
 import { useShortcutStore } from './stores/shortcutStore'
+import { usePluginStore } from './stores/pluginStore'
 import { combinationFromEvent } from './lib/shortcuts/keys'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
@@ -23,11 +24,12 @@ export default function App(): JSX.Element {
     setMaximized, setView, setSettingsTab, toggleSidebar,
     setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
-  const { setServices, setLogs, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings } =
+  const { setServices, setLogs, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings, services } =
     useServiceStore()
   const { setSonarState } = useSonarStore()
   const { setDiscordState } = useDiscordStore()
   const { items: shortcutItems, load: loadShortcuts } = useShortcutStore()
+  const { syncDiscordServiceState } = usePluginStore()
 
   // Track whether initial settings have been loaded so we don't auto-save before loading
   const settingsLoadedRef = useRef(false)
@@ -144,6 +146,12 @@ export default function App(): JSX.Element {
     ]
     return () => cleanups.forEach((fn) => fn())
   }, [setServices, addLog])
+
+  // Sync Discord plugin state with service state
+  useEffect(() => {
+    const discordService = services.find((s) => s.id === 'discord')
+    syncDiscordServiceState(discordService)
+  }, [services, syncDiscordServiceState])
 
   // Load initial Arctis state and subscribe to device events
   useEffect(() => {
