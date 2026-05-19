@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { SonarState, PresetSwitcherRule, MonitorInputAction, OpenApp, ActiveWindowInfo, DdcMonitor } from '@shared/types'
+import './gg-sonar.css'
 
 const INPUT_NAME_MAP: Record<string, string> = {
   '0x01': 'VGA 1',
@@ -273,19 +274,19 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
                 {/* Toggle */}
                 <button
                   onClick={() => handleToggleRule(rule.id)}
-                  className="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center transition-colors mt-0.5"
+                  className="toggle-track"
                   style={{
-                    background: rule.enabled ? 'var(--color-accent)' : 'transparent',
-                    border: `1px solid ${rule.enabled ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                    cursor: 'pointer',
+                    background: rule.enabled ? 'var(--color-text-primary)' : 'var(--color-border)',
                   }}
                   title={rule.enabled ? 'Disable rule' : 'Enable rule'}
                 >
-                  {rule.enabled && (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
+                  <span
+                    className="toggle-thumb"
+                    style={{
+                      transform: rule.enabled ? 'translateX(14px)' : 'translateX(0)',
+                      background: rule.enabled ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                    }}
+                  />
                 </button>
 
                 {/* Delete */}
