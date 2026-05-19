@@ -9,17 +9,20 @@ let _mainWindow: BrowserWindow | null = null
 let _serviceManager: ServiceManager | null = null
 let _sonarService: SonarService | null = null
 let _ddcService: DdcService | null = null
+let _showMainWindow: (() => void) | null = null
 
 export function initDispatcher(
   mainWindow: BrowserWindow,
   serviceManager: ServiceManager,
   sonarService: SonarService,
   ddcService: DdcService,
+  showMainWindow: () => void,
 ): void {
   _mainWindow = mainWindow
   _serviceManager = serviceManager
   _sonarService = sonarService
   _ddcService = ddcService
+  _showMainWindow = showMainWindow
 }
 
 export async function dispatch(actionId: string, value?: unknown): Promise<void> {
@@ -180,8 +183,7 @@ async function _dispatch(actionId: string, value?: unknown): Promise<void> {
       if (_mainWindow?.isVisible()) {
         _mainWindow.hide()
       } else {
-        _mainWindow?.show()
-        _mainWindow?.focus()
+        _showMainWindow ? _showMainWindow() : _mainWindow?.show()
       }
       break
     case 'app.lock':
@@ -203,8 +205,7 @@ async function _dispatch(actionId: string, value?: unknown): Promise<void> {
       break
     }
     case 'app.go-to-page':
-      _mainWindow?.show()
-      _mainWindow?.focus()
+      _showMainWindow ? _showMainWindow() : _mainWindow?.show()
       _mainWindow?.webContents.send(IPC_CHANNELS.NAVIGATE, String(value))
       break
 
