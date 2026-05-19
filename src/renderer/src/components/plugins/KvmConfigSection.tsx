@@ -4,6 +4,7 @@ import { DDC_INPUT_NAMES } from '@shared/types'
 import type { Plugin } from '@shared/types'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { useServiceStore } from '../../stores/serviceStore'
+import { useKvmStore } from '../../stores/kvmStore'
 
 // ── Action row ────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,7 @@ type IdentifyPhase = 'idle' | 'waiting'
 export function KvmConfigSection({ plugin }: Props): JSX.Element {
   const { setDirty, registerSave } = useSettingsForm()
   const { ddcMonitors } = useServiceStore()
+  const { kvmState } = useKvmStore()
 
   const [identifyPhase, setIdentifyPhase] = useState<IdentifyPhase>('idle')
   const [countdown, setCountdown] = useState(30)
@@ -289,6 +291,11 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
     ddcMonitors.find((m) => m.monitor_id === id)?.available_inputs ?? []
 
   const hasDevice = Boolean(draftDeviceId)
+  const liveStateVisible =
+    hasDevice &&
+    savedDeviceId === draftDeviceId &&
+    kvmState?.deviceInstanceId === savedDeviceId
+  const liveConnected = kvmState?.connected ?? false
 
   return (
     <>
@@ -348,6 +355,12 @@ export function KvmConfigSection({ plugin }: Props): JSX.Element {
                   }}
                 >
                   {draftDeviceName || draftDeviceId}
+                </div>
+              )}
+              {liveStateVisible && (
+                <div className="status" style={{ fontSize: '11px' }}>
+                  <div className={`status-dot ${liveConnected ? 'connected' : 'disabled'}`} />
+                  {liveConnected ? 'Connected' : 'Disconnected'}
                 </div>
               )}
               <button className="btn-ghost" onClick={startIdentify}>
