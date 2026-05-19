@@ -69,10 +69,11 @@ export function DDCSettings(): JSX.Element {
   }
 
   return (
-    <SettingsPageWrapper>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title="DDC Display Control" description="Manage your connected displays" />
-
-      <div className="mb-4">
+      <div className="flex-1 overflow-y-auto">
+        <SettingsPageWrapper>
+          <div className="mb-4">
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
@@ -240,7 +241,9 @@ export function DDCSettings(): JSX.Element {
           </p>
         </div>
       </SettingSection>
-    </SettingsPageWrapper>
+        </SettingsPageWrapper>
+      </div>
+    </div>
   )
 }
 

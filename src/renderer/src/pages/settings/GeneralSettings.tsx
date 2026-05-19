@@ -63,10 +63,11 @@ export function GeneralSettings(): JSX.Element {
   }
 
   return (
-    <SettingsPageWrapper>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title="General" />
-
-      <SettingSection title="Appearance">
+      <div className="flex-1 overflow-y-auto">
+        <SettingsPageWrapper>
+          <SettingSection title="Appearance">
         <SettingRow
           label="Theme"
           description="Choose the color scheme for the application"
@@ -162,7 +163,9 @@ export function GeneralSettings(): JSX.Element {
           </div>
         )}
       </SettingSection>
-    </SettingsPageWrapper>
+        </SettingsPageWrapper>
+      </div>
+    </div>
   )
 }
 

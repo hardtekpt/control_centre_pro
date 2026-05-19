@@ -44,13 +44,14 @@ export function NotificationsSettings(): JSX.Element {
   }
 
   return (
-    <SettingsPageWrapper>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         title="Notifications"
         description="Control how long notifications appear on screen before automatically dismissing"
       />
-
-      <SettingSection title="Display Duration">
+      <div className="flex-1 overflow-y-auto">
+        <SettingsPageWrapper>
+          <SettingSection title="Display Duration">
         <div className="px-5 py-4">
           <div className="flex items-center gap-3 mb-4">
             <input
@@ -128,6 +129,8 @@ export function NotificationsSettings(): JSX.Element {
           </p>
         </div>
       </SettingSection>
-    </SettingsPageWrapper>
+        </SettingsPageWrapper>
+      </div>
+    </div>
   )
 }

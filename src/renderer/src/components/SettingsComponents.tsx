@@ -24,15 +24,34 @@ export function PageHeader({
   description?: string
 }): JSX.Element {
   return (
-    <div className="pb-6 mb-6 border-b" style={{ borderColor: 'var(--color-border)' }}>
+    <div
+      className="sticky top-0 z-10 border-b"
+      style={{
+        padding: '24px 32px 14px',
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-bg)',
+      }}
+    >
       <h1
-        className="text-lg font-semibold tracking-tight mb-1"
-        style={{ color: 'var(--color-text-primary)' }}
+        className="text-lg font-semibold tracking-tight"
+        style={{
+          color: 'var(--color-text-primary)',
+          margin: 0,
+          fontSize: '18px',
+          fontWeight: 600,
+        }}
       >
         {title}
       </h1>
       {description && (
-        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+        <p
+          className="text-sm"
+          style={{
+            color: 'var(--color-text-secondary)',
+            margin: '2px 0 0 0',
+            fontSize: '12px',
+          }}
+        >
           {description}
         </p>
       )}

@@ -71,7 +71,12 @@
       "PowerShell(head -100)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro\" -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.FullName.Contains\\(\".git\"\\) -and -not $_.FullName.Contains\\(\".claude\"\\) -and -not $_.FullName.Contains\\(\"node_modules\"\\) -and -not $_.FullName.Contains\\(\"dist\"\\) } | Select-Object FullName | Sort-Object FullName | Select-Object -First 150)",
       "Bash(python)",
-      "Bash(python -m py_compile \"resources/services/arctis_hid_service.py\")"
+      "Bash(python -m py_compile \"resources/services/arctis_hid_service.py\")",
+      "Bash(git -C c:\\\\Users\\\\ffvd\\\\Documents\\\\control_centre_pro diff src/shared/types.ts)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\ffvd\\\\Documents\\\\vscode_extensions\\\\test-runner\\\\\" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match \"settings|config|profile|vscode\" } | Select-Object FullName)",
+      "PowerShell(foreach \\($dir in Get-ChildItem \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Roaming\\\\Code\\\\User\\\\workspaceStorage\" -Directory\\) { $ws = Get-ChildItem $dir.FullName -Filter \"workspace.json\" -ErrorAction SilentlyContinue; if \\($ws\\) { $content = Get-Content $ws.FullName -Raw; if \\($content -match \"control_centre\"\\) { Write-Host \"Found: $\\($dir.FullName\\)\"; Write-Host $content } } })",
+      "PowerShell($db = \"C:\\\\Users\\\\ffvd\\\\AppData\\\\Roaming\\\\Code\\\\User\\\\workspaceStorage\\\\980a5cd8010cac4e0fc3d355367dc957\\\\state.vscdb\"; $bytes = [System.IO.File]::ReadAllBytes\\($db\\); $text = [System.Text.Encoding]::UTF8.GetString\\($bytes\\); $matches = [regex]::Matches\\($text, '\\(?:python\\\\.defaultInterpreterPath|pythonPath|interpreter\\)[^\\\\x00]{0,200}'\\); foreach \\($m in $matches\\) { Write-Host $m.Value.Substring\\(0, [Math]::Min\\(200, $m.Value.Length\\)\\) })",
+      "Bash(xargs head -200)"
     ]
   }
 }

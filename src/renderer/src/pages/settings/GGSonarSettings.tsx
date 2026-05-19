@@ -121,10 +121,11 @@ export function GGSonarSettings(): JSX.Element {
   }
 
   return (
-    <SettingsPageWrapper>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title="GG Sonar" />
-
-      <SettingSection title="Mixer Mode">
+      <div className="flex-1 overflow-y-auto">
+        <SettingsPageWrapper>
+          <SettingSection title="Mixer Mode">
         {sonarState && (
           <div className="px-5 py-3.5">
             <div className="flex rounded overflow-hidden w-fit" style={{ border: '1px solid var(--color-border)' }}>
@@ -208,6 +209,8 @@ export function GGSonarSettings(): JSX.Element {
           </div>
         </SettingRow>
       </SettingSection>
-    </SettingsPageWrapper>
+        </SettingsPageWrapper>
+      </div>
+    </div>
   )
 }

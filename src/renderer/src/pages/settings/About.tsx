@@ -63,10 +63,11 @@ export function About(): JSX.Element {
   }, [])
 
   return (
-    <SettingsPageWrapper>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title="About" />
-
-      <SettingSection title="Application">
+      <div className="flex-1 overflow-y-auto">
+        <SettingsPageWrapper>
+          <SettingSection title="Application">
         <div>
           {[
             { label: 'Version', value: '0.1.0' },
@@ -139,6 +140,8 @@ export function About(): JSX.Element {
           </div>
         </div>
       </SettingSection>
-    </SettingsPageWrapper>
+        </SettingsPageWrapper>
+      </div>
+    </div>
   )
 }
