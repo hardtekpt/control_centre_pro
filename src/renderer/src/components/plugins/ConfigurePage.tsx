@@ -253,26 +253,6 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
               </div>
             )}
 
-            {/* Lifecycle section */}
-            <div className="cfg-section">
-              <div className="cfg-section-h">
-                <h3>Plugin Lifecycle</h3>
-              </div>
-              <div className="ff">
-                <div className="ff-label">
-                  <div className="ff-label-title">Reset configuration</div>
-                  <div className="ff-label-desc">Clear all stored settings</div>
-                </div>
-                <button className="btn-ghost danger">Reset</button>
-              </div>
-              <div className="ff">
-                <div className="ff-label">
-                  <div className="ff-label-title">Uninstall plugin</div>
-                  <div className="ff-label-desc">Remove the plugin and its data</div>
-                </div>
-                <button className="btn-ghost danger">Uninstall</button>
-              </div>
-            </div>
           </>
         )}
       </div>

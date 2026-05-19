@@ -41,7 +41,7 @@ export function PluginGrid({ plugins, onPluginSelect, onTogglePlugin }: PluginGr
       result = result.filter((p) => p.category === activeFilter)
     }
 
-    return result
+    return [...result].sort((a, b) => a.name.localeCompare(b.name))
   }, [plugins, search, activeFilter])
 
   const connectedCount = plugins.filter((p) => p.status === 'connected').length
