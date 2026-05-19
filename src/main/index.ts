@@ -15,6 +15,16 @@ import { KvmDetector } from './services/kvmDetector'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
 
+const settingsFilePath = join(app.getPath('userData'), 'settings.json')
+function loadAppSettings(): AppSettings {
+  try {
+    if (existsSync(settingsFilePath)) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(readFileSync(settingsFilePath, 'utf-8')) }
+    }
+  } catch {}
+  return { ...DEFAULT_SETTINGS }
+}
+
 let mainWindow: BrowserWindow | null = null
 let notifWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -372,18 +382,6 @@ function stopDdcPolling(): void {
 // ─── IPC Handlers ─────────────────────────────────────────────────────────────
 
 function registerIpcHandlers(): void {
-  // ── Persistent app settings ────────────────────────────────────────────────
-  const settingsFilePath = join(app.getPath('userData'), 'settings.json')
-
-  function loadAppSettings(): AppSettings {
-    try {
-      if (existsSync(settingsFilePath)) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(readFileSync(settingsFilePath, 'utf-8')) }
-      }
-    } catch {}
-    return { ...DEFAULT_SETTINGS }
-  }
-
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => loadAppSettings())
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, settings: AppSettings) => {
@@ -411,8 +409,6 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.KVM_IDENTIFY_CANCEL, () => {
     kvmDetector.cancelIdentify()
   })
-
-  kvmDetector.start(loadAppSettings())
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
@@ -868,6 +864,7 @@ app.whenReady().then(() => {
 
   registerIpcHandlers()
   createWindow()
+  kvmDetector.start(loadAppSettings())
   serviceManager.setWindow(mainWindow!)
   initDispatcher(mainWindow!, serviceManager, sonarService, ddcService)
   sonarService.setWindow(mainWindow!)
