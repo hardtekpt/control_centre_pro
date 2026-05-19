@@ -21,7 +21,7 @@ import type { ArctisState } from '@shared/types'
  */
 export default function App(): JSX.Element {
   const {
-    currentView, currentSettingsTab, theme, sidebarWidth, sidebarCollapsed,
+    currentView, previousView, currentSettingsTab, theme, sidebarWidth, sidebarCollapsed,
     setMaximized, setView, setSettingsTab, toggleSidebar,
     setTheme, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
@@ -103,6 +103,13 @@ export default function App(): JSX.Element {
     const SETTINGS_TABS = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins', 'about'] as const
 
     const onKeyDown = (e: KeyboardEvent): void => {
+      // Esc — exit settings back to main view
+      if (e.key === 'Escape' && currentView === 'settings') {
+        e.preventDefault()
+        setView(previousView ?? 'home')
+        return
+      }
+
       if (!e.ctrlKey) return
 
       // Ctrl+B — toggle sidebar
@@ -148,7 +155,7 @@ export default function App(): JSX.Element {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [toggleSidebar, currentView, currentSettingsTab, setView, setSettingsTab])
+  }, [toggleSidebar, currentView, previousView, currentSettingsTab, setView, setSettingsTab])
 
   // Load user-defined shortcuts on startup
   useEffect(() => {
