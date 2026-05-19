@@ -423,8 +423,22 @@ export class DiscordService {
         await this.authorize()
       }
     } catch (e) {
-      this.logFn?.('error', `Discord: connect failed: ${e instanceof Error ? e.message : String(e)}`)
-      this.handleDisconnect()
+      const msg = e instanceof Error ? e.message : String(e)
+      this.logFn?.('error', `Discord: connect failed: ${msg}`)
+      if (msg.startsWith('Failed to connect to Discord IPC pipe')) {
+        // Discord app is not running — don't retry, just surface the error
+        this.state = {
+          ...this.state,
+          available: false,
+          authenticated: false,
+          error: 'Discord is not running',
+          voiceChannel: null,
+          participants: [],
+        }
+        this.push()
+      } else {
+        this.handleDisconnect(e instanceof Error ? e : new Error(msg))
+      }
     }
   }
 
