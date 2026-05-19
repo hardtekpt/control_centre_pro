@@ -273,11 +273,7 @@ function createWindow(): void {
     }
   })
 
-  if (is.dev) {
-    mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow?.webContents.openDevTools({ mode: 'detach' })
-    })
-  }
+
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
