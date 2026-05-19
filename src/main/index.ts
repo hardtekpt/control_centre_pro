@@ -137,7 +137,12 @@ function navigate(target: NavigateTarget): void {
 
 function showMainWindow(): void {
   if (!mainWindow) return
+  applyWindowIcon()
+  mainWindow.show()
   if (openOnActiveDisplay) {
+    // setPosition must be called after show() — Windows' SW_SHOWNORMAL restores
+    // the window to its last visible position (WINDOWPLACEMENT.rcNormalPosition),
+    // ignoring any setPosition calls made while the window was hidden.
     const { bounds } = getTargetDisplay()
     const [w, h] = mainWindow.getSize()
     mainWindow.setPosition(
@@ -145,8 +150,6 @@ function showMainWindow(): void {
       Math.round(bounds.y + (bounds.height - h) / 2),
     )
   }
-  applyWindowIcon()
-  mainWindow.show()
   mainWindow.focus()
 }
 
@@ -237,17 +240,9 @@ function getTargetDisplay() {
  * backgroundColor matches --color-bg dark mode to prevent white flash on load.
  */
 function createWindow(): void {
-  const { bounds } = getTargetDisplay()
-  const width = 1200
-  const height = 800
-  const x = Math.round(bounds.x + (bounds.width - width) / 2)
-  const y = Math.round(bounds.y + (bounds.height - height) / 2)
-
   mainWindow = new BrowserWindow({
-    width,
-    height,
-    x,
-    y,
+    width: 1200,
+    height: 800,
     minWidth: 800,
     minHeight: 600,
     show: false,
@@ -264,8 +259,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    applyWindowIcon()
-    mainWindow?.show()
+    showMainWindow()
   })
 
   mainWindow.on('close', (e) => {
