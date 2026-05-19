@@ -20,7 +20,13 @@ export function PluginCard({ plugin, onClick, onToggleClick }: PluginCardProps):
   const isInstalled = plugin.status !== 'not-installed'
 
   return (
-    <button className="pl-card" onClick={onClick}>
+    <div
+      className="pl-card"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+    >
       <div className="glyph">{plugin.glyph}</div>
       <div className="name">{plugin.name}</div>
       <div className="toggle-wrap" onClick={onToggleClick}>
@@ -51,6 +57,6 @@ export function PluginCard({ plugin, onClick, onToggleClick }: PluginCardProps):
           </div>
         )}
       </div>
-    </button>
+    </div>
   )
 }

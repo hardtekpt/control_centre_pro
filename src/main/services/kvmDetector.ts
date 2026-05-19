@@ -1,4 +1,4 @@
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import type { AppSettings, KvmState, MonitorInputAction, UsbDevice } from '../../shared/types'
 
 const POLL_INTERVAL_MS = 2000
@@ -109,9 +109,10 @@ export class KvmDetector {
   private queryDevices(): Promise<UsbDevice[]> {
     return new Promise((resolve) => {
       const ps =
-        'Get-PnpDevice -PresentOnly | Where-Object { $_.Class -eq "USB" -or $_.Class -eq "HIDClass" -or $_.Class -eq "Keyboard" -or $_.Class -eq "Mouse" } | Select-Object FriendlyName, InstanceId | ConvertTo-Json -Compress'
-      exec(
-        `powershell -NonInteractive -NoProfile -Command "${ps}"`,
+        "Get-PnpDevice -PresentOnly | Where-Object { $_.Class -eq 'USB' -or $_.Class -eq 'HIDClass' -or $_.Class -eq 'Keyboard' -or $_.Class -eq 'Mouse' } | Select-Object FriendlyName, InstanceId | ConvertTo-Json -Compress"
+      execFile(
+        'powershell.exe',
+        ['-NonInteractive', '-NoProfile', '-Command', ps],
         { timeout: 8000 },
         (err, stdout) => {
           if (err || !stdout.trim()) {
