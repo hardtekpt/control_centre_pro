@@ -370,7 +370,7 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
                 cursor: 'pointer',
               }}
             >
-              Arctis Nova Pro Wireless
+              Arctis NPW
             </button>
           </div>
           <ConnectivityDot
@@ -403,7 +403,7 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
               cursor: 'pointer',
             }}
           >
-            Arctis Nova Pro Wireless
+            Arctis NPW
           </button>
         </div>
         <div className="flex items-center gap-2">
