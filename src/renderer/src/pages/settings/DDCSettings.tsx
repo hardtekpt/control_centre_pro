@@ -73,25 +73,33 @@ export function DDCSettings(): JSX.Element {
       <PageHeader title="DDC Display Control" description="Manage your connected displays" />
       <div className="flex-1 overflow-y-auto">
         <SettingsPageWrapper>
-          <div className="mb-4">
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="text-sm px-4 py-2 rounded font-medium transition-colors"
-          style={{
-            background: 'var(--color-accent)',
-            color: 'var(--color-bg)',
-            border: 'none',
-            cursor: isRefreshing ? 'default' : 'pointer',
-            opacity: isRefreshing ? 0.6 : 1,
-          }}
-        >
-          {isRefreshing ? 'Refreshing…' : 'Refresh Monitors'}
-        </button>
-      </div>
-
       {monitors.length > 0 && (
-        <SettingSection title="Connected Monitors">
+        <SettingSection>
+          <div
+            className="px-5 py-3.5 border-b flex items-center justify-between"
+            style={{ borderColor: 'var(--color-border)' }}
+          >
+            <h2
+              className="text-sm font-semibold"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              Connected Monitors
+            </h2>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="text-sm px-4 py-2 rounded font-medium transition-colors"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-bg)',
+                border: 'none',
+                cursor: isRefreshing ? 'default' : 'pointer',
+                opacity: isRefreshing ? 0.6 : 1,
+              }}
+            >
+              {isRefreshing ? 'Refreshing…' : 'Refresh Monitors'}
+            </button>
+          </div>
           <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {monitors.map((monitor) => (
               <div
