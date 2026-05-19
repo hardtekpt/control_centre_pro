@@ -121,7 +121,7 @@ export function About(): JSX.Element {
           </SettingSection>
         </SettingsPageWrapper>
 
-        <div className="px-5 pb-4">
+        <div style={{ maxWidth: '880px', margin: '0 auto', padding: '0 0 16px' }}>
           <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <span>Log file: </span>
             <span className="font-mono text-xs" style={{ wordBreak: 'break-all' }}>
