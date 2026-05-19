@@ -1,4 +1,4 @@
-import { useRef, useState, memo } from 'react'
+import { useRef, useState, useEffect, memo } from 'react'
 
 /**
  * Custom slider with visual track, fill, and thumb.
@@ -30,6 +30,16 @@ function SliderInputComponent({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [dragValue, setDragValue] = useState<number | null>(null)
 
+  // Keep refs in sync so the wheel handler always reads fresh props without re-registering
+  const disabledRef = useRef(disabled)
+  const orientationRef = useRef(orientation)
+  const valueRef = useRef(value)
+  const onChangeRef = useRef(onChange)
+  disabledRef.current = disabled
+  orientationRef.current = orientation
+  valueRef.current = value
+  onChangeRef.current = onChange
+
   const displayValue = dragValue !== null ? dragValue : value
 
   function valueFromClient(clientX: number, clientY: number): number {
@@ -46,19 +56,27 @@ function SliderInputComponent({
   function triggerChange(v: number): void {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(() => {
-      onChange(v)
+      onChangeRef.current(v)
       debounceTimerRef.current = null
     }, 50)
   }
 
-  function onWheel(e: React.WheelEvent): void {
-    if (disabled) return
-    e.preventDefault()
-    const delta = orientation === 'vertical' ? -e.deltaY : e.deltaY
-    const newValue = Math.max(0, Math.min(1, displayValue - delta * 0.001))
-    setDragValue(newValue)
-    triggerChange(newValue)
-  }
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    function handleWheel(e: WheelEvent): void {
+      if (disabledRef.current) return
+      e.preventDefault()
+      const delta = orientationRef.current === 'vertical' ? -e.deltaY : e.deltaY
+      const current = dragValueRef.current !== null ? dragValueRef.current : valueRef.current
+      const newValue = Math.max(0, Math.min(1, current - delta * 0.001))
+      dragValueRef.current = newValue
+      setDragValue(newValue)
+      triggerChange(newValue)
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [])
 
   function onMouseDown(e: React.MouseEvent): void {
     if (disabled) return
@@ -109,7 +127,6 @@ function SliderInputComponent({
         opacity: disabled ? 0.5 : 1,
       }}
       onMouseDown={onMouseDown}
-      onWheel={onWheel}
     >
       {orientation === 'vertical' ? (
         <>
