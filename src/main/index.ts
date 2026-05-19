@@ -138,29 +138,21 @@ function navigate(target: NavigateTarget): void {
 function showMainWindow(): void {
   if (!mainWindow) return
   applyWindowIcon()
-  mainWindow.show()
   if (openOnActiveDisplay) {
-    // setPosition must be called after show() — Windows' SW_SHOWNORMAL restores
-    // the window to its last visible position (WINDOWPLACEMENT.rcNormalPosition),
-    // ignoring any setPosition calls made while the window was hidden.
-    const cursor = screen.getCursorScreenPoint()
-    const target = screen.getDisplayNearestPoint(cursor)
-    const allDisplays = screen.getAllDisplays()
-    const primary = screen.getPrimaryDisplay()
-    console.log('[showMainWindow] openOnActiveDisplay=true')
-    console.log(`[showMainWindow] cursor at: ${cursor.x},${cursor.y}`)
-    console.log(`[showMainWindow] target display: id=${target.id} bounds=${JSON.stringify(target.bounds)}`)
-    console.log(`[showMainWindow] primary display: id=${primary.id} bounds=${JSON.stringify(primary.bounds)}`)
-    console.log(`[showMainWindow] all displays: ${allDisplays.map(d => `id=${d.id}`).join(', ')}`)
+    // Reposition before the window becomes visible to avoid a flash on the
+    // previous display. setPosition on a hidden window is ignored by Windows'
+    // SW_SHOWNORMAL (it restores rcNormalPosition), so we: hide with opacity=0,
+    // show (invisible), move to target display, restore opacity.
+    const { bounds } = getTargetDisplay()
     const [w, h] = mainWindow.getSize()
-    const x = Math.round(target.bounds.x + (target.bounds.width - w) / 2)
-    const y = Math.round(target.bounds.y + (target.bounds.height - h) / 2)
-    console.log(`[showMainWindow] setting position to: ${x},${y} (window size: ${w}x${h})`)
+    const x = Math.round(bounds.x + (bounds.width - w) / 2)
+    const y = Math.round(bounds.y + (bounds.height - h) / 2)
+    mainWindow.setOpacity(0)
+    mainWindow.show()
     mainWindow.setPosition(x, y)
-    const [ax, ay] = mainWindow.getPosition()
-    console.log(`[showMainWindow] actual position after setPosition: ${ax},${ay}`)
+    mainWindow.setOpacity(1)
   } else {
-    console.log('[showMainWindow] openOnActiveDisplay=false, no repositioning')
+    mainWindow.show()
   }
   mainWindow.focus()
 }
