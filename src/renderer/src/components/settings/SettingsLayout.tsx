@@ -81,31 +81,33 @@ function SettingsLayoutInner(): JSX.Element {
           </div>
           {showFooter && (
             <div
-              className="shrink-0 flex items-center justify-end gap-3 px-8 py-3"
+              className="shrink-0"
               style={{
                 borderTop: '1px solid var(--color-border)',
                 background: 'var(--color-bg)',
               }}
             >
+              <div className="flex items-center justify-end gap-3" style={{ padding: '14px 32px' }}>
               {isDirty && (
                 <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                   Unsaved changes
                 </span>
               )}
-              <button
-                onClick={triggerSave}
-                disabled={!isDirty}
-                className="text-sm px-4 py-1.5 rounded font-medium transition-colors"
-                style={{
-                  background: isDirty ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                  color: isDirty ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border)',
-                  cursor: isDirty ? 'pointer' : 'default',
-                  opacity: isDirty ? 1 : 0.6,
-                }}
-              >
-                Save
-              </button>
+                <button
+                  onClick={triggerSave}
+                  disabled={!isDirty}
+                  className="text-sm px-4 py-1.5 rounded font-medium transition-colors"
+                  style={{
+                    background: isDirty ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                    color: isDirty ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: isDirty ? 'pointer' : 'default',
+                    opacity: isDirty ? 1 : 0.6,
+                  }}
+                >
+                  Save
+                </button>
+              </div>
             </div>
           )}
         </main>

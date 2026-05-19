@@ -8,7 +8,7 @@ export function SettingsPageWrapper({
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={{ maxWidth: '880px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '880px', margin: '22px auto 0' }}>
       {children}
     </div>
   )
@@ -25,36 +25,37 @@ export function PageHeader({
 }): JSX.Element {
   return (
     <div
-      className="sticky top-0 z-10 border-b"
+      className="sticky top-0 z-10"
       style={{
-        padding: '24px 32px 14px',
-        borderColor: 'var(--color-border)',
+        borderBottom: '1px solid var(--color-border)',
         background: 'var(--color-bg)',
       }}
     >
-      <h1
-        className="text-lg font-semibold tracking-tight"
-        style={{
-          color: 'var(--color-text-primary)',
-          margin: 0,
-          fontSize: '18px',
-          fontWeight: 600,
-        }}
-      >
-        {title}
-      </h1>
-      {description && (
-        <p
-          className="text-sm"
+      <div style={{ padding: '24px 32px 14px' }}>
+        <h1
+          className="text-lg font-semibold tracking-tight"
           style={{
-            color: 'var(--color-text-secondary)',
-            margin: '2px 0 0 0',
-            fontSize: '12px',
+            color: 'var(--color-text-primary)',
+            margin: 0,
+            fontSize: '18px',
+            fontWeight: 600,
           }}
         >
-          {description}
-        </p>
-      )}
+          {title}
+        </h1>
+        {description && (
+          <p
+            className="text-sm"
+            style={{
+              color: 'var(--color-text-secondary)',
+              margin: '2px 0 0 0',
+              fontSize: '12px',
+            }}
+          >
+            {description}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
