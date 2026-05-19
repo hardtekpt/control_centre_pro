@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
 import type {
   HeadsetNotificationSettings,
@@ -13,6 +13,16 @@ import type {
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { IconHeadset } from '../components/notifications/icons'
 import { createElement } from 'react'
+
+// Icons for search
+function IconSearch({ size = 14 }: { size?: number }): JSX.Element {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
 
 // ── Save helpers ──────────────────────────────────────────────────────────────
 
@@ -401,6 +411,10 @@ export function Notifications(): JSX.Element {
     settings.notifications?.display ?? DEFAULT_SETTINGS.notifications.display
   )
 
+  const [filter, setFilter] = useState<string>('all')
+  const [search, setSearch] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+
   // Sync if store settings change (e.g. on initial load)
   useEffect(() => {
     if (settings.notifications?.headset) {
@@ -419,6 +433,20 @@ export function Notifications(): JSX.Element {
       setDisplayRaw(settings.notifications.display)
     }
   }, [settings.notifications?.display])
+
+  // ⌘K / Ctrl+K focuses search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement
+      const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !inInput) {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const setHeadset = useCallback((next: HeadsetNotificationSettings): void => {
     setHeadsetRaw(next)
@@ -563,42 +591,207 @@ export function Notifications(): JSX.Element {
     }
   }
 
+  // Count enabled notifications per device
+  const countEnabled = (section: 'headset' | 'sonar' | 'display'): number => {
+    let count = 0
+    if (section === 'headset') {
+      count += headset.powerOnOff.enabled ? 1 : 0
+      count += headset.wireless.enabled ? 1 : 0
+      count += headset.bluetooth.enabled ? 1 : 0
+      count += headset.batteryLow.enabled ? 1 : 0
+      count += headset.batteryCharging.enabled ? 1 : 0
+      count += headset.batteryDock.enabled ? 1 : 0
+      count += headset.ancMode.enabled ? 1 : 0
+      count += headset.micMute.enabled ? 1 : 0
+      count += headset.volume.enabled ? 1 : 0
+      count += headset.chatmix.enabled ? 1 : 0
+      count += headset.sidetone.enabled ? 1 : 0
+    } else if (section === 'sonar') {
+      count += sonar.presetChange.enabled ? 1 : 0
+    } else if (section === 'display') {
+      count += display.inputSourceChange.enabled ? 1 : 0
+    }
+    return count
+  }
+
+  // Count total enabled
+  const totalEnabled = countEnabled('headset') + countEnabled('sonar') + countEnabled('display')
+
+  // Filter sections by search
+  const matchesSearch = (text: string): boolean => {
+    if (!search.trim()) return true
+    return text.toLowerCase().includes(search.toLowerCase())
+  }
+
+  const showHeadset = (filter === 'all' || filter === 'headset') && matchesSearch('arctis nova pro')
+  const showSonar = (filter === 'all' || filter === 'sonar') && matchesSearch('gg sonar')
+  const showDisplay = (filter === 'all' || filter === 'display') && matchesSearch('display')
+
   return (
-    <div className="flex flex-col gap-5 p-5">
-      {/* Page header */}
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-          >
-            <PageIcon />
-          </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        background: 'var(--color-bg)',
+        borderRadius: 10,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '18px 20px 0',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <h1
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: 'var(--color-text-primary)',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.2,
+                marginBottom: 4,
+              }}
+            >
               Notifications
             </h1>
-            {notifService && (
-              <div
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              {totalEnabled} enabled · {notifService ? (notifService.enabled ? 'Service active' : 'Service disabled') : ''}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
+            {/* Search */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                paddingRight: 10,
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8,
+                height: 32,
+              }}
+            >
+              <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
+                <IconSearch size={14} />
+              </span>
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: notifService.enabled ? '#22c55e' : 'var(--color-border)',
-                  flexShrink: 0,
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 13,
+                  outline: 'none',
+                  width: 150,
                 }}
-                title={notifService.enabled ? 'Service enabled' : 'Service disabled'}
               />
-            )}
+            </div>
           </div>
         </div>
-        <p className="text-sm pl-11" style={{ color: 'var(--color-text-secondary)' }}>
-          Configure notifications for connected devices. Click any notification title to preview.
-        </p>
+
+        {/* Filter chips */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
+          <button
+            type="button"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: filter === 'all' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
+              background: filter === 'all' ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: filter === 'all' ? 'var(--color-bg)' : 'var(--color-text-primary)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onClick={() => setFilter('all')}
+          >
+            All
+            <span style={{ fontSize: 11, opacity: 0.7 }}>11</span>
+          </button>
+          <button
+            type="button"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: filter === 'headset' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
+              background: filter === 'headset' ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: filter === 'headset' ? 'var(--color-bg)' : 'var(--color-text-primary)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onClick={() => setFilter('headset')}
+          >
+            Arctis Nova Pro
+            <span style={{ fontSize: 11, opacity: 0.7 }}>11</span>
+          </button>
+          <button
+            type="button"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: filter === 'sonar' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
+              background: filter === 'sonar' ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: filter === 'sonar' ? 'var(--color-bg)' : 'var(--color-text-primary)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onClick={() => setFilter('sonar')}
+          >
+            GG Sonar
+            <span style={{ fontSize: 11, opacity: 0.7 }}>1</span>
+          </button>
+          <button
+            type="button"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: filter === 'display' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
+              background: filter === 'display' ? 'var(--color-accent)' : 'var(--color-surface)',
+              color: filter === 'display' ? 'var(--color-bg)' : 'var(--color-text-primary)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onClick={() => setFilter('display')}
+          >
+            Display
+            <span style={{ fontSize: 11, opacity: 0.7 }}>1</span>
+          </button>
+        </div>
       </div>
 
-      {/* Headset section */}
-      <div className="flex flex-col gap-3">
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 16 }}>
+        <div className="flex flex-col gap-5 p-5">
+
+        {/* Headset section */}
+        {showHeadset && (
+        <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
             {createElement(IconHeadset, { size: 18 })}
@@ -708,9 +901,11 @@ export function Notifications(): JSX.Element {
           </Section>
         </div>
       </div>
+        )}
 
-      {/* Sonar section */}
-      <div className="flex flex-col gap-3">
+        {/* Sonar section */}
+        {showSonar && (
+        <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -735,9 +930,11 @@ export function Notifications(): JSX.Element {
           </Section>
         </div>
       </div>
+        )}
 
-      {/* Display section */}
-      <div className="flex flex-col gap-3">
+        {/* Display section */}
+        {showDisplay && (
+        <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -760,6 +957,27 @@ export function Notifications(): JSX.Element {
               onPreview={previewDisplayInputChange}
             />
           </Section>
+        </div>
+      </div>
+        )}
+
+        {/* Empty state */}
+        {!showHeadset && !showSonar && !showDisplay && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 200,
+            color: 'var(--color-text-secondary)',
+            fontSize: 13,
+            gap: 8,
+          }}
+        >
+          {search ? `No notifications match "${search}"` : 'No notifications found.'}
+        </div>
+        )}
         </div>
       </div>
     </div>
