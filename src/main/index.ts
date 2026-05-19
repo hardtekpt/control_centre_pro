@@ -135,6 +135,21 @@ function navigate(target: NavigateTarget): void {
   mainWindow?.webContents.send(IPC_CHANNELS.NAVIGATE, target)
 }
 
+function showMainWindow(): void {
+  if (!mainWindow) return
+  if (openOnActiveDisplay) {
+    const { bounds } = getTargetDisplay()
+    const [w, h] = mainWindow.getSize()
+    mainWindow.setPosition(
+      Math.round(bounds.x + (bounds.width - w) / 2),
+      Math.round(bounds.y + (bounds.height - h) / 2),
+    )
+  }
+  applyWindowIcon()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
 function createTray(): void {
   const iconPath = app.isPackaged
     ? join(process.resourcesPath, 'tray-icon.png')
@@ -147,11 +162,7 @@ function createTray(): void {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show',
-      click: () => {
-        applyWindowIcon()
-        mainWindow?.show()
-        mainWindow?.focus()
-      },
+      click: () => showMainWindow(),
     },
     { type: 'separator' },
     {
@@ -161,11 +172,7 @@ function createTray(): void {
   ])
 
   tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    applyWindowIcon()
-    mainWindow?.show()
-    mainWindow?.focus()
-  })
+  tray.on('click', () => showMainWindow())
 }
 
 /** Try to open the SteelSeries GG application */
@@ -219,8 +226,7 @@ function applyWindowIcon(): void {
 
 function getTargetDisplay() {
   if (openOnActiveDisplay) {
-    const center = activeWindowMonitor?.getActiveWindowCenter()
-    if (center) return screen.getDisplayNearestPoint(center)
+    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
   }
   return screen.getPrimaryDisplay()
 }
@@ -692,13 +698,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.NOTIF_PUSH, (_, spec: SerializedNotification) => {
     if (!notificationsEnabled) return
     if (!notifWindow || notifWindow.isDestroyed()) return
-    const { workArea } = getTargetDisplay()
-    const [w, h] = notifWindow.getSize()
-    notifWindow.setPosition(
-      Math.round(workArea.x + (workArea.width - w) / 2),
-      Math.round(workArea.y + workArea.height - h),
-    )
-    if (!notifWindow.isVisible()) notifWindow.show()
+    if (!notifWindow.isVisible()) {
+      const { workArea } = getTargetDisplay()
+      const [w, h] = notifWindow.getSize()
+      notifWindow.setPosition(
+        Math.round(workArea.x + (workArea.width - w) / 2),
+        Math.round(workArea.y + workArea.height - h),
+      )
+      notifWindow.show()
+    }
     notifWindow.webContents.send(IPC_CHANNELS.NOTIF_RECEIVE, spec)
   })
 
@@ -958,9 +966,7 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     } else {
-      applyWindowIcon()
-      mainWindow?.show()
-      mainWindow?.focus()
+      showMainWindow()
     }
   })
 })

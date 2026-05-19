@@ -11,7 +11,6 @@ import type { SonarService } from './sonarService'
 export class ActiveWindowMonitor {
   private subprocess: ChildProcess | null = null
   private currentProcessName = ''
-  private activeWindowCenter: { x: number; y: number } | null = null
   private rules: PresetSwitcherRule[] = []
   private autoApplied = new Map<string, string>()
   private manualOverrides = new Set<string>()
@@ -32,11 +31,9 @@ export class ActiveWindowMonitor {
     const script = `
 Add-Type @"
 using System; using System.Runtime.InteropServices;
-public struct RECT { public int Left, Top, Right, Bottom; }
 public class FW {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern int GetWindowThreadProcessId(IntPtr h, out int p);
-  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
 }
 "@
 $last = ""
@@ -45,11 +42,7 @@ while ($true) {
     $h = [FW]::GetForegroundWindow(); $p = 0
     [FW]::GetWindowThreadProcessId($h, [ref]$p) | Out-Null
     $n = (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName
-    $r = New-Object RECT
-    [FW]::GetWindowRect($h, [ref]$r) | Out-Null
-    $cx = [int](($r.Left + $r.Right) / 2); $cy = [int](($r.Top + $r.Bottom) / 2)
-    $line = "{""n"":""$n"",""x"":$cx,""y"":$cy}"
-    if ($n -and $line -ne $last) { $last = $line; Write-Output $line; [Console]::Out.Flush() }
+    if ($n -and $n -ne $last) { $last = $n; Write-Output $n; [Console]::Out.Flush() }
   } catch {}
   Start-Sleep -Milliseconds 500
 }
@@ -112,20 +105,7 @@ while ($true) {
     }
   }
 
-  getActiveWindowCenter(): { x: number; y: number } | null {
-    return this.activeWindowCenter
-  }
-
-  private onForegroundChanged(line: string): void {
-    let processName = line
-    try {
-      const parsed = JSON.parse(line) as { n: string; x: number; y: number }
-      processName = parsed.n
-      this.activeWindowCenter = { x: parsed.x, y: parsed.y }
-    } catch {
-      // fallback: treat line as plain process name (no position info)
-    }
-
+  private onForegroundChanged(processName: string): void {
     if (processName !== this.currentProcessName) {
       this.autoApplied.clear()
       this.manualOverrides.clear()
