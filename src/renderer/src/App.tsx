@@ -99,16 +99,56 @@ export default function App(): JSX.Element {
 
   // Global keyboard shortcuts
   useEffect(() => {
+    const MAIN_VIEWS = ['home', 'arctis', 'gg-sonar', 'shortcuts', 'notifications'] as const
+    const SETTINGS_TABS = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins', 'about'] as const
+
     const onKeyDown = (e: KeyboardEvent): void => {
-      // Ctrl+B — toggle sidebar (matches Claude Code convention)
-      if (e.ctrlKey && e.key === 'b') {
+      if (!e.ctrlKey) return
+
+      // Ctrl+B — toggle sidebar
+      if (e.key === 'b') {
         e.preventDefault()
         toggleSidebar()
+        return
+      }
+
+      const inSettings = currentView === 'settings'
+
+      // Ctrl+Tab / Ctrl+Shift+Tab — cycle pages
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        if (inSettings) {
+          const idx = SETTINGS_TABS.indexOf(currentSettingsTab as typeof SETTINGS_TABS[number])
+          const next = e.shiftKey
+            ? (idx - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length
+            : (idx + 1) % SETTINGS_TABS.length
+          setSettingsTab(SETTINGS_TABS[next])
+        } else {
+          const idx = MAIN_VIEWS.indexOf(currentView as typeof MAIN_VIEWS[number])
+          const base = idx === -1 ? 0 : idx
+          const next = e.shiftKey
+            ? (base - 1 + MAIN_VIEWS.length) % MAIN_VIEWS.length
+            : (base + 1) % MAIN_VIEWS.length
+          setView(MAIN_VIEWS[next])
+        }
+        return
+      }
+
+      // Ctrl+1–5 — jump to main page; Ctrl+1–6 in settings → jump to settings tab
+      const digit = parseInt(e.key, 10)
+      if (!isNaN(digit) && digit >= 1) {
+        if (inSettings) {
+          const tab = SETTINGS_TABS[digit - 1]
+          if (tab) { e.preventDefault(); setSettingsTab(tab) }
+        } else {
+          const view = MAIN_VIEWS[digit - 1]
+          if (view) { e.preventDefault(); setView(view) }
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [toggleSidebar])
+  }, [toggleSidebar, currentView, currentSettingsTab, setView, setSettingsTab])
 
   // Load user-defined shortcuts on startup
   useEffect(() => {
