@@ -211,6 +211,17 @@ python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@d
 
 ---
 
+## Git Workflow
+
+**Auto-commit changes**: After completing code changes, Claude will automatically commit them to the development branch using:
+- Commit format: `type: description` (e.g., `feat: add logout button`, `fix: resolve layout shift`)
+- Staged files: only modified source files (skip `.tsbuildinfo`, `.claude/settings.local.json`, `.vscode/`)
+- Co-author: `Claude Haiku 4.5 <noreply@anthropic.com>`
+
+This ensures work is tracked incrementally and prevents context loss if sessions disconnect.
+
+---
+
 ## Known Gaps / Next Steps
 
 - [ ] Sidebar width/collapsed state not persisted (add localStorage/electron-store)
