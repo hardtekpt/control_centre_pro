@@ -143,12 +143,24 @@ function showMainWindow(): void {
     // setPosition must be called after show() — Windows' SW_SHOWNORMAL restores
     // the window to its last visible position (WINDOWPLACEMENT.rcNormalPosition),
     // ignoring any setPosition calls made while the window was hidden.
-    const { bounds } = getTargetDisplay()
+    const cursor = screen.getCursorScreenPoint()
+    const target = screen.getDisplayNearestPoint(cursor)
+    const allDisplays = screen.getAllDisplays()
+    const primary = screen.getPrimaryDisplay()
+    console.log('[showMainWindow] openOnActiveDisplay=true')
+    console.log(`[showMainWindow] cursor at: ${cursor.x},${cursor.y}`)
+    console.log(`[showMainWindow] target display: id=${target.id} bounds=${JSON.stringify(target.bounds)}`)
+    console.log(`[showMainWindow] primary display: id=${primary.id} bounds=${JSON.stringify(primary.bounds)}`)
+    console.log(`[showMainWindow] all displays: ${allDisplays.map(d => `id=${d.id}`).join(', ')}`)
     const [w, h] = mainWindow.getSize()
-    mainWindow.setPosition(
-      Math.round(bounds.x + (bounds.width - w) / 2),
-      Math.round(bounds.y + (bounds.height - h) / 2),
-    )
+    const x = Math.round(target.bounds.x + (target.bounds.width - w) / 2)
+    const y = Math.round(target.bounds.y + (target.bounds.height - h) / 2)
+    console.log(`[showMainWindow] setting position to: ${x},${y} (window size: ${w}x${h})`)
+    mainWindow.setPosition(x, y)
+    const [ax, ay] = mainWindow.getPosition()
+    console.log(`[showMainWindow] actual position after setPosition: ${ax},${ay}`)
+  } else {
+    console.log('[showMainWindow] openOnActiveDisplay=false, no repositioning')
   }
   mainWindow.focus()
 }
