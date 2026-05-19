@@ -13,21 +13,21 @@ export function NotificationsSettings(): JSX.Element {
   useEffect(() => {
     window.api.getSettings().then((s) => {
       setSettings(s)
-      setDraftDuration(s.notifications.durationMs.toString())
+      setDraftDuration((s.notifications?.durationMs ?? DEFAULT_SETTINGS.notifications.durationMs).toString())
     }).catch(console.error)
   }, [])
 
   useEffect(() => {
-    const saved = settings.notifications.durationMs.toString()
+    const saved = (settings.notifications?.durationMs ?? DEFAULT_SETTINGS.notifications.durationMs).toString()
     setDirty(draftDuration !== saved)
-  }, [draftDuration, settings.notifications.durationMs, setDirty])
+  }, [draftDuration, settings.notifications?.durationMs, setDirty])
 
   useEffect(() => {
     registerSave(async () => {
       const parsed = parseInt(draftDuration, 10)
       if (!isNaN(parsed) && parsed >= 500 && parsed <= 10000) {
         const current = await window.api.getSettings()
-        const updated = { ...current, notifications: { ...current.notifications, durationMs: parsed } }
+        const updated = { ...current, notifications: { ...(current.notifications ?? DEFAULT_SETTINGS.notifications), durationMs: parsed } }
         await window.api.setSettings(updated)
         setSettings(updated)
       }
