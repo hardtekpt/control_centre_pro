@@ -587,6 +587,129 @@
   color: var(--color-warn);
 }
 
+/* KVM device select — custom dropdown replacing native <select> */
+.kvm-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.kvm-trigger:hover,
+.kvm-trigger:focus-visible {
+  border-color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+.kvm-trigger.open {
+  border-color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+.kvm-trigger-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.kvm-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s;
+}
+
+.kvm-trigger.open .kvm-chevron {
+  transform: rotate(180deg);
+}
+
+/* Portal dropdown */
+.kvm-dropdown {
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.kvm-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.kvm-dropdown::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+/* Dropdown option */
+.kvm-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  white-space: nowrap;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--color-border);
+  user-select: none;
+}
+
+.kvm-option:last-child {
+  border-bottom: none;
+}
+
+.kvm-option:hover {
+  background: var(--color-surface);
+}
+
+.kvm-option.selected {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.kvm-option.selected:hover {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+/* Option text — truncated by default, scrolling on hover */
+.kvm-option > span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.kvm-option:hover > span.scrolling {
+  text-overflow: clip;
+  animation: kvm-marquee 3s ease-in-out infinite alternate;
+}
+
+@keyframes kvm-marquee {
+  0%, 15%  { transform: translateX(0) }
+  85%, 100% { transform: translateX(var(--kvm-dist, 0px)) }
+}
+
 /* Empty state */
 .empty-state {
   padding: 56px 32px;
