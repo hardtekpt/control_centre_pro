@@ -804,7 +804,7 @@ export class DiscordService {
   }
 
   private push() {
-    if (this.window) {
+    if (this.window && !this.window.isDestroyed()) {
       this.window.webContents.send('discord:stateChange', this.state)
     }
     this.stateChangeFn?.()
