@@ -5,11 +5,35 @@ import { Toggle } from './Toggle'
 import { useDiscordStore } from '../../stores/discordStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { KvmConfigSection } from './KvmConfigSection'
+import { SliderInput } from '../SliderInput'
 
 function BackIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+  )
+}
+
+function MicIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="2" width="6" height="11" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+      <line x1="9" y1="21" x2="15" y2="21" />
+      {muted && <line x1="3" y1="3" x2="21" y2="21" />}
+    </svg>
+  )
+}
+
+function DeafenIcon({ deafened }: { deafened: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+      <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+      {deafened && <line x1="3" y1="3" x2="21" y2="21" />}
     </svg>
   )
 }
@@ -32,11 +56,16 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
   const [draftClientSecret, setDraftClientSecret] = useState('')
   const draftClientSecretRef = useRef(draftClientSecret)
 
-  const [dragInputVolume, setDragInputVolume] = useState<number | null>(null)
-  const [dragOutputVolume, setDragOutputVolume] = useState<number | null>(null)
+  const [labelInputVolume, setLabelInputVolume] = useState(100)
+  const [labelOutputVolume, setLabelOutputVolume] = useState(100)
 
-  const displayInputVolume = dragInputVolume ?? (discordState?.inputVolume ?? 100)
-  const displayOutputVolume = dragOutputVolume ?? (discordState?.outputVolume ?? 100)
+  useEffect(() => {
+    setLabelInputVolume(discordState?.inputVolume ?? 100)
+  }, [discordState?.inputVolume])
+
+  useEffect(() => {
+    setLabelOutputVolume(discordState?.outputVolume ?? 100)
+  }, [discordState?.outputVolume])
 
   useEffect(() => {
     draftClientIdRef.current = draftClientId
@@ -189,24 +218,59 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
               <div className="cfg-section">
                 <div className="cfg-section-h">
                   <h3>Voice Controls</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                    <button
+                      title={discordState?.selfMuted ? 'Unmute mic' : 'Mute mic'}
+                      onClick={() => window.api.discordSetSelfMute(!discordState?.selfMuted).catch(console.error)}
+                      style={{
+                        background: discordState?.selfMuted ? 'var(--color-accent)' : 'none',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        color: discordState?.selfMuted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '26px',
+                        height: '26px',
+                        padding: 0,
+                      }}
+                    >
+                      <MicIcon muted={discordState?.selfMuted ?? false} />
+                    </button>
+                    <button
+                      title={discordState?.selfDeafened ? 'Undeafen' : 'Deafen'}
+                      onClick={() => window.api.discordSetSelfDeaf(!discordState?.selfDeafened).catch(console.error)}
+                      style={{
+                        background: discordState?.selfDeafened ? 'var(--color-accent)' : 'none',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        color: discordState?.selfDeafened ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '26px',
+                        height: '26px',
+                        padding: 0,
+                      }}
+                    >
+                      <DeafenIcon deafened={discordState?.selfDeafened ?? false} />
+                    </button>
+                  </div>
                 </div>
                 <div className="ff">
                   <div className="ff-label">
                     <div className="ff-label-title">Mic Input Volume</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={displayInputVolume}
-                      onChange={(e) => {
-                        const v = Number(e.target.value)
-                        setDragInputVolume(v)
-                        window.api.discordSetInputVolume(v).catch(console.error)
+                    <SliderInput
+                      value={(discordState?.inputVolume ?? 100) / 100}
+                      onChange={(v) => {
+                        const val = Math.round(v * 100)
+                        setLabelInputVolume(val)
+                        window.api.discordSetInputVolume(val).catch(console.error)
                       }}
-                      onPointerUp={() => setDragInputVolume(null)}
-                      style={{ flex: 1 }}
                     />
                     <span
                       className="mono"
@@ -217,7 +281,7 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
                         textAlign: 'right',
                       }}
                     >
-                      {displayInputVolume}%
+                      {labelInputVolume}%
                     </span>
                   </div>
                 </div>
@@ -226,18 +290,13 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
                     <div className="ff-label-title">Output Volume</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={displayOutputVolume}
-                      onChange={(e) => {
-                        const v = Number(e.target.value)
-                        setDragOutputVolume(v)
-                        window.api.discordSetOutputVolume(v).catch(console.error)
+                    <SliderInput
+                      value={(discordState?.outputVolume ?? 100) / 100}
+                      onChange={(v) => {
+                        const val = Math.round(v * 100)
+                        setLabelOutputVolume(val)
+                        window.api.discordSetOutputVolume(val).catch(console.error)
                       }}
-                      onPointerUp={() => setDragOutputVolume(null)}
-                      style={{ flex: 1 }}
                     />
                     <span
                       className="mono"
@@ -248,7 +307,7 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
                         textAlign: 'right',
                       }}
                     >
-                      {displayOutputVolume}%
+                      {labelOutputVolume}%
                     </span>
                   </div>
                 </div>
