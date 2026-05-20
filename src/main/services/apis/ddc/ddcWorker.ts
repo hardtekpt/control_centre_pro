@@ -200,6 +200,19 @@ const INPUT_NAME_MAP: Record<string, string> = {
   '0x1b': 'USB-C',
 }
 
+interface ExtendedValues {
+  color_preset: number | null
+  red_gain: number | null
+  green_gain: number | null
+  blue_gain: number | null
+  sharpness: number | null
+  volume: number | null
+  muted: boolean | null
+  power_mode: number | null
+  usage_time_hours: number | null
+  vcp_version: string | null
+}
+
 interface ProbedCapabilities {
   color_preset: boolean
   rgb_gain: boolean
@@ -211,10 +224,16 @@ interface ProbedCapabilities {
   power: boolean
   usage_time: boolean
   vcp_version: boolean
+  // Cached extended values — populated during probe, updated on full refresh
+  values: ExtendedValues
 }
 
 // One-time per-session capability probe results keyed by raw DDC device path
 const probedPaths = new Map<string, ProbedCapabilities>()
+
+function formatVcpVersion(raw: number): string {
+  return `${(raw >> 8) & 0xff}.${raw & 0xff}`
+}
 
 function probeCapabilities(devicePath: string): ProbedCapabilities {
   if (probedPaths.has(devicePath)) return probedPaths.get(devicePath)!
@@ -231,6 +250,8 @@ function probeCapabilities(devicePath: string): ProbedCapabilities {
 
   const colorPreset = tryRead(0x14)
   const red = tryRead(0x16)
+  const green = tryRead(0x18)
+  const blue = tryRead(0x1a)
   const sharpness = tryRead(0x87)
   const volume = tryRead(0x62)
   const mute = tryRead(0x8d)
@@ -249,10 +270,51 @@ function probeCapabilities(devicePath: string): ProbedCapabilities {
     power: power !== null,
     usage_time: usageTime !== null,
     vcp_version: vcpVersion !== null,
+    values: {
+      color_preset: colorPreset ? colorPreset[0] : null,
+      red_gain: red ? red[0] : null,
+      green_gain: green ? green[0] : null,
+      blue_gain: blue ? blue[0] : null,
+      sharpness: sharpness ? sharpness[0] : null,
+      volume: volume ? volume[0] : null,
+      muted: mute ? mute[0] === 1 : null,
+      power_mode: power ? power[0] : null,
+      usage_time_hours: usageTime ? usageTime[0] : null,
+      vcp_version: vcpVersion ? formatVcpVersion(vcpVersion[0]) : null,
+    },
   }
 
   probedPaths.set(devicePath, caps)
   return caps
+}
+
+function updateExtendedValues(devicePath: string, caps: ProbedCapabilities): void {
+  const tryRead = (code: number): number | null => {
+    try {
+      const v = ddcci._getVCP(devicePath, code)
+      if (Array.isArray(v) && v.length >= 1) return v[0]
+    } catch {}
+    return null
+  }
+
+  if (caps.color_preset) caps.values.color_preset = tryRead(0x14)
+  if (caps.rgb_gain) {
+    caps.values.red_gain = tryRead(0x16)
+    caps.values.green_gain = tryRead(0x18)
+    caps.values.blue_gain = tryRead(0x1a)
+  }
+  if (caps.sharpness) caps.values.sharpness = tryRead(0x87)
+  if (caps.volume) caps.values.volume = tryRead(0x62)
+  if (caps.mute) {
+    const v = tryRead(0x8d)
+    caps.values.muted = v !== null ? v === 1 : null
+  }
+  if (caps.power) caps.values.power_mode = tryRead(0xd6)
+  if (caps.usage_time) caps.values.usage_time_hours = tryRead(0xc6)
+  if (caps.vcp_version) {
+    const v = tryRead(0xdf)
+    caps.values.vcp_version = v !== null ? formatVcpVersion(v) : null
+  }
 }
 
 // Persistent cache of normalized DDC path → GDI device name, survives across refreshes
@@ -275,7 +337,7 @@ interface RefreshResult {
   devicePaths: Array<[number, string]>
 }
 
-function doRefresh(): RefreshResult {
+function doRefresh(full = false): RefreshResult {
   if (!ddcci) return { monitors: [], devicePaths: [] }
 
   let rawPaths: string[]
@@ -391,57 +453,27 @@ function doRefresh(): RefreshResult {
       log('warn', `Could not read input for monitor ${monitorId}: ${err instanceof Error ? err.message : String(err)}`)
     }
 
-    // Extended VCP features — probe once per device path, then read current values
+    // Extended VCP features — probe once per session, re-read only on full refresh
+    const alreadyProbed = probedPaths.has(devicePath)
     const caps = probeCapabilities(devicePath)
+
+    if (full && alreadyProbed) {
+      // User explicitly requested refresh — re-read live values into the cache
+      updateExtendedValues(devicePath, caps)
+    }
+
     monitor.rgb_max = caps.rgb_max
     monitor.sharpness_max = caps.sharpness_max
 
-    const tryVcp = (code: number): number | null => {
-      try {
-        const v = ddcci._getVCP(devicePath, code)
-        if (Array.isArray(v) && v.length >= 1) return v[0]
-      } catch {}
-      return null
-    }
-
-    if (caps.color_preset) {
-      monitor.color_preset = tryVcp(0x14)
-      monitor.supports.push('color_preset')
-    }
-    if (caps.rgb_gain) {
-      monitor.red_gain = tryVcp(0x16)
-      monitor.green_gain = tryVcp(0x18)
-      monitor.blue_gain = tryVcp(0x1a)
-      monitor.supports.push('rgb_gain')
-    }
-    if (caps.sharpness) {
-      monitor.sharpness = tryVcp(0x87)
-      monitor.supports.push('sharpness')
-    }
-    if (caps.volume) {
-      monitor.volume = tryVcp(0x62)
-      monitor.supports.push('volume')
-    }
-    if (caps.mute) {
-      const muteVal = tryVcp(0x8d)
-      monitor.muted = muteVal !== null ? muteVal === 1 : null
-      monitor.supports.push('mute')
-    }
-    if (caps.power) {
-      monitor.power_mode = tryVcp(0xd6)
-      monitor.supports.push('power')
-    }
-    if (caps.usage_time) {
-      monitor.usage_time_hours = tryVcp(0xc6)
-    }
-    if (caps.vcp_version) {
-      const ver = tryVcp(0xdf)
-      if (ver !== null) {
-        const major = (ver >> 8) & 0xff
-        const minor = ver & 0xff
-        monitor.vcp_version = `${major}.${minor}`
-      }
-    }
+    const v = caps.values
+    if (caps.color_preset) { monitor.color_preset = v.color_preset; monitor.supports.push('color_preset') }
+    if (caps.rgb_gain)     { monitor.red_gain = v.red_gain; monitor.green_gain = v.green_gain; monitor.blue_gain = v.blue_gain; monitor.supports.push('rgb_gain') }
+    if (caps.sharpness)    { monitor.sharpness = v.sharpness; monitor.supports.push('sharpness') }
+    if (caps.volume)       { monitor.volume = v.volume; monitor.supports.push('volume') }
+    if (caps.mute)         { monitor.muted = v.muted; monitor.supports.push('mute') }
+    if (caps.power)        { monitor.power_mode = v.power_mode; monitor.supports.push('power') }
+    if (caps.usage_time)   { monitor.usage_time_hours = v.usage_time_hours }
+    if (caps.vcp_version)  { monitor.vcp_version = v.vcp_version }
 
     monitors.push(monitor)
   }
@@ -450,7 +482,7 @@ function doRefresh(): RefreshResult {
 }
 
 type InMsg =
-  | { id: number; type: 'refresh' }
+  | { id: number; type: 'refresh'; full?: boolean }
   | { type: 'setBrightness'; devicePath: string; value: number }
   | { type: 'setContrast'; devicePath: string; value: number }
   | { type: 'setInputSource'; devicePath: string; vcpCode: number }
@@ -470,7 +502,7 @@ parentPort?.on('message', (msg: InMsg) => {
   switch (msg.type) {
     case 'refresh': {
       try {
-        const result = doRefresh()
+        const result = doRefresh(msg.full ?? false)
         parentPort?.postMessage({ type: 'refreshDone', id: msg.id, ...result })
       } catch (err) {
         parentPort?.postMessage({ type: 'error', id: msg.id, message: String(err) })

@@ -337,12 +337,12 @@ function createNotifWindow(): void {
 
 // ─── DDC Helper Functions ─────────────────────────────────────────────────────
 
-async function refreshDdcMonitors(): Promise<DdcMonitor[]> {
+async function refreshDdcMonitors(full = false): Promise<DdcMonitor[]> {
   if (ddcInFlight) return ddcCache
 
   ddcInFlight = true
   try {
-    const monitors = await ddcService.refreshMonitors()
+    const monitors = await ddcService.refreshMonitors(full)
     ddcCache = monitors
     ddcCacheTs = Date.now()
     return monitors
@@ -673,7 +673,7 @@ function registerIpcHandlers(): void {
 
   // ── DDC Display Control ────────────────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.DDC_GET_MONITORS, async () => {
-    const monitors = await refreshDdcMonitors()
+    const monitors = await refreshDdcMonitors(true)
     return monitors
   })
 
@@ -746,7 +746,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.DDC_SET_PRIMARY_MONITOR, async (_, monitorId: number) => {
     await ddcService.setPrimaryMonitor(monitorId, multiMonitorToolPath)
-    await refreshDdcMonitors()
+    await refreshDdcMonitors(true)
     broadcastDdcMonitors()
   })
 
@@ -874,7 +874,7 @@ app.whenReady().then(() => {
       ddcService.start()
       serviceManager.emitNativeLog('ddc', 'DDC Display', 'info', 'Service enabled')
       startDdcPolling()
-      ddcService.refreshMonitors().then((monitors) => {
+      ddcService.refreshMonitors(true).then((monitors) => {
         if (monitors.length === 0) {
           serviceManager.emitNativeLog('ddc', 'DDC Display', 'info', 'No DDC-capable monitors detected')
         } else {

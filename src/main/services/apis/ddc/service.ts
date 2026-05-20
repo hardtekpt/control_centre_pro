@@ -111,13 +111,13 @@ export class DdcService {
     return this.cachedMonitors
   }
 
-  async refreshMonitors(): Promise<DdcMonitor[]> {
+  async refreshMonitors(full = false): Promise<DdcMonitor[]> {
     if (!this.available || !this.running || !this.worker) return []
 
     const id = this.nextId++
     return new Promise<DdcMonitor[]>((resolve, reject) => {
       this.pendingCallbacks.set(id, { resolve, reject })
-      this.worker!.postMessage({ type: 'refresh', id })
+      this.worker!.postMessage({ type: 'refresh', id, full })
     })
   }
 
