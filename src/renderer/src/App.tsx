@@ -91,7 +91,7 @@ export default function App(): JSX.Element {
         const tab = target.slice(9) as any
         setView('settings')
         setSettingsTab(tab)
-      } else if (target === 'home' || target === 'arctis' || target === 'gg-sonar' || target === 'shortcuts' || target === 'notifications') {
+      } else if (target === 'home' || target === 'arctis' || target === 'gg-sonar' || target === 'shortcuts' || target === 'notifications' || target === 'settings') {
         setView(target)
       }
     })
@@ -117,13 +117,6 @@ export default function App(): JSX.Element {
       if (e.key === 'b') {
         e.preventDefault()
         toggleSidebar()
-        return
-      }
-
-      // Ctrl+, — open settings
-      if (e.key === ',') {
-        e.preventDefault()
-        setView('settings')
         return
       }
 
