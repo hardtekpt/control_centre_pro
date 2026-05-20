@@ -120,6 +120,13 @@ export default function App(): JSX.Element {
         return
       }
 
+      // Ctrl+, — open settings
+      if (e.key === ',') {
+        e.preventDefault()
+        setView('settings')
+        return
+      }
+
       const inSettings = currentView === 'settings'
 
       // Ctrl+Tab / Ctrl+Shift+Tab — cycle pages
