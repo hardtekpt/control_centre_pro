@@ -70,61 +70,51 @@ let ddcQueueRunning = false
 function buildAppMenu(): Electron.Menu {
   return Menu.buildFromTemplate([
     {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New Conversation',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => { /* placeholder — wire to session creation */ },
-        },
-        {
-          label: 'Settings...',
-          accelerator: 'CmdOrCtrl+,',
-          click: () => navigate('settings'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Close Window',
-          accelerator: 'CmdOrCtrl+W',
-          click: () => mainWindow?.close(),
-        },
-        {
-          label: 'Exit',
-          click: () => app.quit(),
-        },
-      ],
+      label: 'Home',
+      click: () => navigate('home'),
     },
     {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' },
-      ],
+      label: 'Arctis',
+      click: () => navigate('arctis'),
     },
     {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
+      label: 'GG Sonar',
+      click: () => navigate('gg-sonar'),
     },
     {
-      label: 'Help',
+      label: 'Shortcuts',
+      click: () => navigate('shortcuts'),
+    },
+    {
+      label: 'Notifications',
+      click: () => navigate('notifications'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Settings',
       submenu: [
         {
-          label: 'About Mission Control',
+          label: 'General',
+          click: () => navigate('settings:general'),
+        },
+        {
+          label: 'GG Sonar',
+          click: () => navigate('settings:gg-sonar'),
+        },
+        {
+          label: 'DDC',
+          click: () => navigate('settings:ddc'),
+        },
+        {
+          label: 'Notifications',
+          click: () => navigate('settings:notifications'),
+        },
+        {
+          label: 'Plugins',
+          click: () => navigate('settings:plugins'),
+        },
+        {
+          label: 'About',
           click: () => navigate('settings:about'),
         },
       ],

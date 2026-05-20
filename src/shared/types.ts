@@ -294,7 +294,7 @@ export type AppView =
 export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'plugins' | 'about'
 
 /** Navigate targets that can be pushed from the main process */
-export type NavigateTarget = AppView | 'settings:about'
+export type NavigateTarget = AppView | `settings:${SettingsTab}`
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 

@@ -84,16 +84,15 @@ export default function App(): JSX.Element {
     return cleanup
   }, [setMaximized])
 
-  // Handle navigation events pushed from the main process (e.g. via File menu)
+  // Handle navigation events pushed from the main process (e.g. via menu)
   useEffect(() => {
     const cleanup = window.api.onNavigate((target) => {
-      if (target === 'settings') {
+      if (target.startsWith('settings:')) {
+        const tab = target.slice(9) as any
         setView('settings')
-      } else if (target === 'settings:about') {
-        setView('settings')
-        setSettingsTab('about')
-      } else if (target === 'home') {
-        setView('home')
+        setSettingsTab(tab)
+      } else if (target === 'home' || target === 'arctis' || target === 'gg-sonar' || target === 'shortcuts' || target === 'notifications') {
+        setView(target)
       }
     })
     return cleanup
