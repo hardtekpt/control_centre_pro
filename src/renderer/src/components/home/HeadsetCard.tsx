@@ -275,18 +275,16 @@ const GREEN = '#22c55e'
 const RED   = '#ef4444'
 const BLUE  = '#3b82f6'
 
-type DotState = 'off' | 'idle' | 'on' | 'connected' | 'pairing'
+type DotState = 'off' | 'on' | 'connected' | 'pairing'
 
 const DOT_COLOR: Record<DotState, string> = {
   off:       RED,
-  idle:      '#888888',
   on:        GREEN,
   connected: BLUE,
   pairing:   BLUE,
 }
 const DOT_BG: Record<DotState, string> = {
   off:       'rgba(239,68,68,0.12)',
-  idle:      'rgba(136,136,136,0.12)',
   on:        'rgba(34,197,94,0.14)',
   connected: 'rgba(59,130,246,0.14)',
   pairing:   'rgba(59,130,246,0.14)',
@@ -572,7 +570,7 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
               />
               <ConnectivityDot
                 icon={<BluetoothIcon />}
-                dotState={state.btStatus === 'CONNECTED' ? 'connected' : state.btStatus === 'PAIRING' ? 'pairing' : state.btStatus === 'ON' ? 'idle' : 'off'}
+                dotState={state.btStatus === 'CONNECTED' ? 'on' : state.btStatus === 'PAIRING' ? 'pairing' : state.btStatus === 'ON' ? 'connected' : 'off'}
                 title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
               />
               <ConnectivityDot
