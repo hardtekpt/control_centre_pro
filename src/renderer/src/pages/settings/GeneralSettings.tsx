@@ -152,6 +152,7 @@ export function GeneralSettings(): JSX.Element {
               padding: '7px 10px',
               fontSize: '13px',
               fontFamily: "'JetBrains Mono', monospace",
+              width: '100%',
             }}
             value={draftPythonPath}
             onChange={(e) => setDraftPythonPath(e.target.value)}
