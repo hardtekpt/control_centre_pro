@@ -231,6 +231,24 @@ interface ProbedCapabilities {
 // One-time per-session capability probe results keyed by raw DDC device path
 const probedPaths = new Map<string, ProbedCapabilities>()
 
+// One-time per-session capability string cache: '' means fetched but unavailable
+const capStringCache = new Map<string, string>()
+
+function parseInputsFromCapabilityString(capStr: string): string[] | null {
+  // Capability string section looks like: "60(0F 10 11 12)"
+  const match = capStr.match(/\b60\s*\(([^)]*)\)/i)
+  if (!match) return null
+  const tokens = match[1].trim().split(/\s+/)
+  const results: string[] = []
+  for (const token of tokens) {
+    const num = parseInt(token, 16)
+    if (!isNaN(num) && num > 0 && num <= 255) {
+      results.push('0x' + num.toString(16).padStart(2, '0').toLowerCase())
+    }
+  }
+  return results.length > 0 ? results : null
+}
+
 function formatVcpVersion(raw: number): string {
   return `${(raw >> 8) & 0xff}.${raw & 0xff}`
 }
@@ -446,8 +464,31 @@ function doRefresh(full = false): RefreshResult {
         const inputHex = '0x' + inputData[0].toString(16).padStart(2, '0').toLowerCase()
         monitor.input_source = inputHex
         monitor.supports.push('input_source')
-        const commonInputs = ['0x01', '0x02', '0x03', '0x04', '0x0f', '0x10', '0x11', '0x12', '0x1b']
-        monitor.available_inputs = Array.from(new Set([inputHex, ...commonInputs.filter((inp) => INPUT_NAME_MAP[inp])])).sort()
+
+        // Fetch DDC capability string once per device path (cached for session lifetime)
+        if (!capStringCache.has(devicePath)) {
+          try {
+            const raw: string | null =
+              typeof ddcci._getCapabilitiesString === 'function'
+                ? ddcci._getCapabilitiesString(devicePath)
+                : null
+            capStringCache.set(devicePath, raw ?? '')
+          } catch {
+            capStringCache.set(devicePath, '')
+          }
+        }
+
+        const capStr = capStringCache.get(devicePath) ?? ''
+        const parsedInputs = capStr ? parseInputsFromCapabilityString(capStr) : null
+
+        if (parsedInputs && parsedInputs.length > 0) {
+          // Use monitor-specific input list from capability string
+          monitor.available_inputs = Array.from(new Set([inputHex, ...parsedInputs])).sort()
+        } else {
+          // Fallback: hardcoded common inputs
+          const commonInputs = ['0x01', '0x02', '0x03', '0x04', '0x0f', '0x10', '0x11', '0x12', '0x1b']
+          monitor.available_inputs = Array.from(new Set([inputHex, ...commonInputs])).sort()
+        }
       }
     } catch (err) {
       log('warn', `Could not read input for monitor ${monitorId}: ${err instanceof Error ? err.message : String(err)}`)

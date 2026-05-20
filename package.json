@@ -9,7 +9,7 @@
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "patch-package && electron-builder install-app-deps"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
@@ -47,6 +47,7 @@
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
     "electron-vite": "^2.3.0",
+    "patch-package": "^8.0.1",
     "postcss": "^8.4.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
