@@ -418,10 +418,9 @@ function registerIpcHandlers(): void {
       discordService.setClientSecret(settings.discordClientSecret)
     }
     kvmDetector.applySettings(settings)
+    haService.applySettings(settings.haUrl ?? '', settings.haToken ?? '')
     if (settings.haEnabled === false) {
       haService.stop()
-    } else if (settings.haEnabled) {
-      haService.applySettings(settings.haUrl ?? '', settings.haToken ?? '')
     }
     if (typeof settings.runAtStartup === 'boolean') {
       app.setLoginItemSettings({ openAtLogin: settings.runAtStartup })
@@ -977,7 +976,7 @@ app.whenReady().then(() => {
       if (typeof saved.discordClientSecret === 'string' && saved.discordClientSecret) {
         discordService.setClientSecret(saved.discordClientSecret)
       }
-      if (saved.haEnabled && typeof saved.haUrl === 'string' && saved.haUrl) {
+      if (typeof saved.haUrl === 'string' && saved.haUrl) {
         haService.applySettings(saved.haUrl, saved.haToken ?? '')
       }
     }

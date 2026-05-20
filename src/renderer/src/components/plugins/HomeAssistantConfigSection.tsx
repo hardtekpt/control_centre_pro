@@ -137,6 +137,7 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
             className="btn-ghost"
             onClick={handleTestConnection}
             disabled={testing || !draftUrl || !draftToken}
+            style={{ border: 'none' }}
           >
             {testing ? 'Testing…' : 'Test connection'}
           </button>

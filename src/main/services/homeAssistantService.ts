@@ -69,6 +69,9 @@ export class HomeAssistantService {
 
   private connect(): void {
     if (this.stopped || !this.url || !this.token) {
+      if (!this.url || !this.token) {
+        this.log('warn', 'No URL or token configured — enter credentials in Settings → Plugins → Home Assistant')
+      }
       this.status = 'installed'
       this.pushState()
       return

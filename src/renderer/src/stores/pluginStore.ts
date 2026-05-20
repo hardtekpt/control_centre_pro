@@ -38,6 +38,9 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
         }
         if (id === 'home-assistant') {
           window.api.setServiceEnabled('home-assistant', nextEnabled)
+          window.api.getSettings()
+            .then((s) => window.api.setSettings({ ...s, haEnabled: nextEnabled }))
+            .catch(console.error)
         }
 
         return { ...p, enabled: nextEnabled, status: nextStatus }
