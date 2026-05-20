@@ -54,11 +54,16 @@ let ddcCacheTs = 0
 let ddcInFlight = false
 let ddcPollTimer: NodeJS.Timeout | null = null
 let ddcPollIntervalSec = 60
-interface DDCBrightnessJob {
-  monitorId: number
-  value: number
-}
-const ddcQueue = new Map<number, DDCBrightnessJob>() // monitorId → latest job
+type DDCJob =
+  | { feature: 'brightness'; monitorId: number; value: number }
+  | { feature: 'contrast'; monitorId: number; value: number }
+  | { feature: 'redGain'; monitorId: number; value: number }
+  | { feature: 'greenGain'; monitorId: number; value: number }
+  | { feature: 'blueGain'; monitorId: number; value: number }
+  | { feature: 'sharpness'; monitorId: number; value: number }
+  | { feature: 'volume'; monitorId: number; value: number }
+// Keyed by `${monitorId}:${feature}` — one slot per monitor+feature, coalesces rapid drags
+const ddcQueue = new Map<string, DDCJob>()
 let ddcQueueRunning = false
 
 // ─── App Menu ─────────────────────────────────────────────────────────────────
@@ -353,18 +358,26 @@ function broadcastDdcMonitors(): void {
 function flushDdcQueue(): void {
   if (ddcQueueRunning || ddcQueue.size === 0) return
 
-  const entry = ddcQueue.entries().next().value as [number, DDCBrightnessJob] | undefined
+  const entry = ddcQueue.entries().next().value as [string, DDCJob] | undefined
   if (!entry) return
 
-  const [monitorId, job] = entry
-  ddcQueue.delete(monitorId)
+  const [key, job] = entry
+  ddcQueue.delete(key)
   ddcQueueRunning = true
 
   setImmediate(() => {
     try {
-      ddcService.setBrightness(job.monitorId, job.value)
+      switch (job.feature) {
+        case 'brightness': ddcService.setBrightness(job.monitorId, job.value); break
+        case 'contrast':   ddcService.setContrast(job.monitorId, job.value); break
+        case 'redGain':    ddcService.setRedGain(job.monitorId, job.value); break
+        case 'greenGain':  ddcService.setGreenGain(job.monitorId, job.value); break
+        case 'blueGain':   ddcService.setBlueGain(job.monitorId, job.value); break
+        case 'sharpness':  ddcService.setSharpness(job.monitorId, job.value); break
+        case 'volume':     ddcService.setVolume(job.monitorId, job.value); break
+      }
     } catch (err) {
-      console.error('[DDC] Failed to set brightness:', err)
+      console.error('[DDC] Queue flush failed:', err)
     }
     ddcQueueRunning = false
     if (ddcQueue.size > 0) {
@@ -666,13 +679,64 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.DDC_SET_BRIGHTNESS, (_, monitorId: number, value: number) => {
     if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
-
-    ddcQueue.set(monitorId, {
-      monitorId,
-      value: Math.max(0, Math.min(100, Math.round(value))),
-    })
-
+    ddcQueue.set(`${monitorId}:brightness`, { feature: 'brightness', monitorId, value: Math.max(0, Math.min(100, Math.round(value))) })
     flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_CONTRAST, (_, monitorId: number, value: number) => {
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
+    ddcQueue.set(`${monitorId}:contrast`, { feature: 'contrast', monitorId, value: Math.max(0, Math.min(100, Math.round(value))) })
+    flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_COLOR_PRESET, (_, monitorId: number, preset: number) => {
+    ddcService.setColorPreset(monitorId, preset)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_RED_GAIN, (_, monitorId: number, value: number) => {
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
+    ddcQueue.set(`${monitorId}:redGain`, { feature: 'redGain', monitorId, value })
+    flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_GREEN_GAIN, (_, monitorId: number, value: number) => {
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
+    ddcQueue.set(`${monitorId}:greenGain`, { feature: 'greenGain', monitorId, value })
+    flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_BLUE_GAIN, (_, monitorId: number, value: number) => {
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
+    ddcQueue.set(`${monitorId}:blueGain`, { feature: 'blueGain', monitorId, value })
+    flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_SHARPNESS, (_, monitorId: number, value: number) => {
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
+    ddcQueue.set(`${monitorId}:sharpness`, { feature: 'sharpness', monitorId, value })
+    flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_VOLUME, (_, monitorId: number, value: number) => {
+    if (!ddcCache.find((m) => m.monitor_id === monitorId)) return
+    ddcQueue.set(`${monitorId}:volume`, { feature: 'volume', monitorId, value })
+    flushDdcQueue()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_MUTE, (_, monitorId: number, muted: boolean) => {
+    ddcService.setMute(monitorId, muted)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_SET_POWER_MODE, (_, monitorId: number, mode: number) => {
+    ddcService.setPowerMode(monitorId, mode)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_FACTORY_RESET, (_, monitorId: number) => {
+    ddcService.factoryReset(monitorId)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DDC_COLOR_RESET, (_, monitorId: number) => {
+    ddcService.colorReset(monitorId)
   })
 
   ipcMain.handle(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, (_, monitorId: number, inputValue: string) => {

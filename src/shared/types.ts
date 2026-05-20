@@ -70,11 +70,22 @@ export const IPC_CHANNELS = {
   // DDC/CI display control
   DDC_GET_MONITORS: 'ddc:getMonitors',       // renderer → main invoke
   DDC_SET_BRIGHTNESS: 'ddc:setBrightness',   // renderer → main invoke
+  DDC_SET_CONTRAST: 'ddc:setContrast',       // renderer → main invoke
   DDC_SET_INPUT_SOURCE: 'ddc:setInputSource', // renderer → main invoke
   DDC_SET_PRIMARY_MONITOR: 'ddc:setPrimaryMonitor', // renderer → main invoke
   DDC_UPDATE: 'ddc:update',                  // main → renderer push
   DDC_GET_POLL_INTERVAL: 'ddc:getPollInterval', // renderer → main invoke
   DDC_SET_POLL_INTERVAL: 'ddc:setPollInterval', // renderer → main invoke
+  DDC_SET_COLOR_PRESET: 'ddc:setColorPreset', // renderer → main invoke
+  DDC_SET_RED_GAIN: 'ddc:setRedGain',        // renderer → main invoke
+  DDC_SET_GREEN_GAIN: 'ddc:setGreenGain',    // renderer → main invoke
+  DDC_SET_BLUE_GAIN: 'ddc:setBlueGain',      // renderer → main invoke
+  DDC_SET_SHARPNESS: 'ddc:setSharpness',     // renderer → main invoke
+  DDC_SET_VOLUME: 'ddc:setVolume',           // renderer → main invoke
+  DDC_SET_MUTE: 'ddc:setMute',              // renderer → main invoke
+  DDC_SET_POWER_MODE: 'ddc:setPowerMode',    // renderer → main invoke
+  DDC_FACTORY_RESET: 'ddc:factoryReset',     // renderer → main invoke
+  DDC_COLOR_RESET: 'ddc:colorReset',         // renderer → main invoke
 
   // Notification overlay
   NOTIF_PUSH:             'notif:push',           // main renderer → main invoke (show notification)
@@ -650,7 +661,20 @@ export interface DdcMonitor {
   contrast: number        // 0–100 %
   input_source: string    // Current input: hex string (e.g. "0x11") or empty if unsupported
   available_inputs: string[]  // Available input options: hex strings
-  supports: string[]      // Features available: ['brightness', 'contrast', 'input_source']
+  // Extended VCP features — null when monitor does not support the feature
+  color_preset: number | null     // VCP 0x14: sRGB=0x01, 5000K=0x04, 6500K=0x05, 9300K=0x08
+  red_gain: number | null         // VCP 0x16 current value
+  green_gain: number | null       // VCP 0x18 current value
+  blue_gain: number | null        // VCP 0x1A current value
+  rgb_max: number                 // Max value for RGB gain sliders (typ. 100)
+  sharpness: number | null        // VCP 0x87 current value
+  sharpness_max: number           // Max sharpness value (varies per monitor)
+  volume: number | null           // VCP 0x62 current value
+  muted: boolean | null           // VCP 0x8D: true = muted
+  power_mode: number | null       // VCP 0xD6: 1=on, 2=standby, 4=off
+  usage_time_hours: number | null // VCP 0xC6 display on-time in hours
+  vcp_version: string | null      // VCP 0xDF formatted e.g. "2.1"
+  supports: string[]      // Feature flags: 'brightness'|'contrast'|'input_source'|'color_preset'|'rgb_gain'|'sharpness'|'volume'|'mute'|'power'
 }
 
 /** VCP 0x60 input source code → human-readable label (shared between main and renderer) */

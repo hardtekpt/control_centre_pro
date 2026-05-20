@@ -244,6 +244,39 @@ const api = {
   ddcSetBrightness: (monitorId: number, value: number): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_BRIGHTNESS, monitorId, value),
 
+  ddcSetContrast: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_CONTRAST, monitorId, value),
+
+  ddcSetColorPreset: (monitorId: number, preset: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_COLOR_PRESET, monitorId, preset),
+
+  ddcSetRedGain: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_RED_GAIN, monitorId, value),
+
+  ddcSetGreenGain: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_GREEN_GAIN, monitorId, value),
+
+  ddcSetBlueGain: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_BLUE_GAIN, monitorId, value),
+
+  ddcSetSharpness: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_SHARPNESS, monitorId, value),
+
+  ddcSetVolume: (monitorId: number, value: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_VOLUME, monitorId, value),
+
+  ddcSetMute: (monitorId: number, muted: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_MUTE, monitorId, muted),
+
+  ddcSetPowerMode: (monitorId: number, mode: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_POWER_MODE, monitorId, mode),
+
+  ddcFactoryReset: (monitorId: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_FACTORY_RESET, monitorId),
+
+  ddcColorReset: (monitorId: number): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DDC_COLOR_RESET, monitorId),
+
   ddcSetInputSource: (monitorId: number, inputValue: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.DDC_SET_INPUT_SOURCE, monitorId, inputValue),
 

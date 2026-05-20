@@ -97,6 +97,17 @@ declare global {
     // DDC Display Control
     ddcGetMonitors: () => Promise<DdcMonitor[]>
     ddcSetBrightness: (monitorId: number, value: number) => Promise<void>
+    ddcSetContrast: (monitorId: number, value: number) => Promise<void>
+    ddcSetColorPreset: (monitorId: number, preset: number) => Promise<void>
+    ddcSetRedGain: (monitorId: number, value: number) => Promise<void>
+    ddcSetGreenGain: (monitorId: number, value: number) => Promise<void>
+    ddcSetBlueGain: (monitorId: number, value: number) => Promise<void>
+    ddcSetSharpness: (monitorId: number, value: number) => Promise<void>
+    ddcSetVolume: (monitorId: number, value: number) => Promise<void>
+    ddcSetMute: (monitorId: number, muted: boolean) => Promise<void>
+    ddcSetPowerMode: (monitorId: number, mode: number) => Promise<void>
+    ddcFactoryReset: (monitorId: number) => Promise<void>
+    ddcColorReset: (monitorId: number) => Promise<void>
     ddcSetInputSource: (monitorId: number, inputValue: string) => Promise<void>
     ddcSetPrimaryMonitor: (monitorId: number) => Promise<void>
     onDdcUpdate: (callback: (monitors: DdcMonitor[]) => void) => () => void

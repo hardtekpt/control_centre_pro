@@ -136,11 +136,179 @@ export class DdcService {
 
     this.worker.postMessage({ type: 'setBrightness', devicePath, value: normalizedValue })
 
-    // Optimistic cache update
     if (monitor) {
       monitor.brightness = normalizedValue
       this.notifyStateChanged()
     }
+  }
+
+  setContrast(monitorId: number, value: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const normalizedValue = Math.max(0, Math.min(100, Math.round(value)))
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+
+    this.worker.postMessage({ type: 'setContrast', devicePath, value: normalizedValue })
+
+    if (monitor) {
+      monitor.contrast = normalizedValue
+      this.notifyStateChanged()
+    }
+  }
+
+  setColorPreset(monitorId: number, preset: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    this.worker.postMessage({ type: 'setColorPreset', devicePath, value: preset })
+
+    if (monitor) {
+      monitor.color_preset = preset
+      this.notifyStateChanged()
+    }
+  }
+
+  setRedGain(monitorId: number, value: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    const max = monitor?.rgb_max ?? 100
+    const clamped = Math.max(0, Math.min(max, Math.round(value)))
+
+    this.worker.postMessage({ type: 'setRedGain', devicePath, value: clamped, max })
+
+    if (monitor) {
+      monitor.red_gain = clamped
+      this.notifyStateChanged()
+    }
+  }
+
+  setGreenGain(monitorId: number, value: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    const max = monitor?.rgb_max ?? 100
+    const clamped = Math.max(0, Math.min(max, Math.round(value)))
+
+    this.worker.postMessage({ type: 'setGreenGain', devicePath, value: clamped, max })
+
+    if (monitor) {
+      monitor.green_gain = clamped
+      this.notifyStateChanged()
+    }
+  }
+
+  setBlueGain(monitorId: number, value: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    const max = monitor?.rgb_max ?? 100
+    const clamped = Math.max(0, Math.min(max, Math.round(value)))
+
+    this.worker.postMessage({ type: 'setBlueGain', devicePath, value: clamped, max })
+
+    if (monitor) {
+      monitor.blue_gain = clamped
+      this.notifyStateChanged()
+    }
+  }
+
+  setSharpness(monitorId: number, value: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    const max = monitor?.sharpness_max ?? 100
+    const clamped = Math.max(0, Math.min(max, Math.round(value)))
+
+    this.worker.postMessage({ type: 'setSharpness', devicePath, value: clamped, max })
+
+    if (monitor) {
+      monitor.sharpness = clamped
+      this.notifyStateChanged()
+    }
+  }
+
+  setVolume(monitorId: number, value: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const clamped = Math.max(0, Math.min(100, Math.round(value)))
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+
+    this.worker.postMessage({ type: 'setVolume', devicePath, value: clamped })
+
+    if (monitor) {
+      monitor.volume = clamped
+      this.notifyStateChanged()
+    }
+  }
+
+  setMute(monitorId: number, muted: boolean): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    this.worker.postMessage({ type: 'setMute', devicePath, muted })
+
+    if (monitor) {
+      monitor.muted = muted
+      this.notifyStateChanged()
+    }
+  }
+
+  setPowerMode(monitorId: number, mode: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    const monitor = this.cachedMonitors.find((m) => m.monitor_id === monitorId)
+    this.worker.postMessage({ type: 'setPowerMode', devicePath, mode })
+
+    if (monitor) {
+      monitor.power_mode = mode
+      this.notifyStateChanged()
+    }
+  }
+
+  factoryReset(monitorId: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    this.worker.postMessage({ type: 'factoryReset', devicePath })
+  }
+
+  colorReset(monitorId: number): void {
+    if (!this.available || !this.running || !this.worker) return
+
+    const devicePath = this.devicePaths.get(monitorId)
+    if (!devicePath) return
+
+    this.worker.postMessage({ type: 'colorReset', devicePath })
   }
 
   setInputSource(monitorId: number, inputValue: string): void {

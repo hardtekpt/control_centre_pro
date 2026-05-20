@@ -200,6 +200,61 @@ const INPUT_NAME_MAP: Record<string, string> = {
   '0x1b': 'USB-C',
 }
 
+interface ProbedCapabilities {
+  color_preset: boolean
+  rgb_gain: boolean
+  rgb_max: number
+  sharpness: boolean
+  sharpness_max: number
+  volume: boolean
+  mute: boolean
+  power: boolean
+  usage_time: boolean
+  vcp_version: boolean
+}
+
+// One-time per-session capability probe results keyed by raw DDC device path
+const probedPaths = new Map<string, ProbedCapabilities>()
+
+function probeCapabilities(devicePath: string): ProbedCapabilities {
+  if (probedPaths.has(devicePath)) return probedPaths.get(devicePath)!
+
+  log('info', `Probing capabilities for ${monitorDisplayName(devicePath)}`)
+
+  const tryRead = (code: number): [number, number] | null => {
+    try {
+      const v = ddcci._getVCP(devicePath, code)
+      if (Array.isArray(v) && v.length >= 2) return [v[0], v[1]]
+    } catch {}
+    return null
+  }
+
+  const colorPreset = tryRead(0x14)
+  const red = tryRead(0x16)
+  const sharpness = tryRead(0x87)
+  const volume = tryRead(0x62)
+  const mute = tryRead(0x8d)
+  const power = tryRead(0xd6)
+  const usageTime = tryRead(0xc6)
+  const vcpVersion = tryRead(0xdf)
+
+  const caps: ProbedCapabilities = {
+    color_preset: colorPreset !== null,
+    rgb_gain: red !== null,
+    rgb_max: red ? red[1] || 100 : 100,
+    sharpness: sharpness !== null,
+    sharpness_max: sharpness ? sharpness[1] || 100 : 100,
+    volume: volume !== null,
+    mute: mute !== null,
+    power: power !== null,
+    usage_time: usageTime !== null,
+    vcp_version: vcpVersion !== null,
+  }
+
+  probedPaths.set(devicePath, caps)
+  return caps
+}
+
 // Persistent cache of normalized DDC path → GDI device name, survives across refreshes
 const gdiDeviceNamesByPath = new Map<string, string>()
 
@@ -292,6 +347,18 @@ function doRefresh(): RefreshResult {
       contrast: 0,
       input_source: '',
       available_inputs: [],
+      color_preset: null,
+      red_gain: null,
+      green_gain: null,
+      blue_gain: null,
+      rgb_max: 100,
+      sharpness: null,
+      sharpness_max: 100,
+      volume: null,
+      muted: null,
+      power_mode: null,
+      usage_time_hours: null,
+      vcp_version: null,
       supports: [],
     }
 
@@ -324,6 +391,58 @@ function doRefresh(): RefreshResult {
       log('warn', `Could not read input for monitor ${monitorId}: ${err instanceof Error ? err.message : String(err)}`)
     }
 
+    // Extended VCP features — probe once per device path, then read current values
+    const caps = probeCapabilities(devicePath)
+    monitor.rgb_max = caps.rgb_max
+    monitor.sharpness_max = caps.sharpness_max
+
+    const tryVcp = (code: number): number | null => {
+      try {
+        const v = ddcci._getVCP(devicePath, code)
+        if (Array.isArray(v) && v.length >= 1) return v[0]
+      } catch {}
+      return null
+    }
+
+    if (caps.color_preset) {
+      monitor.color_preset = tryVcp(0x14)
+      monitor.supports.push('color_preset')
+    }
+    if (caps.rgb_gain) {
+      monitor.red_gain = tryVcp(0x16)
+      monitor.green_gain = tryVcp(0x18)
+      monitor.blue_gain = tryVcp(0x1a)
+      monitor.supports.push('rgb_gain')
+    }
+    if (caps.sharpness) {
+      monitor.sharpness = tryVcp(0x87)
+      monitor.supports.push('sharpness')
+    }
+    if (caps.volume) {
+      monitor.volume = tryVcp(0x62)
+      monitor.supports.push('volume')
+    }
+    if (caps.mute) {
+      const muteVal = tryVcp(0x8d)
+      monitor.muted = muteVal !== null ? muteVal === 1 : null
+      monitor.supports.push('mute')
+    }
+    if (caps.power) {
+      monitor.power_mode = tryVcp(0xd6)
+      monitor.supports.push('power')
+    }
+    if (caps.usage_time) {
+      monitor.usage_time_hours = tryVcp(0xc6)
+    }
+    if (caps.vcp_version) {
+      const ver = tryVcp(0xdf)
+      if (ver !== null) {
+        const major = (ver >> 8) & 0xff
+        const minor = ver & 0xff
+        monitor.vcp_version = `${major}.${minor}`
+      }
+    }
+
     monitors.push(monitor)
   }
 
@@ -333,7 +452,18 @@ function doRefresh(): RefreshResult {
 type InMsg =
   | { id: number; type: 'refresh' }
   | { type: 'setBrightness'; devicePath: string; value: number }
+  | { type: 'setContrast'; devicePath: string; value: number }
   | { type: 'setInputSource'; devicePath: string; vcpCode: number }
+  | { type: 'setColorPreset'; devicePath: string; value: number }
+  | { type: 'setRedGain'; devicePath: string; value: number; max: number }
+  | { type: 'setGreenGain'; devicePath: string; value: number; max: number }
+  | { type: 'setBlueGain'; devicePath: string; value: number; max: number }
+  | { type: 'setSharpness'; devicePath: string; value: number; max: number }
+  | { type: 'setVolume'; devicePath: string; value: number }
+  | { type: 'setMute'; devicePath: string; muted: boolean }
+  | { type: 'setPowerMode'; devicePath: string; mode: number }
+  | { type: 'factoryReset'; devicePath: string }
+  | { type: 'colorReset'; devicePath: string }
   | { id: number; type: 'setPrimary'; monitorId: number; multiMonitorToolPath: string }
 
 parentPort?.on('message', (msg: InMsg) => {
@@ -353,6 +483,107 @@ parentPort?.on('message', (msg: InMsg) => {
         ddcci?.setBrightness(msg.devicePath, Math.max(0, Math.min(100, Math.round(msg.value))))
       } catch (err) {
         log('error', `setBrightness failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setContrast': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x12, Math.max(0, Math.min(100, Math.round(msg.value))))
+      } catch (err) {
+        log('error', `setContrast failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setColorPreset': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x14, msg.value)
+      } catch (err) {
+        log('error', `setColorPreset failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setRedGain': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x16, Math.max(0, Math.min(msg.max, Math.round(msg.value))))
+      } catch (err) {
+        log('error', `setRedGain failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setGreenGain': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x18, Math.max(0, Math.min(msg.max, Math.round(msg.value))))
+      } catch (err) {
+        log('error', `setGreenGain failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setBlueGain': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x1a, Math.max(0, Math.min(msg.max, Math.round(msg.value))))
+      } catch (err) {
+        log('error', `setBlueGain failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setSharpness': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x87, Math.max(0, Math.min(msg.max, Math.round(msg.value))))
+      } catch (err) {
+        log('error', `setSharpness failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setVolume': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x62, Math.max(0, Math.min(100, Math.round(msg.value))))
+      } catch (err) {
+        log('error', `setVolume failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setMute': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x8d, msg.muted ? 1 : 2)
+      } catch (err) {
+        log('error', `setMute failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'setPowerMode': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0xd6, msg.mode)
+      } catch (err) {
+        log('error', `setPowerMode failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'factoryReset': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x04, 1)
+        log('info', `Factory reset sent to ${monitorDisplayName(msg.devicePath)}`)
+      } catch (err) {
+        log('error', `factoryReset failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      break
+    }
+
+    case 'colorReset': {
+      try {
+        ddcci?._setVCP(msg.devicePath, 0x08, 1)
+        log('info', `Color reset sent to ${monitorDisplayName(msg.devicePath)}`)
+      } catch (err) {
+        log('error', `colorReset failed: ${err instanceof Error ? err.message : String(err)}`)
       }
       break
     }
