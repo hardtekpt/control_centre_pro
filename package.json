@@ -15,16 +15,25 @@
     "@electron-toolkit/utils": "^3.0.0",
     "electron-updater": "^6.1.7",
     "fft.js": "*",
-    "naudiodon2": "*"
+    "naudiodon2": "*",
+    "ws": "^8.20.1"
   },
   "optionalDependencies": {
     "@hensm/ddcci": "*"
   },
   "build": {
-    "files": ["out", "resources"],
-    "asarUnpack": ["**/node_modules/naudiodon2/**"],
+    "files": [
+      "out",
+      "resources"
+    ],
+    "asarUnpack": [
+      "**/node_modules/naudiodon2/**"
+    ],
     "extraResources": [
-      { "from": "resources/MultiMonitorTool.exe", "to": "MultiMonitorTool.exe" }
+      {
+        "from": "resources/MultiMonitorTool.exe",
+        "to": "MultiMonitorTool.exe"
+      }
     ],
     "buildDependenciesFromSource": false
   },
@@ -32,6 +41,7 @@
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
     "electron": "^31.0.0",

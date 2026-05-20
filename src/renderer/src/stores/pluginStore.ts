@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Plugin, ServiceInfo, KvmState } from '@shared/types'
+import type { Plugin, ServiceInfo, KvmState, HaState } from '@shared/types'
 import { DEFAULT_PLUGINS } from '../lib/plugins/catalog'
 
 interface PluginStoreState {
@@ -10,6 +10,7 @@ interface PluginStoreState {
   fieldAction: (pluginId: string, sectionId: string, fieldId: string, kind: string) => Promise<void>
   syncDiscordServiceState: (discordService: ServiceInfo | undefined) => void
   syncKvmState: (kvmState: KvmState, enabled: boolean) => void
+  syncHaState: (haState: HaState) => void
 }
 
 export const usePluginStore = create<PluginStoreState>((set, get) => ({
@@ -35,6 +36,9 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
             .then((s) => window.api.setSettings({ ...s, kvmEnabled: nextEnabled }))
             .catch(console.error)
         }
+        if (id === 'home-assistant') {
+          window.api.setServiceEnabled('home-assistant', nextEnabled)
+        }
 
         return { ...p, enabled: nextEnabled, status: nextStatus }
       }),
@@ -55,6 +59,34 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
             }
           }),
         }
+      }),
+    })
+  },
+
+  syncHaState: (haState) => {
+    set({
+      plugins: get().plugins.map((p) => {
+        if (p.id !== 'home-assistant') return p
+        let status: Plugin['status']
+        let statusLine: string
+        switch (haState.status) {
+          case 'connected':
+            status = 'connected'
+            statusLine = `Connected · ${haState.entityCount} entities`
+            break
+          case 'error':
+            status = 'error'
+            statusLine = haState.error ?? 'Connection error'
+            break
+          case 'installed':
+            status = 'installed'
+            statusLine = 'Connecting…'
+            break
+          default:
+            status = 'disabled'
+            statusLine = 'Disabled'
+        }
+        return { ...p, status, statusLine }
       }),
     })
   },

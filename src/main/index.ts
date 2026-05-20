@@ -12,6 +12,7 @@ import { DiscordService } from './services/discordService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
 import { DdcService } from './services/apis/ddc/service'
 import { KvmDetector } from './services/kvmDetector'
+import { HomeAssistantService } from './services/homeAssistantService'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
 
@@ -36,6 +37,7 @@ let sonarService: SonarService
 let discordService: DiscordService
 let ddcService: DdcService
 let kvmDetector: KvmDetector
+let haService: HomeAssistantService
 let activeWindowMonitor: ActiveWindowMonitor | null = null
 
 // Resolve MultiMonitorTool.exe path for primary display switching
@@ -416,6 +418,11 @@ function registerIpcHandlers(): void {
       discordService.setClientSecret(settings.discordClientSecret)
     }
     kvmDetector.applySettings(settings)
+    if (settings.haEnabled === false) {
+      haService.stop()
+    } else if (settings.haEnabled) {
+      haService.applySettings(settings.haUrl ?? '', settings.haToken ?? '')
+    }
     if (typeof settings.runAtStartup === 'boolean') {
       app.setLoginItemSettings({ openAtLogin: settings.runAtStartup })
     }
@@ -432,6 +439,16 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.KVM_IDENTIFY_CANCEL, () => {
     kvmDetector.cancelIdentify()
   })
+
+  // ── Home Assistant ──────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC_CHANNELS.HA_GET_STATE, () => haService.getState())
+
+  ipcMain.handle(IPC_CHANNELS.HA_CALL_SERVICE, (_, call) => haService.callService(call))
+
+  ipcMain.handle(IPC_CHANNELS.HA_TEST_CONNECTION, (_, url: string, token: string) =>
+    haService.testConnection(url, token)
+  )
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
@@ -840,6 +857,25 @@ app.whenReady().then(() => {
     isRunning: () => discordService.isAvailable(),
   })
 
+  haService = new HomeAssistantService()
+  haService.setLogEmitter((level, msg) => {
+    serviceManager.emitNativeLog('home-assistant', 'Home Assistant', level, msg)
+  })
+  haService.setStateChangeNotifier(() => {
+    serviceManager.broadcastServiceState()
+  })
+  serviceManager.registerNativeService({
+    id: 'home-assistant',
+    name: 'Home Assistant',
+    description: 'Home Assistant WebSocket integration — entity state and service calls',
+    onEnable: () => {
+      serviceManager.emitNativeLog('home-assistant', 'Home Assistant', 'info', 'Connecting…')
+      haService.start()
+    },
+    onDisable: () => haService.stop(),
+    isRunning: () => haService.isAvailable(),
+  })
+
   // Register keyboard shortcuts service (tracks enable/disable + logs)
   let shortcutsServiceEnabled = true
   serviceManager.registerNativeService({
@@ -903,6 +939,7 @@ app.whenReady().then(() => {
   initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow)
   sonarService.setWindow(mainWindow!)
   discordService.setWindow(mainWindow!)
+  haService.setWindow(mainWindow!)
 
   // Initialize preset switcher monitor
   activeWindowMonitor = new ActiveWindowMonitor(mainWindow!, sonarService)
@@ -939,6 +976,9 @@ app.whenReady().then(() => {
       }
       if (typeof saved.discordClientSecret === 'string' && saved.discordClientSecret) {
         discordService.setClientSecret(saved.discordClientSecret)
+      }
+      if (saved.haEnabled && typeof saved.haUrl === 'string' && saved.haUrl) {
+        haService.applySettings(saved.haUrl, saved.haToken ?? '')
       }
     }
   } catch { /* use default */ }

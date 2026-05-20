@@ -3,6 +3,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
+  HaState, HaServiceCall,
 } from '../../../shared/types'
 
 /**
@@ -120,6 +121,12 @@ declare global {
     kvmIdentifyCancel: () => Promise<void>
     onKvmStateChange: (callback: (state: KvmState) => void) => () => void
     onKvmIdentifyResult: (callback: (device: UsbDevice | null) => void) => () => void
+
+    // Home Assistant
+    haGetState: () => Promise<HaState>
+    haCallService: (call: HaServiceCall) => Promise<void>
+    haTestConnection: (url: string, token: string) => Promise<{ ok: boolean; error?: string }>
+    onHaStateChange: (callback: (state: HaState) => void) => () => void
     }
   }
 }

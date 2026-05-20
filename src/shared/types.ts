@@ -104,6 +104,12 @@ export const IPC_CHANNELS = {
   KVM_IDENTIFY_START:   'kvm:identifyStart',   // renderer → main invoke
   KVM_IDENTIFY_CANCEL:  'kvm:identifyCancel',  // renderer → main invoke
   KVM_IDENTIFY_RESULT:  'kvm:identifyResult',  // main → renderer push (UsbDevice | null)
+
+  // Home Assistant plugin
+  HA_GET_STATE:       'ha:getState',        // renderer → main invoke
+  HA_STATE_CHANGE:    'ha:stateChange',     // main → renderer push
+  HA_CALL_SERVICE:    'ha:callService',     // renderer → main invoke
+  HA_TEST_CONNECTION: 'ha:testConnection',  // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -239,6 +245,9 @@ export interface AppSettings {
   kvmDeviceName: string
   kvmConnectedActions: MonitorInputAction[]
   kvmDisconnectedActions: MonitorInputAction[]
+  haEnabled: boolean
+  haUrl: string
+  haToken: string
   runAtStartup: boolean
 }
 
@@ -264,6 +273,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   kvmDeviceName: '',
   kvmConnectedActions: [],
   kvmDisconnectedActions: [],
+  haEnabled: false,
+  haUrl: '',
+  haToken: '',
   runAtStartup: false,
 }
 
@@ -666,4 +678,30 @@ export interface UsbDevice {
 export interface KvmState {
   connected: boolean         // true = tracked USB device is present on this PC
   deviceInstanceId: string   // currently tracked device ('' = none configured)
+}
+
+// ─── Home Assistant Plugin ────────────────────────────────────────────────────
+
+/** A single HA entity as returned by GET /api/states */
+export interface HaEntity {
+  entity_id: string
+  state: string
+  attributes: Record<string, unknown>
+  last_changed: string
+  last_updated: string
+}
+
+/** Renderer-facing HA state snapshot pushed over IPC */
+export interface HaState {
+  status: 'connected' | 'error' | 'disabled' | 'installed'
+  error: string | null
+  entityCount: number
+  entities: HaEntity[]
+}
+
+/** Payload for calling an HA service from the renderer */
+export interface HaServiceCall {
+  domain: string
+  service: string
+  serviceData?: Record<string, unknown>
 }

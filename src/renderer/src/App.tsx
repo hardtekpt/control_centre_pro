@@ -7,6 +7,7 @@ import { useDiscordStore } from './stores/discordStore'
 import { useShortcutStore } from './stores/shortcutStore'
 import { usePluginStore } from './stores/pluginStore'
 import { useKvmStore } from './stores/kvmStore'
+import { useHaStore } from './stores/haStore'
 import { combinationFromEvent } from './lib/shortcuts/keys'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
@@ -30,8 +31,9 @@ export default function App(): JSX.Element {
   const { setSonarState } = useSonarStore()
   const { setDiscordState } = useDiscordStore()
   const { items: shortcutItems, load: loadShortcuts } = useShortcutStore()
-  const { syncDiscordServiceState, syncKvmState } = usePluginStore()
+  const { syncDiscordServiceState, syncKvmState, syncHaState } = usePluginStore()
   const { setKvmState } = useKvmStore()
+  const { setHaState } = useHaStore()
 
   // Track whether initial settings have been loaded so we don't auto-save before loading
   const settingsLoadedRef = useRef(false)
@@ -348,6 +350,18 @@ export default function App(): JSX.Element {
     })
     return cleanup
   }, [setKvmState, syncKvmState])
+
+  // Load initial HA state and subscribe to push events
+  useEffect(() => {
+    window.api.haGetState().then((state) => {
+      setHaState(state)
+      syncHaState(state)
+    }).catch(console.error)
+    return window.api.onHaStateChange((state) => {
+      setHaState(state)
+      syncHaState(state)
+    })
+  }, [setHaState, syncHaState])
 
   // Load initial DDC monitor list and subscribe to updates
   useEffect(() => {

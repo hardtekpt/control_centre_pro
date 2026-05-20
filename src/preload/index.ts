@@ -5,6 +5,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
+  HaState, HaServiceCall,
 } from '../shared/types'
 
 /**
@@ -319,6 +320,23 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, device: UsbDevice | null): void => callback(device)
     ipcRenderer.on(IPC_CHANNELS.KVM_IDENTIFY_RESULT, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.KVM_IDENTIFY_RESULT, handler)
+  },
+
+  // ── Home Assistant ─────────────────────────────────────────────────────────
+
+  haGetState: (): Promise<HaState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.HA_GET_STATE),
+
+  haCallService: (call: HaServiceCall): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.HA_CALL_SERVICE, call),
+
+  haTestConnection: (url: string, token: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.HA_TEST_CONNECTION, url, token),
+
+  onHaStateChange: (callback: (state: HaState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: HaState): void => callback(state)
+    ipcRenderer.on(IPC_CHANNELS.HA_STATE_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.HA_STATE_CHANGE, handler)
   },
 }
 

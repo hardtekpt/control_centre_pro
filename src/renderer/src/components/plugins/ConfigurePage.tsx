@@ -5,6 +5,7 @@ import { Toggle } from './Toggle'
 import { useDiscordStore } from '../../stores/discordStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { KvmConfigSection } from './KvmConfigSection'
+import { HomeAssistantConfigSection } from './HomeAssistantConfigSection'
 import { SliderInput } from '../SliderInput'
 
 function BackIcon() {
@@ -163,6 +164,9 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
       <div className="cfg-body">
         {/* KVM Detector configuration */}
         {plugin.id === 'kvm-detector' && <KvmConfigSection plugin={plugin} />}
+
+        {/* Home Assistant configuration */}
+        {plugin.id === 'home-assistant' && <HomeAssistantConfigSection plugin={plugin} />}
 
         {/* Discord-specific configuration */}
         {plugin.id === 'discord' && (
