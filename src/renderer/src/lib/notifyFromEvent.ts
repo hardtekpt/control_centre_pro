@@ -26,7 +26,7 @@ function getDisplaySettings(): DisplayNotificationSettings {
 // ── Previous-state tracking (module-level) ────────────────────────────────────
 
 let _prevWirelessConnected: boolean | null = null
-let _prevBtConnected: boolean | null = null
+let _prevBtStatus: ArctisState['btStatus'] | null = null
 let _prevBatteryHeadset: number | null = null
 let _prevBatteryDock: number | null = null
 let _prevAncMode: ArctisState['ancMode'] | null = null
@@ -35,7 +35,7 @@ let _prevBaseStationConnected: boolean | null = null
 /** Seed tracking state without firing a notification — call on app startup if headset already connected */
 export function seedArctisTrackingState(state: ArctisState): void {
   _prevWirelessConnected = state.wirelessConnected
-  _prevBtConnected = state.btConnected
+  _prevBtStatus = state.btStatus
   _prevBatteryHeadset = state.batteryHeadset
   _prevBatteryDock = state.batteryDock
   _prevAncMode = state.ancMode
@@ -45,7 +45,7 @@ export function seedArctisTrackingState(state: ArctisState): void {
 /** Reset tracked state — call when headset disconnects so reconnect fires correctly */
 export function resetArctisTrackingState(): void {
   _prevWirelessConnected = null
-  _prevBtConnected = null
+  _prevBtStatus = null
   _prevBatteryHeadset = null
   _prevBatteryDock = null
   _prevAncMode = null
@@ -70,7 +70,7 @@ export function notifyArctisConnected(state: ArctisState): void {
     }
   }
   _prevWirelessConnected = state.wirelessConnected
-  _prevBtConnected = state.btConnected
+  _prevBtStatus = state.btStatus
   _prevBatteryHeadset = state.batteryHeadset
   _prevBatteryDock = state.batteryDock
   _prevAncMode = state.ancMode
@@ -102,7 +102,7 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
   switch (eventName) {
     // ── Connectivity ──────────────────────────────────────────────────────────
     case 'ConnectivityEvent': {
-      const d = data as { btActive: boolean; btConnected: boolean; btPairing: boolean; wirelessConnected: boolean }
+      const d = data as { wirelessConnected: boolean; headsetPowered: boolean | null; btStatus: ArctisState['btStatus'] }
 
       if (cfg.wireless.enabled && _prevWirelessConnected !== null && d.wirelessConnected !== _prevWirelessConnected) {
         const connected = d.wirelessConnected
@@ -120,21 +120,22 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       }
       _prevWirelessConnected = d.wirelessConnected
 
-      if (cfg.bluetooth.enabled && _prevBtConnected !== null && d.btConnected !== _prevBtConnected) {
-        const connected = d.btConnected
+      const wasConnected = _prevBtStatus === 'CONNECTED'
+      const isConnected  = d.btStatus === 'CONNECTED'
+      if (cfg.bluetooth.enabled && _prevBtStatus !== null && isConnected !== wasConnected) {
         if (cfg.bluetooth.shape === 'circle') {
-          push({ kind: 'circle', key: 'arctis-bt', iconId: connected ? 'bluetooth' : 'unlink', ttl: 2400 })
+          push({ kind: 'circle', key: 'arctis-bt', iconId: isConnected ? 'bluetooth' : 'unlink', ttl: 2400 })
         } else {
           push({
             kind: 'rect', key: 'arctis-bt',
             iconId: 'bluetooth',
-            title: connected ? 'Bluetooth connected' : 'Bluetooth disconnected',
-            subtitle: connected ? 'BT device paired and active' : 'BT device disconnected',
+            title: isConnected ? 'Bluetooth connected' : 'Bluetooth disconnected',
+            subtitle: isConnected ? 'BT device paired and active' : 'BT device disconnected',
             ttl: 2400,
           })
         }
       }
-      _prevBtConnected = d.btConnected
+      _prevBtStatus = d.btStatus
       break
     }
 

@@ -60,15 +60,12 @@ def _read_full_state(headset) -> dict:
     status = headset.get_status()
     mic_eq = headset.get_mic_eq()
 
-    # get_display() may fail if base station USB is disconnected
+    # get_display() may not be available on all configurations
     display = None
-    base_station_connected = True
     try:
         display = headset.get_display()
     except Exception as exc:
         log("warn", f"get_display() unavailable: {exc}")
-        # If get_display() fails, the base station is likely disconnected
-        base_station_connected = False
 
     # get_volume_limiter() may not exist on all firmware versions
     limiter = None
@@ -84,22 +81,31 @@ def _read_full_state(headset) -> dict:
                 return getattr(val, "name", str(val))
         return default
 
-    # Query connectivity at startup — same derivation as on_connectivity_event.
-    # discover() already confirmed a 2.4 GHz link, so wireless defaults to True.
-    wireless     = True
-    bt_active    = False
-    bt_connected = False
-    bt_pairing   = False
+    # Query connectivity via new ConnectivityStatus API.
+    # headset.get_connectivity() updates internal scalars and returns a ConnectivityStatus.
+    conn_status   = None
     try:
-        connectivity   = headset.get_connectivity()
-        conn_mode_name = getattr(getattr(connectivity, "connectivity_mode", None), "name", "")
-        wireless       = conn_mode_name in ("WIRELESS_ONLY", "WIRELESS_AND_BT")
-        bt_active      = conn_mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
-        bt_connected   = getattr(connectivity, "bt_connected", False)
-        bt_pairing     = (conn_mode_name == "BT_PAIRING")
-        log("info", f"get_connectivity() → mode: {conn_mode_name}, bt_connected: {bt_connected}")
+        conn_status = headset.get_connectivity()
+        log("info", (
+            f"get_connectivity() → usb: {conn_status.usb}, "
+            f"wireless: {conn_status.wireless}, "
+            f"headset_power: {conn_status.headset_power}, "
+            f"bt: {getattr(conn_status.bt, 'value', conn_status.bt)}"
+        ))
     except Exception as exc:
         log("warn", f"get_connectivity() unavailable: {exc}")
+        conn_status = getattr(headset, "connectivity", None)
+
+    if conn_status is not None:
+        wireless      = conn_status.wireless
+        headset_power = conn_status.headset_power
+        bt_status     = getattr(conn_status.bt, "value", str(conn_status.bt))
+        usb_connected = conn_status.usb
+    else:
+        wireless      = True
+        headset_power = None
+        bt_status     = "OFF"
+        usb_connected = (display is not None)
 
     state = {
         # ── Always-available status fields ───────────────────────────────────
@@ -109,11 +115,8 @@ def _read_full_state(headset) -> dict:
         "volume":         getattr(mic_eq, "volume_pct", 0),
         # ── Connectivity ────────────────────────────────────────────────────
         "wirelessConnected": wireless,
-        "wirelessLinkState": enum_name(status, "wireless_link_state", default="ACTIVE" if wireless else "ABSENT"),
-        "headsetPowered":    getattr(status, "headset_powered", True),
-        "btActive":    bt_active,
-        "btConnected": bt_connected,
-        "btPairing":   bt_pairing,
+        "headsetPowered":    headset_power,
+        "btStatus":          bt_status,
         # ── ANC ─────────────────────────────────────────────────────────────
         "ancMode":          enum_name(status, "anc_mode", default="OFF"),
         "transparencyLevel": getattr(status, "transparency_level", 5),
@@ -135,7 +138,7 @@ def _read_full_state(headset) -> dict:
         "streamAux":   getattr(mic_eq, "stream_aux_vol",  getattr(mic_eq, "stream_aux",  getattr(mic_eq, "aux",  100))),
         "streamMic":   getattr(mic_eq, "stream_mic_vol",  getattr(mic_eq, "stream_mic",  getattr(mic_eq, "mic",  100))),
         # ── Base Station (from display object if available) ───────────────────
-        "baseStationConnected": base_station_connected,  # False if get_display() failed
+        "baseStationConnected": usb_connected,
         "oledBrightness": getattr(display, "oled_brightness", 5) if display else 5,
         "dimTimeout":     enum_name(display, "dim_timeout", default="OFF") if display else "OFF",
         "homescreenMode": enum_name(display, "home_screen_mode", default="DETAILED") if display else "DETAILED",
@@ -178,11 +181,8 @@ def _get_default_state() -> dict:
         "micMuted": False,
         "volume": 0,
         "wirelessConnected": False,
-        "wirelessLinkState": "ABSENT",
-        "headsetPowered": False,
-        "btActive": False,
-        "btConnected": False,
-        "btPairing": False,
+        "headsetPowered": None,
+        "btStatus": "OFF",
         "ancMode": "OFF",
         "transparencyLevel": 5,
         "micGain": "LOW",
@@ -419,24 +419,6 @@ def main() -> None:
         )})
         sys.exit(1)
 
-    # Patch ConnectivityMode to add BT_PAIRING = 2 (headset pairing mode).
-    # The library's IntEnum only defines WIRELESS_ONLY=1 and WIRELESS_AND_BT=4;
-    # value 2 is sent by the device during BT pairing and would otherwise crash
-    # the library's packet parser with "2 is not a valid ConnectivityMode".
-    try:
-        from arctis_hid.core.types import ConnectivityMode as _CM
-        if 2 not in _CM._value2member_map_:
-            _m = int.__new__(_CM, 2)
-            _m._name_  = "BT_PAIRING"
-            _m._value_ = 2
-            _CM.BT_PAIRING = _m
-            _CM._value2member_map_[2] = _m
-            _CM._member_map_["BT_PAIRING"] = _m
-            _CM._member_names_.append("BT_PAIRING")
-            log("info", "ConnectivityMode patched: added BT_PAIRING = 2")
-    except Exception as exc:
-        log("warn", f"Could not patch ConnectivityMode: {exc}")
-
     # Start stdin command reader (daemon — dies with main thread)
     threading.Thread(target=_stdin_reader, daemon=True).start()
 
@@ -500,32 +482,24 @@ def main() -> None:
 
             # ── Connectivity ─────────────────────────────────────────────────
             def on_connectivity_event(e):
-                mode_name    = getattr(getattr(e, "mode", None), "name",
-                                       str(getattr(e, "mode", "UNKNOWN")))
-                bt_active    = mode_name in ("WIRELESS_AND_BT", "BT_PAIRING")
-                bt_connected = getattr(e, "bt_connected", False)
-                bt_pairing   = (mode_name == "BT_PAIRING")
-                wireless     = getattr(e, "wireless", False)
-                wls_val      = getattr(e, "wireless_link_state", None)
-                wls_name     = getattr(wls_val, "name", "ACTIVE" if wireless else "ABSENT")
+                conn         = e.connectivity
+                wireless     = conn.wireless
+                headset_pwr  = conn.headset_power
+                bt_status    = getattr(conn.bt, "value", str(conn.bt))
                 emit({
                     "type": "event", "event": "ConnectivityEvent",
                     "data": {
-                        "btActive":          bt_active,
-                        "btConnected":       bt_connected,
-                        "btPairing":         bt_pairing,
                         "wirelessConnected": wireless,
-                        "wirelessLinkState": wls_name,
+                        "headsetPowered":    headset_pwr,
+                        "btStatus":          bt_status,
                     },
                 })
-                bt_label = ("pairing" if bt_pairing
-                            else "connected" if bt_connected
-                            else "on" if bt_active
-                            else "off")
+                power_label = "on" if headset_pwr else ("off" if headset_pwr is False else "unknown")
                 log("info", (
-                    f"ConnectivityEvent — mode: {mode_name}, "
+                    f"ConnectivityEvent — "
                     f"2.4 GHz: {'on' if wireless else 'off'}, "
-                    f"BT: {bt_label}"
+                    f"headset: {power_label}, "
+                    f"BT: {bt_status.lower()}"
                 ))
 
             headset.on("ConnectivityEvent", on_connectivity_event)

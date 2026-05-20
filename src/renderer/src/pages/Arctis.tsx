@@ -22,7 +22,9 @@ export function Arctis(): JSX.Element {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <HeadsetCard state={arctisState} expandByDefault={true} />
+      <div style={panelStyle}>
+        <HeadsetCard state={arctisState} expandByDefault={true} />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start', ...panelStyle }}>
         <AudioOptionsPanel state={arctisState} expandByDefault={true} />
         <WirelessAudioPanel state={arctisState} />

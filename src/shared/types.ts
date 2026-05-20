@@ -384,10 +384,10 @@ export interface Plugin {
 // ─── Arctis Nova Pro HID ──────────────────────────────────────────────────────
 
 /**
- * 2.4 GHz wireless link state — mirrors arctis_hid.WirelessLinkState enum.
- * ABSENT = headset off/removed; SEARCHING = base scanning; ACTIVE = link up.
+ * Bluetooth state — mirrors arctis_hid.BtStatus enum.
+ * OFF = radio off; ON = active but no device connected; PAIRING = pairing mode; CONNECTED = device paired and active.
  */
-export type WirelessLinkState = 'ABSENT' | 'SEARCHING' | 'ACTIVE'
+export type BtStatus = 'OFF' | 'ON' | 'PAIRING' | 'CONNECTED'
 
 /**
  * Screen-dim / auto-off timeout — mirrors arctis_hid.TimeoutStep enum.
@@ -412,12 +412,9 @@ export interface ArctisState {
   volume: number                 // 0–100 %
 
   // ── Connectivity ────────────────────────────────────────────────────────────
-  wirelessConnected: boolean     // 2.4 GHz link active (ACTIVE state)
-  wirelessLinkState: WirelessLinkState  // granular link state from WirelessLinkState enum
-  headsetPowered: boolean        // headset is powered on (false = off or removed)
-  btActive: boolean              // Bluetooth radio is on
-  btConnected: boolean           // a BT device is paired and connected
-  btPairing: boolean             // headset is in BT pairing mode
+  wirelessConnected: boolean     // 2.4 GHz link active
+  headsetPowered: boolean | null // headset powered on; null = not yet received from device
+  btStatus: BtStatus             // Bluetooth state derived from ConnectivityStatus
 
   // ── ANC ─────────────────────────────────────────────────────────────────────
   ancMode: 'OFF' | 'TRANSPARENCY' | 'ANC'   // AncMode enum

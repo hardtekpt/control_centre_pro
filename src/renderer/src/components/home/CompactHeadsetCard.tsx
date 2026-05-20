@@ -129,6 +129,15 @@ function UsbIcon(): JSX.Element {
   )
 }
 
+function PowerIcon(): JSX.Element {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+      <line x1="12" y1="2" x2="12" y2="12" />
+    </svg>
+  )
+}
+
 const GREEN = '#22c55e'
 const RED   = '#ef4444'
 const BLUE  = '#3b82f6'
@@ -413,10 +422,19 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
           <div className="flex items-center gap-1.5">
             <ConnectivityDot
               icon={<WirelessIcon />}
-              dotState={!state.wirelessConnected ? 'off' : state.wirelessLinkState === 'ACTIVE' ? 'on' : state.wirelessLinkState === 'SEARCHING' ? 'pairing' : 'off'}
-              title={`2.4 GHz Wireless — ${!state.wirelessConnected ? 'Absent' : state.wirelessLinkState === 'ACTIVE' ? 'Connected' : state.wirelessLinkState === 'SEARCHING' ? 'Searching…' : 'Absent'}`}
+              dotState={state.wirelessConnected ? 'on' : 'off'}
+              title={`2.4 GHz Wireless — ${state.wirelessConnected ? 'Active' : 'Absent'}`}
             />
-            <ConnectivityDot icon={<BluetoothIcon />} dotState={!state.btActive ? 'off' : state.btPairing ? 'pairing' : state.btConnected ? 'connected' : 'on'} title="Bluetooth" />
+            <ConnectivityDot
+              icon={<BluetoothIcon />}
+              dotState={state.btStatus === 'CONNECTED' ? 'connected' : state.btStatus === 'PAIRING' ? 'pairing' : state.btStatus === 'ON' ? 'on' : 'off'}
+              title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
+            />
+            <ConnectivityDot
+              icon={<PowerIcon />}
+              dotState={state.headsetPowered === true ? 'on' : 'off'}
+              title={`Headset power — ${state.headsetPowered === true ? 'On' : state.headsetPowered === false ? 'Off' : 'Unknown'}`}
+            />
           </div>
         </div>
       </div>

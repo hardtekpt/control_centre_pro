@@ -240,10 +240,13 @@ export default function App(): JSX.Element {
             break
           // ── Connectivity ──────────────────────────────────────────────────
           case 'ConnectivityEvent': {
-            const d = data as { btActive: boolean; btConnected: boolean; btPairing: boolean; wirelessConnected: boolean; wirelessLinkState: ArctisState['wirelessLinkState'] }
-            updateArctisState({ btActive: d.btActive, btConnected: d.btConnected, btPairing: d.btPairing, wirelessConnected: d.wirelessConnected, wirelessLinkState: d.wirelessLinkState })
+            const d = data as { wirelessConnected: boolean; headsetPowered: boolean | null; btStatus: ArctisState['btStatus'] }
+            updateArctisState({ wirelessConnected: d.wirelessConnected, headsetPowered: d.headsetPowered, btStatus: d.btStatus })
             break
           }
+          case 'HeadsetPoweredEvent':
+            updateArctisState({ headsetPowered: (data as { headsetPowered: boolean }).headsetPowered })
+            break
           // ── ANC ───────────────────────────────────────────────────────────
           case 'AncModeEvent':
             updateArctisState({ ancMode: (data as { ancMode: ArctisState['ancMode'] }).ancMode })
