@@ -1,5 +1,10 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useWebSocket } from './api/websocket'
+import { useServiceStore } from './stores/serviceStore'
+import { Home } from './pages/Home'
+import { Arctis } from './pages/Arctis'
+import { Sonar } from './pages/Sonar'
+import type { ArctisState, SonarState } from '@shared/types'
 
 type Tab = 'home' | 'arctis' | 'sonar'
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
@@ -14,7 +19,41 @@ export function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>('home')
   const [wsStatus, setWsStatus] = useState<ConnectionStatus>('disconnected')
 
-  useWebSocket({ onStatusChange: setWsStatus })
+  const { setArctisConnected, setArctisDisconnected, updateArctisState } = useServiceStore()
+
+  const handleInit = useCallback((payload: unknown) => {
+    const { arctis, sonar } = payload as { arctis: ArctisState | null; sonar: SonarState | null }
+    if (arctis) {
+      setArctisConnected(arctis)
+    } else {
+      setArctisDisconnected()
+    }
+    // sonar handled by sonarStore in Phase 3
+    void sonar
+  }, [setArctisConnected, setArctisDisconnected])
+
+  const handleArctisConnected = useCallback((payload: unknown) => {
+    setArctisConnected(payload as ArctisState)
+  }, [setArctisConnected])
+
+  const handleArctisDisconnected = useCallback(() => {
+    setArctisDisconnected()
+  }, [setArctisDisconnected])
+
+  const handleArctisEvent = useCallback((payload: unknown) => {
+    const { data } = payload as { eventName: string; data: Record<string, unknown> }
+    updateArctisState(data as Partial<ArctisState>)
+  }, [updateArctisState])
+
+  useWebSocket({
+    handlers: {
+      'init': handleInit,
+      'arctis:connected': handleArctisConnected,
+      'arctis:disconnected': handleArctisDisconnected,
+      'arctis:event': handleArctisEvent,
+    },
+    onStatusChange: setWsStatus,
+  })
 
   const dotStyle: React.CSSProperties = {
     width: 8,
@@ -40,16 +79,16 @@ export function App(): JSX.Element {
         fontSize: 14,
       }}
     >
-      {/* Connection status dot — top right */}
+      {/* Connection status dot — fixed top right */}
       <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
         <div style={dotStyle} title={wsStatus} />
       </div>
 
       {/* Page content */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 64 }}>
-        {tab === 'home'   && <PlaceholderPage title="Home" />}
-        {tab === 'arctis' && <PlaceholderPage title="Arctis" />}
-        {tab === 'sonar'  && <PlaceholderPage title="Sonar" />}
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 56 }}>
+        {tab === 'home'   && <Home />}
+        {tab === 'arctis' && <Arctis />}
+        {tab === 'sonar'  && <Sonar />}
       </div>
 
       {/* Bottom tab bar */}
@@ -65,6 +104,7 @@ export function App(): JSX.Element {
           height: 56,
           borderTop: '1px solid var(--color-border)',
           background: 'var(--color-surface)',
+          zIndex: 50,
         }}
       >
         {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
@@ -99,17 +139,6 @@ export function App(): JSX.Element {
   )
 }
 
-function PlaceholderPage({ title }: { title: string }): JSX.Element {
-  return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-        {title}
-      </h1>
-      <p style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>Loading...</p>
-    </div>
-  )
-}
-
 function TabIcon({ tab, active }: { tab: Tab; active: boolean }): JSX.Element {
   const color = active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'
   const size = 20
@@ -135,10 +164,6 @@ function TabIcon({ tab, active }: { tab: Tab; active: boolean }): JSX.Element {
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="10" cy="10" r="7" />
       <circle cx="10" cy="10" r="3" />
-      <line x1="10" y1="3" x2="10" y2="1" />
-      <line x1="10" y1="17" x2="10" y2="19" />
-      <line x1="3" y1="10" x2="1" y2="10" />
-      <line x1="17" y1="10" x2="19" y2="10" />
     </svg>
   )
 }

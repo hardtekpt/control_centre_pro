@@ -58,6 +58,7 @@ export class ServiceManager {
   private logCache: LogEntry[] = []
   private readonly MAX_CACHED_LOGS = 500
   private logIdCounter = 0
+  private wsBroadcast: ((type: string, payload: unknown) => void) | null = null
 
   constructor() {
     this.configPath = join(app.getPath('userData'), 'services.json')
@@ -68,6 +69,10 @@ export class ServiceManager {
 
   setWindow(window: BrowserWindow): void {
     this.window = window
+  }
+
+  setWsBroadcast(fn: ((type: string, payload: unknown) => void) | null): void {
+    this.wsBroadcast = fn
   }
 
   private push(channel: string, ...args: unknown[]): void {
@@ -218,6 +223,7 @@ export class ServiceManager {
       if (id === 'arctis-hid') {
         this.lastArctisState = null
         this.push(IPC_CHANNELS.ARCTIS_DISCONNECTED)
+        this.wsBroadcast?.('arctis:disconnected', null)
       }
     }
     this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
@@ -317,11 +323,13 @@ export class ServiceManager {
         this.lastArctisState = state
         this.emitLog(id, name, 'info', 'Device connected')
         this.push(IPC_CHANNELS.ARCTIS_CONNECTED, state)
+        this.wsBroadcast?.('arctis:connected', state)
         break
       }
       case 'disconnected':
         this.lastArctisState = null
         this.push(IPC_CHANNELS.ARCTIS_DISCONNECTED)
+        this.wsBroadcast?.('arctis:disconnected', null)
         break
       case 'event': {
         const eventName = msg.event as string
@@ -331,6 +339,7 @@ export class ServiceManager {
           this.lastArctisState = { ...this.lastArctisState, ...eventData }
         }
         this.push(IPC_CHANNELS.ARCTIS_EVENT, eventName, eventData)
+        this.wsBroadcast?.('arctis:event', { eventName, data: eventData })
         break
       }
       case 'fatal':
