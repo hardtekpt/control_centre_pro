@@ -261,7 +261,7 @@ function RoutedApps({ sessions, channelRole }: RoutedAppsProps): JSX.Element {
           </span>
           <div
             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ background: '#5a9a5a' }}
+            style={{ background: 'var(--color-ok)' }}
           />
           <span
             className="text-xs truncate"

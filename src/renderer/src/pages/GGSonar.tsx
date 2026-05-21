@@ -183,7 +183,7 @@ export function GGSonar(): JSX.Element {
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               title={available ? 'Sonar connected' : 'Sonar not detected'}
-              style={{ background: available ? '#5a9a5a' : 'var(--color-text-secondary)' }}
+              style={{ background: available ? 'var(--color-ok)' : 'var(--color-text-secondary)' }}
             />
             <span>Mixer</span>
           </div>
@@ -259,7 +259,7 @@ export function GGSonar(): JSX.Element {
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               title={presetSwitcherEnabled ? 'Preset switcher enabled' : 'Preset switcher disabled'}
-              style={{ background: presetSwitcherEnabled ? '#5a9a5a' : 'var(--color-text-secondary)' }}
+              style={{ background: presetSwitcherEnabled ? 'var(--color-ok)' : 'var(--color-text-secondary)' }}
             />
             <span>Preset Switcher</span>
           </div>

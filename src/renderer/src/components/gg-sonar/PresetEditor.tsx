@@ -243,7 +243,7 @@ export function PresetEditor({ config, onClose }: PresetEditorProps): JSX.Elemen
               {CHANNEL_LABELS[config.virtualAudioDevice] ?? config.virtualAudioDevice}
             </span>
             {config.isFavorite && (
-              <span style={{ color: '#c8960a', fontSize: 13 }}>★</span>
+              <span style={{ color: 'var(--color-warn)', fontSize: 13 }}>★</span>
             )}
           </div>
         </div>
