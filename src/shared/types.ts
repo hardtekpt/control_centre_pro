@@ -121,6 +121,9 @@ export const IPC_CHANNELS = {
   HA_STATE_CHANGE:    'ha:stateChange',     // main → renderer push
   HA_CALL_SERVICE:    'ha:callService',     // renderer → main invoke
   HA_TEST_CONNECTION: 'ha:testConnection',  // renderer → main invoke
+
+  // Remote Web Client
+  REMOTE_GET_INFO: 'remote:getInfo',        // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -260,6 +263,8 @@ export interface AppSettings {
   haUrl: string
   haToken: string
   runAtStartup: boolean
+  remoteEnabled: boolean
+  remotePort: number
 }
 
 /** Defaults applied when no saved settings exist */
@@ -288,6 +293,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   haUrl: '',
   haToken: '',
   runAtStartup: false,
+  remoteEnabled: false,
+  remotePort: 8080,
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
@@ -300,9 +307,16 @@ export type AppView =
   | 'shortcuts'
   | 'notifications'
   | 'settings'
+  | 'sonar-preset-switcher'
+
+/** Generic select option with a typed value */
+export interface Option<T> {
+  value: T
+  label: string
+}
 
 /** Tabs within the settings view */
-export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'plugins' | 'about'
+export type SettingsTab = 'general' | 'gg-sonar' | 'ddc' | 'notifications' | 'plugins' | 'about' | 'remote-access'
 
 /** Navigate targets that can be pushed from the main process */
 export type NavigateTarget = AppView | `settings:${SettingsTab}`

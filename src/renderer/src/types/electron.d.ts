@@ -138,6 +138,9 @@ declare global {
     haCallService: (call: HaServiceCall) => Promise<void>
     haTestConnection: (url: string, token: string) => Promise<{ ok: boolean; error?: string }>
     onHaStateChange: (callback: (state: HaState) => void) => () => void
+
+    // Remote Web Client
+    remoteGetInfo: () => Promise<{ enabled: boolean; url: string | null }>
     }
   }
 }

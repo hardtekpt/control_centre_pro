@@ -371,6 +371,11 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.HA_STATE_CHANGE, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.HA_STATE_CHANGE, handler)
   },
+
+  // ── Remote Web Client ────────────────────────────────────────────────────────
+
+  remoteGetInfo: (): Promise<{ enabled: boolean; url: string | null }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.REMOTE_GET_INFO),
 }
 
 contextBridge.exposeInMainWorld('api', api)

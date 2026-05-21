@@ -8,7 +8,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
-    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.webclient.json --noEmit",
+    "build:web": "vite build --config vite.config.web.ts",
     "postinstall": "patch-package && electron-builder install-app-deps"
   },
   "dependencies": {

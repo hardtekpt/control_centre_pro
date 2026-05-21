@@ -2,7 +2,9 @@
 export default {
   content: [
     './src/renderer/src/**/*.{js,ts,jsx,tsx}',
-    './src/renderer/index.html'
+    './src/renderer/index.html',
+    './src/webClient/**/*.{js,ts,jsx,tsx}',
+    './src/webClient/index.html',
   ],
   // Dark mode is toggled via the data-theme="dark" attribute on <html>
   darkMode: ['selector', '[data-theme="dark"]'],

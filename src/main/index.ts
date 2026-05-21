@@ -15,6 +15,7 @@ import { KvmDetector } from './services/kvmDetector'
 import { HomeAssistantService } from './services/homeAssistantService'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
+import { HttpApiServer } from './httpApiServer'
 
 const settingsFilePath = join(app.getPath('userData'), 'settings.json')
 function loadAppSettings(): AppSettings {
@@ -26,6 +27,7 @@ function loadAppSettings(): AppSettings {
   return { ...DEFAULT_SETTINGS }
 }
 
+let httpApiServer: HttpApiServer | null = null
 let mainWindow: BrowserWindow | null = null
 let notifWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -407,6 +409,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => loadAppSettings())
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, settings: AppSettings) => {
+    const prevSettings = loadAppSettings()
     writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
     if (typeof settings.minimizeToTray === 'boolean') {
       minimizeToTray = settings.minimizeToTray
@@ -427,6 +430,14 @@ function registerIpcHandlers(): void {
     }
     if (typeof settings.runAtStartup === 'boolean') {
       app.setLoginItemSettings({ openAtLogin: settings.runAtStartup })
+    }
+    if (prevSettings.remoteEnabled !== settings.remoteEnabled || prevSettings.remotePort !== settings.remotePort) {
+      httpApiServer?.stop()
+      httpApiServer = null
+      if (settings.remoteEnabled) {
+        httpApiServer = new HttpApiServer({ serviceManager, sonarService })
+        httpApiServer.start(settings.remotePort ?? 8080)
+      }
     }
   })
 
@@ -451,6 +462,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.HA_TEST_CONNECTION, (_, url: string, token: string) =>
     haService.testConnection(url, token)
   )
+
+  // ── Remote Web Client ──────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.REMOTE_GET_INFO, () => ({
+    enabled: !!httpApiServer,
+    url: httpApiServer?.getLanUrl() ?? null,
+  }))
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
@@ -984,6 +1001,10 @@ app.whenReady().then(() => {
 
   registerIpcHandlers()
   const bootSettings = loadAppSettings()
+  if (bootSettings.remoteEnabled) {
+    httpApiServer = new HttpApiServer({ serviceManager, sonarService })
+    httpApiServer.start(bootSettings.remotePort ?? 8080)
+  }
   if (typeof bootSettings.minimizeToTray === 'boolean') minimizeToTray = bootSettings.minimizeToTray
   if (typeof bootSettings.openOnActiveDisplay === 'boolean') openOnActiveDisplay = bootSettings.openOnActiveDisplay
   createWindow()
@@ -1070,6 +1091,8 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  httpApiServer?.stop()
+  httpApiServer = null
   unregisterAllShortcuts()
   tray?.destroy()
   tray = null

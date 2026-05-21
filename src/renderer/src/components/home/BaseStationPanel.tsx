@@ -154,7 +154,7 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
   }
 
   function handleFactoryReset(): void {
-    window.api.arctisCmd('factoryReset').catch(console.error)
+    window.api.arctisCmd('factoryReset', null).catch(console.error)
     setShowResetDialog(false)
   }
 
