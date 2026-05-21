@@ -5,6 +5,7 @@ import { formatCombo } from '../lib/shortcuts/keys'
 import { ShortcutRow } from '../components/shortcuts/ShortcutRow'
 import { NewShortcutPanel } from '../components/shortcuts/NewShortcutPanel'
 import { IconSearch, IconPlus } from '../components/shortcuts/icons'
+import { MainPageHeader } from '../components/MainPageHeader'
 import '../components/shortcuts/shortcuts.css'
 
 export function Shortcuts(): JSX.Element {
@@ -70,44 +71,12 @@ export function Shortcuts(): JSX.Element {
     items.filter((s) => actionById(s.actionId)?.cat === catId).length
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--color-bg)',
-        borderRadius: 10,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: '18px 20px 0',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <h1
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: 'var(--color-text-primary)',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.2,
-                marginBottom: 4,
-              }}
-            >
-              Shortcuts
-            </h1>
-            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-              {items.length} configured · {totalEnabled} enabled
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
-            {/* Search */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <MainPageHeader
+        title="Shortcuts"
+        subtitle={`${items.length} configured · ${totalEnabled} enabled`}
+        actions={
+          <>
             <div className="search-input-wrap">
               <span className="search-icon"><IconSearch size={14} /></span>
               <input
@@ -119,8 +88,6 @@ export function Shortcuts(): JSX.Element {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-
-            {/* New shortcut */}
             <button
               type="button"
               onClick={() => setShowNew(true)}
@@ -142,38 +109,38 @@ export function Shortcuts(): JSX.Element {
               <IconPlus size={14} />
               New shortcut
             </button>
+          </>
+        }
+        bottomSlot={
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
+            <button
+              type="button"
+              className={`filter-chip${filter === 'all' ? ' active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All
+              <span className="chip-count">{items.length}</span>
+            </button>
+            {CATEGORIES.map((cat) => {
+              const CatIcon = cat.icon
+              const count = countPerCat(cat.id)
+              if (count === 0) return null
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={`filter-chip${filter === cat.id ? ' active' : ''}`}
+                  onClick={() => setFilter(cat.id)}
+                >
+                  <CatIcon size={12} />
+                  {cat.label}
+                  <span className="chip-count">{count}</span>
+                </button>
+              )
+            })}
           </div>
-        </div>
-
-        {/* Filter chips */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
-          <button
-            type="button"
-            className={`filter-chip${filter === 'all' ? ' active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All
-            <span className="chip-count">{items.length}</span>
-          </button>
-          {CATEGORIES.map((cat) => {
-            const CatIcon = cat.icon
-            const count = countPerCat(cat.id)
-            if (count === 0) return null
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                className={`filter-chip${filter === cat.id ? ' active' : ''}`}
-                onClick={() => setFilter(cat.id)}
-              >
-                <CatIcon size={12} />
-                {cat.label}
-                <span className="chip-count">{count}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+        }
+      />
 
       {/* Scrollable list */}
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 16 }}>

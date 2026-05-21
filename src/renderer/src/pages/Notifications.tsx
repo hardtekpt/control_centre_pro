@@ -13,6 +13,8 @@ import type {
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { IconHeadset } from '../components/notifications/icons'
 import { createElement } from 'react'
+import { MainPageHeader } from '../components/MainPageHeader'
+import { Toggle } from '../components/plugins/Toggle'
 
 // Icons for search
 function IconSearch({ size = 14 }: { size?: number }): JSX.Element {
@@ -60,39 +62,6 @@ async function saveDisplaySettings(display: DisplayNotificationSettings): Promis
     ...current,
     notifications: { ...current.notifications, display },
   })
-}
-
-// ── Toggle switch ─────────────────────────────────────────────────────────────
-
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }): JSX.Element {
-  return (
-    <button
-      role="switch"
-      aria-checked={value}
-      onClick={() => onChange(!value)}
-      className="flex-shrink-0 relative rounded-full transition-colors"
-      style={{
-        width: 34,
-        height: 20,
-        background: value ? 'var(--color-accent)' : 'var(--color-border)',
-        border: 'none',
-        cursor: 'pointer',
-        padding: 0,
-      }}
-    >
-      <span
-        className="absolute rounded-full transition-transform"
-        style={{
-          width: 14,
-          height: 14,
-          background: value ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-          top: 3,
-          left: 3,
-          transform: value ? 'translateX(14px)' : 'translateX(0)',
-        }}
-      />
-    </button>
-  )
 }
 
 // ── Segmented shape picker ────────────────────────────────────────────────────
@@ -253,7 +222,7 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
         disabled={!value.enabled}
         onChange={(shape) => onChange({ ...value, shape })}
       />
-      <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
+      <Toggle checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
   )
 }
@@ -311,7 +280,7 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
         disabled={!value.enabled}
         onChange={(shape) => onChange({ ...value, shape })}
       />
-      <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
+      <Toggle checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
   )
 }
@@ -370,7 +339,7 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
         disabled={!value.enabled}
         onChange={(shape) => onChange({ ...value, shape })}
       />
-      <Toggle value={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
+      <Toggle checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
   )
 }
@@ -628,162 +597,75 @@ export function Notifications(): JSX.Element {
   const showDisplay = (filter === 'all' || filter === 'display') && matchesSearch('display')
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--color-bg)',
-        borderRadius: 10,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: '18px 20px 0',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <h1
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <MainPageHeader
+        title="Notifications"
+        subtitle={`${totalEnabled} enabled${notifService ? ` · ${notifService.enabled ? 'Service active' : 'Service disabled'}` : ''}`}
+        actions={
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              paddingRight: 10,
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              height: 32,
+            }}
+          >
+            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
+              <IconSearch size={14} />
+            </span>
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Search…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               style={{
-                fontSize: 18,
-                fontWeight: 600,
+                border: 'none',
+                background: 'transparent',
                 color: 'var(--color-text-primary)',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.2,
-                marginBottom: 4,
+                fontSize: 13,
+                outline: 'none',
+                width: 150,
               }}
-            >
-              Notifications
-            </h1>
-            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-              {totalEnabled} enabled · {notifService ? (notifService.enabled ? 'Service active' : 'Service disabled') : ''}
-            </p>
+            />
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
-            {/* Search */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                paddingRight: 10,
-                background: 'var(--color-surface-raised)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8,
-                height: 32,
-              }}
-            >
-              <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
-                <IconSearch size={14} />
-              </span>
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--color-text-primary)',
-                  fontSize: 13,
-                  outline: 'none',
-                  width: 150,
-                }}
-              />
-            </div>
+        }
+        bottomSlot={
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
+            {(['all', 'headset', 'sonar', 'display'] as const).map((id) => {
+              const labels: Record<string, string> = { all: 'All', headset: 'Arctis Nova Pro', sonar: 'GG Sonar', display: 'Display' }
+              const counts: Record<string, number> = { all: countEnabled('headset') + countEnabled('sonar') + countEnabled('display'), headset: countEnabled('headset'), sonar: countEnabled('sonar'), display: countEnabled('display') }
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--color-border)',
+                    background: filter === id ? 'var(--color-accent)' : 'var(--color-surface)',
+                    color: filter === id ? 'var(--color-bg)' : 'var(--color-text-primary)',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                  onClick={() => setFilter(id)}
+                >
+                  {labels[id]}
+                  <span style={{ fontSize: 11, opacity: 0.7 }}>{counts[id]}</span>
+                </button>
+              )
+            })}
           </div>
-        </div>
-
-        {/* Filter chips */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
-          <button
-            type="button"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: filter === 'all' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
-              background: filter === 'all' ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: filter === 'all' ? 'var(--color-bg)' : 'var(--color-text-primary)',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-            onClick={() => setFilter('all')}
-          >
-            All
-            <span style={{ fontSize: 11, opacity: 0.7 }}>11</span>
-          </button>
-          <button
-            type="button"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: filter === 'headset' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
-              background: filter === 'headset' ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: filter === 'headset' ? 'var(--color-bg)' : 'var(--color-text-primary)',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-            onClick={() => setFilter('headset')}
-          >
-            Arctis Nova Pro
-            <span style={{ fontSize: 11, opacity: 0.7 }}>11</span>
-          </button>
-          <button
-            type="button"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: filter === 'sonar' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
-              background: filter === 'sonar' ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: filter === 'sonar' ? 'var(--color-bg)' : 'var(--color-text-primary)',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-            onClick={() => setFilter('sonar')}
-          >
-            GG Sonar
-            <span style={{ fontSize: 11, opacity: 0.7 }}>1</span>
-          </button>
-          <button
-            type="button"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: filter === 'display' ? '1px solid var(--color-border)' : '1px solid var(--color-border)',
-              background: filter === 'display' ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: filter === 'display' ? 'var(--color-bg)' : 'var(--color-text-primary)',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-            onClick={() => setFilter('display')}
-          >
-            Display
-            <span style={{ fontSize: 11, opacity: 0.7 }}>1</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 16 }}>

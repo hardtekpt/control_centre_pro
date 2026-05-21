@@ -3,6 +3,7 @@ import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
 import { PresetSwitcherSection } from '../components/gg-sonar/PresetSwitcherSection'
+import { MainPageHeader } from '../components/MainPageHeader'
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
@@ -158,10 +159,9 @@ export function GGSonar(): JSX.Element {
   const available = sonarState?.available ?? false
 
   return (
-    <div
-      className="flex flex-col gap-6 p-6 overflow-y-auto h-full"
-      style={{ background: 'var(--color-bg)' }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--color-bg)' }}>
+      <MainPageHeader title="GG Sonar" />
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <HomeSection
         title={
           <div className="flex items-center gap-1.5">
@@ -252,6 +252,7 @@ export function GGSonar(): JSX.Element {
       >
         <PresetSwitcherSection sonarState={sonarState} />
       </HomeSection>
+      </div>
     </div>
   )
 }

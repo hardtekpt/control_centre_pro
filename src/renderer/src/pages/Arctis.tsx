@@ -4,6 +4,7 @@ import { AudioOptionsPanel } from '../components/home/AudioOptionsPanel'
 import { WirelessAudioPanel } from '../components/home/WirelessAudioPanel'
 import { BaseStationPanel } from '../components/home/BaseStationPanel'
 import { EqPanel } from '../components/home/EqPanel'
+import { MainPageHeader } from '../components/MainPageHeader'
 
 export function Arctis(): JSX.Element {
   const { arctisState } = useServiceStore()
@@ -21,19 +22,22 @@ export function Arctis(): JSX.Element {
     : undefined
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div style={panelStyle}>
-        <HeadsetCard state={arctisState} expandByDefault={true} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start', ...panelStyle }}>
-        <AudioOptionsPanel state={arctisState} expandByDefault={true} />
-        <WirelessAudioPanel state={arctisState} />
-      </div>
-      <div style={panelStyle}>
-        <BaseStationPanel state={arctisState} expandByDefault={true} />
-      </div>
-      <div style={panelStyle}>
-        <EqPanel state={arctisState} expandByDefault={true} />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <MainPageHeader title="Arctis Nova Pro" />
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={panelStyle}>
+          <HeadsetCard state={arctisState} expandByDefault={true} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start', ...panelStyle }}>
+          <AudioOptionsPanel state={arctisState} expandByDefault={true} />
+          <WirelessAudioPanel state={arctisState} />
+        </div>
+        <div style={panelStyle}>
+          <BaseStationPanel state={arctisState} expandByDefault={true} />
+        </div>
+        <div style={panelStyle}>
+          <EqPanel state={arctisState} expandByDefault={true} />
+        </div>
       </div>
     </div>
   )
