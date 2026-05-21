@@ -186,10 +186,11 @@ A local-network web app served by `HttpApiServer` (main process). The phone brow
 **Key files**:
 - `src/main/httpApiServer.ts` — HTTP + WS server; serves `out/webClient/` as SPA
 - `src/webClient/` — Separate Vite build (`vite.config.web.ts`, `tsconfig.webclient.json`)
-- `src/webClient/src/api/http.ts` — `get<T>` / `post<T>` helpers
+- `src/webClient/src/api/http.ts` — `get<T>` / `post<T>` helpers (inject `Authorization: Bearer <token>`)
 - `src/webClient/src/api/websocket.ts` — Singleton WS with exponential backoff, `useWebSocket` hook
+- `src/webClient/src/api/auth.ts` — Token capture from URL, localStorage persistence, auth-failed signal
 - `src/webClient/src/stores/` — Zustand stores mirroring renderer (IPC → fetch/WS)
-- `src/renderer/src/pages/settings/RemoteAccessSettings.tsx` — Enable toggle, port, QR code
+- `src/renderer/src/pages/settings/RemoteAccessSettings.tsx` — Enable toggle, port, token duration, QR code
 
 **Architecture rules**:
 - `HttpApiServer` runs in main process only, never renderer
@@ -199,6 +200,13 @@ A local-network web app served by `HttpApiServer` (main process). The phone brow
 - WS broadcast has a 16 KB backpressure guard (`client.bufferedAmount < 16384`)
 - `SonarService.setWsBroadcast()` and `ServiceManager.setWsBroadcast()` both called on server start/stop from `index.ts`
 - On WS connect the server sends an `init` snapshot `{ arctis, sonar }` so the client has immediate state
+
+**Authentication**:
+- Single auth token (`remoteAuthToken`) with absolute expiry (`remoteTokenExpiresAt`); duration configurable (`remoteTokenDurationMs`, 0 = never).
+- `HttpApiServer.setAuthToken(token, expiresAt)` gates `/api/*` (Bearer header or `?token=` query) and the WS upgrade (via `verifyClient`). Static HTML/JS/CSS stay public so the SPA can render an "expired" screen.
+- Token rotates automatically when: settings change `remoteTokenDurationMs`, the server is newly enabled, or the renderer hits "Regenerate now". Rotation closes existing WS clients with code 1008 and arms a `setTimeout` that does the same at expiry.
+- QR-code URL embeds the token: `http://<lan-ip>:<port>/?token=<token>`. Web client's `bootstrapAuthFromUrl()` (in `main.tsx`, before `createRoot`) reads it once, stores in `localStorage` under `ccpro.remoteAuthToken`, and strips it from the address bar.
+- WS handshake rejection surfaces in the browser as close code 1006 (not 1008), so it cannot be distinguished from a network blip. The web client validates on boot via `GET /api/info` — a 401 calls `notifyAuthFailed()`, which switches the app to the "Access expired — re-scan QR" screen.
 
 ---
 

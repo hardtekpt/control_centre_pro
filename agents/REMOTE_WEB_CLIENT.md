@@ -1,7 +1,7 @@
 # Remote Web Client (Smartphone)
 
-**Status**: ✅ Working  
-**Branch**: `development` (merged — all 4 phases shipped)
+**Status**: ✅ Working (+ token authentication)
+**Branch**: `development` (merged — all 4 phases + auth shipped)
 
 ---
 
@@ -11,7 +11,7 @@ A local-network web app served by the Electron main process. The user scans a QR
 
 **Key constraints confirmed with user:**
 - Served as static files by an embedded HTTP server (not external hosting)
-- Local network only, no authentication
+- Local network only; access gated by a single auth token embedded in the scanned QR code (see [Authentication](#authentication) below)
 - Full desktop feature parity (including 10-band EQ)
 - Reuse existing React components + add responsive CSS breakpoints
 - EQ panel uses horizontal scroll on mobile
@@ -439,8 +439,48 @@ Each phase is independently shippable. Recommend committing after each.
 | Question | Answer |
 |---|---|
 | Hosting | Embedded in Electron app |
-| Auth | Local network, no auth |
+| Auth | Token embedded in QR-code URL with absolute expiry; configurable duration in settings |
 | Arctis scope | Full parity with desktop |
 | Component strategy | Reuse + responsive CSS |
 | Build command | Separate `npm run build:web` |
 | EQ mobile layout | Horizontal scroll |
+
+---
+
+## Authentication
+
+A single auth token gates the API and WebSocket. The token is embedded in the QR code; clients persist it in `localStorage` and present it on every request. The server enforces an absolute expiry; only static HTML/JS/CSS are served unauthenticated so the SPA can render a friendly "expired" screen.
+
+### Settings (in `AppSettings`)
+
+| Field | Meaning |
+|---|---|
+| `remoteAuthToken: string` | URL-safe base64 of 24 random bytes; rotated by the main process |
+| `remoteTokenExpiresAt: number` | Absolute epoch-ms expiry; `0` means never |
+| `remoteTokenDurationMs: number` | User-chosen lifetime applied at the next rotation (`0` = never). Renderer dropdown: 1h / 12h / 24h / 7d / Never |
+
+### Server-side (`HttpApiServer`)
+- `setAuthToken(token, expiresAt)` stores the active token and arms a `setTimeout` that closes all WS clients with code 1008 at expiry.
+- `/api/*` is gated: token is read from `Authorization: Bearer <token>` **or** `?token=` query; 401 JSON `{ error: 'unauthorized' }` on mismatch/expiry.
+- WS upgrade uses `verifyClient` against the same token; rejected upgrades close with HTTP 401 (browser sees close code 1006 — see below).
+- Rotation closes all existing clients with code 1008 so they reconnect with the new token.
+
+### Token lifecycle (in `main/index.ts`)
+- `generateRemoteToken()` — `crypto.randomBytes(24).toString('base64url')`.
+- `rotateRemoteToken(settings)` — generates a fresh token, sets `expiresAt = Date.now() + durationMs` (or `0` if duration is `0`), and persists.
+- `ensureValidRemoteToken(settings)` — called on boot before starting the server; rotates only if the saved token is missing or already expired.
+- `SETTINGS_SET` handler rotates the token automatically when `remoteTokenDurationMs` changes **or** the server is being newly enabled — so the QR shown after Save always matches the active settings.
+- `REMOTE_REGENERATE_TOKEN` IPC issues a fresh token immediately.
+
+### Web client side
+- `src/webClient/src/api/auth.ts` — `bootstrapAuthFromUrl()` (called from `main.tsx` **before** `createRoot`) reads `?token=…` from the URL, writes to `localStorage` under `ccpro.remoteAuthToken`, then clears the query string with `history.replaceState` so a screenshot can't leak it.
+- `api/http.ts` attaches `Authorization: Bearer <token>` to every request; any 401 calls `notifyAuthFailed()`.
+- `api/websocket.ts` appends `?token=<token>` to the `/ws` URL and treats close code 1008 as auth failure (no reconnect).
+- `App.tsx` calls `GET /api/info` on boot to validate the token via HTTP — a WS handshake rejection surfaces as close code 1006 (indistinguishable from a network blip), so the socket alone can't be relied on. A 401 from this validation switches the app to the "Access expired — re-scan QR" screen.
+
+### IPC surface
+- `REMOTE_GET_INFO` returns `{ enabled, url, qrUrl, token, expiresAt, expired }`. `qrUrl` is `http://<lan-ip>:<port>/?token=<token>` when a token is usable.
+- `REMOTE_REGENERATE_TOKEN` issues a fresh token and returns the same shape.
+
+### Why the WS rejection isn't reported as 1008
+When `verifyClient` rejects an upgrade, the server replies with HTTP 401 and the WebSocket is never opened. The browser's `WebSocket` API surfaces this as `onclose` with `code: 1006` ("abnormal closure"), not 1008 — the policy-violation code only applies to closes on an *established* connection. That's why the web client probes `/api/info` over HTTP on boot to detect auth failures reliably.

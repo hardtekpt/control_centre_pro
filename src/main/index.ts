@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage, screen } f
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
+import { randomBytes } from 'crypto'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
 import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor, SerializedNotification, Shortcut } from '../shared/types'
@@ -25,6 +26,45 @@ function loadAppSettings(): AppSettings {
     }
   } catch {}
   return { ...DEFAULT_SETTINGS }
+}
+
+function persistAppSettings(settings: AppSettings): void {
+  writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
+}
+
+/** Generate a fresh URL-safe auth token. */
+function generateRemoteToken(): string {
+  return randomBytes(24).toString('base64url')
+}
+
+/** Rotate the remote auth token using the configured duration.
+ *  Persists to settings.json and returns the updated settings. */
+function rotateRemoteToken(settings: AppSettings): AppSettings {
+  const next: AppSettings = {
+    ...settings,
+    remoteAuthToken: generateRemoteToken(),
+    remoteTokenExpiresAt: settings.remoteTokenDurationMs > 0
+      ? Date.now() + settings.remoteTokenDurationMs
+      : 0,
+  }
+  persistAppSettings(next)
+  return next
+}
+
+/** Ensure the settings have a usable token before starting the server.
+ *  If missing or expired (when a duration is set), rotates it. */
+function ensureValidRemoteToken(settings: AppSettings): AppSettings {
+  const now = Date.now()
+  const expired = settings.remoteTokenExpiresAt > 0 && settings.remoteTokenExpiresAt <= now
+  if (!settings.remoteAuthToken || expired) {
+    return rotateRemoteToken(settings)
+  }
+  return settings
+}
+
+/** Build the QR-code URL: `http://<ip>:<port>/?token=<token>`. */
+function buildRemoteQrUrl(baseUrl: string, token: string): string {
+  return `${baseUrl}/?token=${encodeURIComponent(token)}`
 }
 
 let httpApiServer: HttpApiServer | null = null
@@ -408,9 +448,22 @@ function stopDdcPolling(): void {
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => loadAppSettings())
 
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, settings: AppSettings) => {
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, incoming: AppSettings) => {
     const prevSettings = loadAppSettings()
-    writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8')
+
+    // If the user changed the token duration, rotate the token now so the
+    // freshly displayed QR matches the new lifetime. Also rotate when the
+    // server is being newly enabled.
+    let settings: AppSettings = incoming
+    const durationChanged = prevSettings.remoteTokenDurationMs !== incoming.remoteTokenDurationMs
+    const justEnabled = !prevSettings.remoteEnabled && incoming.remoteEnabled
+    if (durationChanged || justEnabled) {
+      settings = rotateRemoteToken(incoming)
+    } else {
+      // Make sure the file persists exactly what the renderer sent.
+      persistAppSettings(incoming)
+    }
+
     if (typeof settings.minimizeToTray === 'boolean') {
       minimizeToTray = settings.minimizeToTray
     }
@@ -438,14 +491,22 @@ function registerIpcHandlers(): void {
       sonarService.setWsBroadcast(null)
       ddcService.setWsBroadcast(null)
       if (settings.remoteEnabled) {
+        const ready = ensureValidRemoteToken(settings)
+        settings = ready
         httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService })
-        httpApiServer.start(settings.remotePort ?? 8080)
+        httpApiServer.setAuthToken(ready.remoteAuthToken, ready.remoteTokenExpiresAt)
+        httpApiServer.start(ready.remotePort ?? 8080)
         const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
         serviceManager.setWsBroadcast(broadcast)
         sonarService.setWsBroadcast(broadcast)
         ddcService.setWsBroadcast(broadcast)
       }
+    } else if (httpApiServer && (durationChanged || prevSettings.remoteAuthToken !== settings.remoteAuthToken)) {
+      // Server still running but token rotated — push the new token in-place.
+      httpApiServer.setAuthToken(settings.remoteAuthToken, settings.remoteTokenExpiresAt)
     }
+
+    return settings
   })
 
   ipcMain.handle(IPC_CHANNELS.KVM_GET_STATE, () => kvmDetector.getState())
@@ -471,10 +532,37 @@ function registerIpcHandlers(): void {
   )
 
   // ── Remote Web Client ──────────────────────────────────────────────────────
-  ipcMain.handle(IPC_CHANNELS.REMOTE_GET_INFO, () => ({
-    enabled: !!httpApiServer,
-    url: httpApiServer?.getLanUrl() ?? null,
-  }))
+  ipcMain.handle(IPC_CHANNELS.REMOTE_GET_INFO, () => {
+    const settings = loadAppSettings()
+    const baseUrl = httpApiServer?.getLanUrl() ?? null
+    const now = Date.now()
+    const expired = settings.remoteTokenExpiresAt > 0 && settings.remoteTokenExpiresAt <= now
+    const tokenUsable = !!settings.remoteAuthToken && !expired
+    return {
+      enabled: !!httpApiServer,
+      url: baseUrl,
+      qrUrl: baseUrl && tokenUsable ? buildRemoteQrUrl(baseUrl, settings.remoteAuthToken) : null,
+      token: settings.remoteAuthToken || null,
+      expiresAt: settings.remoteTokenExpiresAt,
+      expired,
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.REMOTE_REGENERATE_TOKEN, () => {
+    const rotated = rotateRemoteToken(loadAppSettings())
+    if (httpApiServer) {
+      httpApiServer.setAuthToken(rotated.remoteAuthToken, rotated.remoteTokenExpiresAt)
+    }
+    const baseUrl = httpApiServer?.getLanUrl() ?? null
+    return {
+      enabled: !!httpApiServer,
+      url: baseUrl,
+      qrUrl: baseUrl ? buildRemoteQrUrl(baseUrl, rotated.remoteAuthToken) : null,
+      token: rotated.remoteAuthToken,
+      expiresAt: rotated.remoteTokenExpiresAt,
+      expired: false,
+    }
+  })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
@@ -1007,9 +1095,11 @@ app.whenReady().then(() => {
   }
 
   registerIpcHandlers()
-  const bootSettings = loadAppSettings()
+  let bootSettings = loadAppSettings()
   if (bootSettings.remoteEnabled) {
+    bootSettings = ensureValidRemoteToken(bootSettings)
     httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService })
+    httpApiServer.setAuthToken(bootSettings.remoteAuthToken, bootSettings.remoteTokenExpiresAt)
     httpApiServer.start(bootSettings.remotePort ?? 8080)
     const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
     serviceManager.setWsBroadcast(broadcast)

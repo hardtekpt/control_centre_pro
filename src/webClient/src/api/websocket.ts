@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { ConnectionStatus } from '../App'
+import { getAuthToken, notifyAuthFailed, isAuthFailed } from './auth'
 
 // ── Singleton WebSocket state ─────────────────────────────────────────────────
 
@@ -17,11 +18,14 @@ function setStatus(status: ConnectionStatus): void {
 }
 
 function connect(): void {
+  if (isAuthFailed()) return
   if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return
 
   setStatus('reconnecting')
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  ws = new WebSocket(`${proto}//${window.location.host}/ws`)
+  const token = getAuthToken()
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
+  ws = new WebSocket(`${proto}//${window.location.host}/ws${tokenQuery}`)
 
   ws.onopen = () => {
     _reconnectDelay = 1000
@@ -40,8 +44,15 @@ function connect(): void {
     }
   }
 
-  ws.onclose = () => {
+  ws.onclose = (ev: CloseEvent) => {
     ws = null
+    // 1008 policy violation → server rejected our token (rotated or expired).
+    // 401 upgrade rejection surfaces here too (no auth code, just a failed handshake).
+    if (ev.code === 1008) {
+      notifyAuthFailed()
+      setStatus('disconnected')
+      return
+    }
     setStatus('reconnecting')
     scheduleReconnect()
   }

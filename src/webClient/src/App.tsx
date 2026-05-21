@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useWebSocket } from './api/websocket'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
 import { Home } from './pages/Home'
 import { Arctis } from './pages/Arctis'
 import { Sonar } from './pages/Sonar'
+import { getAuthToken, onAuthFailed } from './api/auth'
+import { get } from './api/http'
 import type { ArctisState, SonarState, DdcMonitor } from '@shared/types'
 
 type Tab = 'home' | 'arctis' | 'sonar'
@@ -19,6 +21,19 @@ const TAB_LABELS: Record<Tab, string> = {
 export function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>('home')
   const [wsStatus, setWsStatus] = useState<ConnectionStatus>('disconnected')
+  const [unauthorized, setUnauthorized] = useState<boolean>(() => !getAuthToken())
+
+  useEffect(() => {
+    onAuthFailed(() => setUnauthorized(true))
+  }, [])
+
+  // Validate the stored token via HTTP on boot. A WS handshake rejection comes
+  // through as close code 1006 (indistinguishable from a network blip), so we
+  // can't rely on the socket alone — `get` already calls notifyAuthFailed on 401.
+  useEffect(() => {
+    if (!getAuthToken()) return
+    void get('/api/info').catch(() => { /* notifyAuthFailed already fired on 401 */ })
+  }, [])
 
   const { setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } = useServiceStore()
 
@@ -80,6 +95,31 @@ export function App(): JSX.Element {
         : wsStatus === 'reconnecting'
           ? 'var(--color-warn)'
           : 'var(--color-text-secondary)',
+  }
+
+  if (unauthorized) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100dvh',
+          padding: 24,
+          background: 'var(--color-bg)',
+          color: 'var(--color-text-primary)',
+          fontFamily: "'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif",
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Access expired</div>
+        <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', maxWidth: 320, lineHeight: 1.5 }}>
+          The access token for this session has expired or been revoked. Open Control Centre Pro on your PC,
+          go to Settings → Remote Access, and scan the QR code again.
+        </div>
+      </div>
+    )
   }
 
   return (

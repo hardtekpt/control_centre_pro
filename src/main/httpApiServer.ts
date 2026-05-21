@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { readFileSync, existsSync } from 'fs'
 import { join, extname, resolve } from 'path'
 import { networkInterfaces } from 'os'
+import { URL } from 'url'
 import type { ServiceManager } from './services/serviceManager'
 import type { SonarService } from './services/sonarService'
 import type { DdcService } from './services/apis/ddc/service'
@@ -58,19 +59,50 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown): void 
   res.end(json)
 }
 
+/** Extract the auth token a request is presenting, either from
+ *  `Authorization: Bearer <token>` or the `?token=` query string. */
+function extractToken(req: IncomingMessage): string | null {
+  const authHeader = req.headers['authorization']
+  if (typeof authHeader === 'string') {
+    const m = /^Bearer\s+(.+)$/i.exec(authHeader.trim())
+    if (m) return m[1]
+  }
+  if (req.url) {
+    try {
+      const url = new URL(req.url, 'http://localhost')
+      const q = url.searchParams.get('token')
+      if (q) return q
+    } catch { /* ignore malformed url */ }
+  }
+  return null
+}
+
 export class HttpApiServer {
   private server: Server
   private wss: WebSocketServer
   private clients: Set<WebSocket> = new Set()
   private port = 8080
   private deps: ServerDeps
+  private authToken: string | null = null
+  private tokenExpiresAt = 0   // 0 = never
+  private expiryTimer: NodeJS.Timeout | null = null
 
   constructor(deps: ServerDeps) {
     this.deps = deps
     this.server = createServer((req, res) => {
       void this.handleRequest(req, res)
     })
-    this.wss = new WebSocketServer({ server: this.server, path: '/ws' })
+    this.wss = new WebSocketServer({
+      server: this.server,
+      path: '/ws',
+      verifyClient: (info, cb) => {
+        if (!this.isTokenValid(extractToken(info.req))) {
+          cb(false, 401, 'Unauthorized')
+          return
+        }
+        cb(true)
+      },
+    })
     this.wss.on('connection', (ws) => {
       this.clients.add(ws)
       // Send initial full-state snapshot so the client can sync immediately
@@ -91,12 +123,57 @@ export class HttpApiServer {
   }
 
   stop(): void {
+    if (this.expiryTimer) {
+      clearTimeout(this.expiryTimer)
+      this.expiryTimer = null
+    }
     for (const client of this.clients) {
       client.terminate()
     }
     this.clients.clear()
     this.wss.close()
     this.server.close()
+  }
+
+  /** Configure (or rotate) the auth token + absolute expiry.
+   *  When the token changes, all currently-connected WS clients are kicked so
+   *  they reconnect with fresh credentials. */
+  setAuthToken(token: string, expiresAt: number): void {
+    const tokenChanged = token !== this.authToken
+    this.authToken = token || null
+    this.tokenExpiresAt = expiresAt
+
+    if (this.expiryTimer) {
+      clearTimeout(this.expiryTimer)
+      this.expiryTimer = null
+    }
+    if (expiresAt > 0) {
+      const ms = expiresAt - Date.now()
+      if (ms > 0) {
+        // Cap at ~24 days to stay within setTimeout safe range
+        this.expiryTimer = setTimeout(() => this.kickAllClients(1008, 'token-expired'),
+          Math.min(ms, 2_000_000_000))
+      }
+    }
+
+    if (tokenChanged) {
+      this.kickAllClients(1008, 'token-rotated')
+    }
+  }
+
+  private kickAllClients(code: number, reason: string): void {
+    for (const client of this.clients) {
+      try { client.close(code, reason) } catch { /* ignore */ }
+    }
+    this.clients.clear()
+  }
+
+  private isTokenValid(token: string | null): boolean {
+    if (!this.authToken) return false  // server requires a token; missing = closed
+    if (!token) return false
+    if (token !== this.authToken) return false
+    if (this.tokenExpiresAt > 0 && Date.now() >= this.tokenExpiresAt) return false
+    return true
   }
 
   /** Broadcast an event to all connected WebSocket clients.
@@ -163,7 +240,7 @@ export class HttpApiServer {
 
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
     if (method === 'OPTIONS') {
       res.writeHead(204)
@@ -171,17 +248,28 @@ export class HttpApiServer {
       return
     }
 
+    // Path-only (strip query string) for routing decisions
+    const path = url.split('?')[0]
+
+    // Gate all /api/* routes behind the auth token. Static files stay public so
+    // the SPA can load and show a friendly "expired" screen on token failure.
+    if (path.startsWith('/api/')) {
+      if (!this.isTokenValid(extractToken(req))) {
+        return jsonResponse(res, 401, { error: 'unauthorized' })
+      }
+    }
+
     // ── REST routes ──────────────────────────────────────────────────────────
 
-    if (url === '/api/info' && method === 'GET') {
+    if (path === '/api/info' && method === 'GET') {
       return jsonResponse(res, 200, { url: this.getLanUrl(), port: this.port })
     }
 
-    if (url === '/api/arctis/state' && method === 'GET') {
+    if (path === '/api/arctis/state' && method === 'GET') {
       return jsonResponse(res, 200, this.deps.serviceManager.getArctisState())
     }
 
-    if (url === '/api/arctis/cmd' && method === 'POST') {
+    if (path === '/api/arctis/cmd' && method === 'POST') {
       try {
         const body = await readBody(req)
         const cmd = body.cmd as string
@@ -193,11 +281,11 @@ export class HttpApiServer {
       }
     }
 
-    if (url === '/api/sonar/state' && method === 'GET') {
+    if (path === '/api/sonar/state' && method === 'GET') {
       return jsonResponse(res, 200, this.deps.sonarService.getState())
     }
 
-    if (url === '/api/sonar/volume' && method === 'POST') {
+    if (path === '/api/sonar/volume' && method === 'POST') {
       try {
         const body = await readBody(req)
         await this.deps.sonarService.setVolume(body.channel as SonarChannel, body.volume as number)
@@ -207,7 +295,7 @@ export class HttpApiServer {
       }
     }
 
-    if (url === '/api/sonar/mute' && method === 'POST') {
+    if (path === '/api/sonar/mute' && method === 'POST') {
       try {
         const body = await readBody(req)
         await this.deps.sonarService.setMute(body.channel as SonarChannel, body.muted as boolean)
@@ -217,7 +305,7 @@ export class HttpApiServer {
       }
     }
 
-    if (url === '/api/sonar/preset' && method === 'POST') {
+    if (path === '/api/sonar/preset' && method === 'POST') {
       try {
         const body = await readBody(req)
         await this.deps.sonarService.selectPreset(body.presetId as string)
@@ -227,7 +315,7 @@ export class HttpApiServer {
       }
     }
 
-    if (url === '/api/sonar/mode' && method === 'POST') {
+    if (path === '/api/sonar/mode' && method === 'POST') {
       try {
         const body = await readBody(req)
         await this.deps.sonarService.setMode(body.mode as SonarMode)
@@ -237,11 +325,11 @@ export class HttpApiServer {
       }
     }
 
-    if (url === '/api/ddc/monitors' && method === 'GET') {
+    if (path === '/api/ddc/monitors' && method === 'GET') {
       return jsonResponse(res, 200, this.deps.ddcService.getCachedMonitors())
     }
 
-    if (url === '/api/ddc/brightness' && method === 'POST') {
+    if (path === '/api/ddc/brightness' && method === 'POST') {
       try {
         const body = await readBody(req)
         this.deps.ddcService.setBrightness(body.monitorId as number, body.brightness as number)
@@ -251,7 +339,7 @@ export class HttpApiServer {
       }
     }
 
-    if (url === '/api/ddc/input' && method === 'POST') {
+    if (path === '/api/ddc/input' && method === 'POST') {
       try {
         const body = await readBody(req)
         this.deps.ddcService.setInputSource(body.monitorId as number, body.input as string)

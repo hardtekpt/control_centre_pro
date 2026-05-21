@@ -123,7 +123,8 @@ export const IPC_CHANNELS = {
   HA_TEST_CONNECTION: 'ha:testConnection',  // renderer → main invoke
 
   // Remote Web Client
-  REMOTE_GET_INFO: 'remote:getInfo',        // renderer → main invoke
+  REMOTE_GET_INFO: 'remote:getInfo',                  // renderer → main invoke
+  REMOTE_REGENERATE_TOKEN: 'remote:regenerateToken',  // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -265,6 +266,12 @@ export interface AppSettings {
   runAtStartup: boolean
   remoteEnabled: boolean
   remotePort: number
+  /** Hex auth token embedded in the QR-code URL; clients must present this to access the API/WS. Empty until first generated. */
+  remoteAuthToken: string
+  /** Epoch ms when the current token expires. 0 = never. */
+  remoteTokenExpiresAt: number
+  /** Configured token lifetime in ms (0 = never expires). Applied when a new token is issued. */
+  remoteTokenDurationMs: number
 }
 
 /** Defaults applied when no saved settings exist */
@@ -295,6 +302,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   runAtStartup: false,
   remoteEnabled: false,
   remotePort: 8080,
+  remoteAuthToken: '',
+  remoteTokenExpiresAt: 0,
+  remoteTokenDurationMs: 24 * 60 * 60 * 1000,  // 24 hours
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────

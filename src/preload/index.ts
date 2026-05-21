@@ -374,8 +374,20 @@ const api = {
 
   // ── Remote Web Client ────────────────────────────────────────────────────────
 
-  remoteGetInfo: (): Promise<{ enabled: boolean; url: string | null }> =>
+  remoteGetInfo: (): Promise<RemoteInfo> =>
     ipcRenderer.invoke(IPC_CHANNELS.REMOTE_GET_INFO),
+
+  remoteRegenerateToken: (): Promise<RemoteInfo> =>
+    ipcRenderer.invoke(IPC_CHANNELS.REMOTE_REGENERATE_TOKEN),
+}
+
+interface RemoteInfo {
+  enabled: boolean
+  url: string | null
+  qrUrl: string | null
+  token: string | null
+  expiresAt: number   // 0 = never expires
+  expired: boolean
 }
 
 contextBridge.exposeInMainWorld('api', api)

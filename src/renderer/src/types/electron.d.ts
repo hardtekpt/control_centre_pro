@@ -140,7 +140,18 @@ declare global {
     onHaStateChange: (callback: (state: HaState) => void) => () => void
 
     // Remote Web Client
-    remoteGetInfo: () => Promise<{ enabled: boolean; url: string | null }>
+    remoteGetInfo: () => Promise<RemoteInfo>
+    remoteRegenerateToken: () => Promise<RemoteInfo>
     }
+  }
+
+  /** Info about the remote web client server, returned by remoteGetInfo / remoteRegenerateToken. */
+  interface RemoteInfo {
+    enabled: boolean
+    url: string | null
+    qrUrl: string | null
+    token: string | null
+    expiresAt: number   // 0 = never expires
+    expired: boolean
   }
 }
