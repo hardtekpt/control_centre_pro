@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, useRef, createElement, type ReactNode } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
 import type {
   HeadsetNotificationSettings,
@@ -12,19 +12,9 @@ import type {
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { IconHeadset } from '../components/notifications/icons'
-import { createElement } from 'react'
 import { MainPageHeader } from '../components/MainPageHeader'
 import { Toggle } from '../components/plugins/Toggle'
-
-// Icons for search
-function IconSearch({ size = 14 }: { size?: number }): JSX.Element {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  )
-}
+import { PageSearchBar, PageFilterChips, PageDivider, type FilterChipDef } from '../components/PageControls'
 
 // ── Save helpers ──────────────────────────────────────────────────────────────
 
@@ -596,74 +586,24 @@ export function Notifications(): JSX.Element {
   const showSonar = (filter === 'all' || filter === 'sonar') && matchesSearch('gg sonar')
   const showDisplay = (filter === 'all' || filter === 'display') && matchesSearch('display')
 
+  const notifChips: FilterChipDef[] = [
+    { id: 'all',     label: 'All',            count: countEnabled('headset') + countEnabled('sonar') + countEnabled('display') },
+    { id: 'headset', label: 'Arctis Nova Pro', count: countEnabled('headset') },
+    { id: 'sonar',   label: 'GG Sonar',        count: countEnabled('sonar') },
+    { id: 'display', label: 'Display',          count: countEnabled('display') },
+  ]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <MainPageHeader
         title="Notifications"
         subtitle={`${totalEnabled} enabled${notifService ? ` · ${notifService.enabled ? 'Service active' : 'Service disabled'}` : ''}`}
-        actions={
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              paddingRight: 10,
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              height: 32,
-            }}
-          >
-            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
-              <IconSearch size={14} />
-            </span>
-            <input
-              ref={searchRef}
-              type="text"
-              placeholder="Search…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--color-text-primary)',
-                fontSize: 13,
-                outline: 'none',
-                width: 150,
-              }}
-            />
-          </div>
-        }
+        actions={<PageSearchBar value={search} onChange={setSearch} inputRef={searchRef} />}
         bottomSlot={
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
-            {(['all', 'headset', 'sonar', 'display'] as const).map((id) => {
-              const labels: Record<string, string> = { all: 'All', headset: 'Arctis Nova Pro', sonar: 'GG Sonar', display: 'Display' }
-              const counts: Record<string, number> = { all: countEnabled('headset') + countEnabled('sonar') + countEnabled('display'), headset: countEnabled('headset'), sonar: countEnabled('sonar'), display: countEnabled('display') }
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 6,
-                    border: '1px solid var(--color-border)',
-                    background: filter === id ? 'var(--color-accent)' : 'var(--color-surface)',
-                    color: filter === id ? 'var(--color-bg)' : 'var(--color-text-primary)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                  onClick={() => setFilter(id)}
-                >
-                  {labels[id]}
-                  <span style={{ fontSize: 11, opacity: 0.7 }}>{counts[id]}</span>
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <PageFilterChips chips={notifChips} active={filter} onSelect={setFilter} />
+            <PageDivider />
+          </>
         }
       />
 
@@ -866,11 +806,3 @@ export function Notifications(): JSX.Element {
   )
 }
 
-function PageIcon(): JSX.Element {
-  return (
-    <svg width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-text-secondary)' }}>
-      <path d="M7 1.5A4 4 0 0 0 3 5.5v2.5L2 9.5h10l-1-1.5V5.5A4 4 0 0 0 7 1.5z" />
-      <path d="M5.5 9.5a1.5 1.5 0 0 0 3 0" />
-    </svg>
-  )
-}

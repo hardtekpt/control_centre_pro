@@ -1,3 +1,5 @@
+@import '../page-controls.css';
+
 /* ── Kbd pills ─────────────────────────────────────────────────────────────── */
 
 .kbd {
@@ -450,40 +452,6 @@
   background: var(--color-border);
 }
 
-/* ── Filter chips ──────────────────────────────────────────────────────────── */
-
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: background .1s, color .1s, border-color .1s;
-}
-
-.filter-chip:hover {
-  background: var(--color-hover-overlay);
-  color: var(--color-text-primary);
-}
-
-.filter-chip.active {
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  border-color: var(--color-text-secondary);
-}
-
-.filter-chip .chip-count {
-  font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
-  font-size: 10px;
-  color: var(--color-text-tertiary);
-}
-
 /* ── Capture keybind field in new-panel ──────────────────────────────────── */
 
 .keybind-field {
@@ -515,40 +483,3 @@
   font-style: italic;
 }
 
-/* ── Search input ──────────────────────────────────────────────────────────── */
-
-.search-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input-wrap .search-icon {
-  position: absolute;
-  left: 9px;
-  color: var(--color-text-secondary);
-  pointer-events: none;
-  display: flex;
-}
-
-.search-input {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 5px 10px 5px 32px;
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--color-text-primary);
-  outline: none;
-  width: 200px;
-  transition: border-color .12s, background .12s;
-}
-
-.search-input:focus {
-  border-color: var(--color-text-secondary);
-  background: var(--color-surface-raised);
-}
-
-.search-input::placeholder {
-  color: var(--color-text-tertiary);
-}

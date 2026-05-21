@@ -4,8 +4,9 @@ import { CATEGORIES, ACTIONS, actionById, formatActionValue } from '../lib/short
 import { formatCombo } from '../lib/shortcuts/keys'
 import { ShortcutRow } from '../components/shortcuts/ShortcutRow'
 import { NewShortcutPanel } from '../components/shortcuts/NewShortcutPanel'
-import { IconSearch, IconPlus } from '../components/shortcuts/icons'
+import { IconPlus } from '../components/shortcuts/icons'
 import { MainPageHeader } from '../components/MainPageHeader'
+import { PageSearchBar, PageFilterChips, PageDivider, type FilterChipDef } from '../components/PageControls'
 import '../components/shortcuts/shortcuts.css'
 
 export function Shortcuts(): JSX.Element {
@@ -77,17 +78,7 @@ export function Shortcuts(): JSX.Element {
         subtitle={`${items.length} configured · ${totalEnabled} enabled`}
         actions={
           <>
-            <div className="search-input-wrap">
-              <span className="search-icon"><IconSearch size={14} /></span>
-              <input
-                ref={searchRef}
-                className="search-input"
-                type="text"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+            <PageSearchBar value={search} onChange={setSearch} inputRef={searchRef} />
             <button
               type="button"
               onClick={() => setShowNew(true)}
@@ -112,33 +103,24 @@ export function Shortcuts(): JSX.Element {
           </>
         }
         bottomSlot={
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingBottom: 12, borderBottom: '1px solid var(--color-border)' }}>
-            <button
-              type="button"
-              className={`filter-chip${filter === 'all' ? ' active' : ''}`}
-              onClick={() => setFilter('all')}
-            >
-              All
-              <span className="chip-count">{items.length}</span>
-            </button>
-            {CATEGORIES.map((cat) => {
-              const CatIcon = cat.icon
-              const count = countPerCat(cat.id)
-              if (count === 0) return null
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={`filter-chip${filter === cat.id ? ' active' : ''}`}
-                  onClick={() => setFilter(cat.id)}
-                >
-                  <CatIcon size={12} />
-                  {cat.label}
-                  <span className="chip-count">{count}</span>
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <PageFilterChips
+              chips={[
+                { id: 'all', label: 'All', count: items.length },
+                ...CATEGORIES
+                  .filter((cat) => countPerCat(cat.id) > 0)
+                  .map((cat) => ({
+                    id: cat.id,
+                    label: cat.label,
+                    count: countPerCat(cat.id),
+                    icon: <cat.icon size={12} />,
+                  })),
+              ] satisfies FilterChipDef[]}
+              active={filter}
+              onSelect={setFilter}
+            />
+            <PageDivider />
+          </>
         }
       />
 
