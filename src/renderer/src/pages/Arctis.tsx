@@ -51,10 +51,13 @@ export function Arctis(): JSX.Element {
   const showBase     = (filter === 'all' || filter === 'wireless') && matches('base')
   const showEq       = (filter === 'all' || filter === 'eq')       && matches('eq')
 
+  const arctisSubtitle = `Battery ${arctisState.batteryHeadset}% · ${arctisState.wirelessConnected ? 'Wireless connected' : 'Headset offline'}`
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <MainPageHeader
         title="Arctis Nova Pro"
+        subtitle={arctisSubtitle}
         chips={ARCTIS_CHIPS}
         activeChip={filter}
         onChipSelect={(id) => setFilter(id as ArctisFilter)}

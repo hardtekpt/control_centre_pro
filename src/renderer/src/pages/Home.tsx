@@ -43,10 +43,20 @@ export function Home(): JSX.Element {
 
   const showAudio = arctisState || sonarState?.available
 
+  const connectedCount =
+    (arctisState ? 1 : 0) +
+    (sonarState?.available ? 1 : 0) +
+    ddcMonitors.length
+  const homeSubtitle =
+    connectedCount === 0
+      ? 'No devices detected'
+      : `${connectedCount} device${connectedCount !== 1 ? 's' : ''} connected`
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <MainPageHeader
         title="Home"
+        subtitle={homeSubtitle}
         chips={HOME_CHIPS}
         activeChip={activeChip}
         onChipSelect={setActiveChip}

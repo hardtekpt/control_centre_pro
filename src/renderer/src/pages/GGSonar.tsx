@@ -165,11 +165,13 @@ export function GGSonar(): JSX.Element {
   }
 
   const available = sonarState?.available ?? false
+  const sonarSubtitle = `${available ? 'Connected' : 'Not detected'} · Preset switcher ${presetSwitcherEnabled ? 'on' : 'off'}`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--color-bg)' }}>
       <MainPageHeader
         title="GG Sonar"
+        subtitle={sonarSubtitle}
         chips={SONAR_CHIPS}
         activeChip={activeChip}
         onChipSelect={setActiveChip}
