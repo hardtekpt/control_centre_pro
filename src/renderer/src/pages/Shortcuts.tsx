@@ -5,8 +5,7 @@ import { formatCombo } from '../lib/shortcuts/keys'
 import { ShortcutRow } from '../components/shortcuts/ShortcutRow'
 import { NewShortcutPanel } from '../components/shortcuts/NewShortcutPanel'
 import { IconPlus } from '../components/shortcuts/icons'
-import { MainPageHeader } from '../components/MainPageHeader'
-import { PageSearchBar, PageFilterChips, PageDivider, type FilterChipDef } from '../components/PageControls'
+import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
 import '../components/shortcuts/shortcuts.css'
 
 export function Shortcuts(): JSX.Element {
@@ -76,51 +75,44 @@ export function Shortcuts(): JSX.Element {
       <MainPageHeader
         title="Shortcuts"
         subtitle={`${items.length} configured · ${totalEnabled} enabled`}
-        actions={
-          <>
-            <PageSearchBar value={search} onChange={setSearch} inputRef={searchRef} />
-            <button
-              type="button"
-              onClick={() => setShowNew(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-primary)',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <IconPlus size={14} />
-              New shortcut
-            </button>
-          </>
-        }
-        bottomSlot={
-          <>
-            <PageFilterChips
-              chips={[
-                { id: 'all', label: 'All', count: items.length },
-                ...CATEGORIES
-                  .filter((cat) => countPerCat(cat.id) > 0)
-                  .map((cat) => ({
-                    id: cat.id,
-                    label: cat.label,
-                    count: countPerCat(cat.id),
-                    icon: <cat.icon size={12} />,
-                  })),
-              ] satisfies FilterChipDef[]}
-              active={filter}
-              onSelect={setFilter}
-            />
-            <PageDivider />
-          </>
+        chips={[
+          { id: 'all', label: 'All', count: items.length },
+          ...CATEGORIES
+            .filter((cat) => countPerCat(cat.id) > 0)
+            .map((cat): FilterChipDef => ({
+              id: cat.id,
+              label: cat.label,
+              count: countPerCat(cat.id),
+              icon: <cat.icon size={12} />,
+            })),
+        ]}
+        activeChip={filter}
+        onChipSelect={setFilter}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchRef={searchRef}
+        trailingActions={
+          <button
+            type="button"
+            onClick={() => setShowNew(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 8,
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text-primary)',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <IconPlus size={14} />
+            New shortcut
+          </button>
         }
       />
 

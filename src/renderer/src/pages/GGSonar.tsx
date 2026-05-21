@@ -3,7 +3,13 @@ import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { ChannelMixer } from '../components/gg-sonar/ChannelMixer'
 import { PresetSwitcherSection } from '../components/gg-sonar/PresetSwitcherSection'
-import { MainPageHeader } from '../components/MainPageHeader'
+import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
+
+const SONAR_CHIPS: FilterChipDef[] = [
+  { id: 'all',     label: 'All' },
+  { id: 'mixer',   label: 'Mixer' },
+  { id: 'presets', label: 'Preset Switcher' },
+]
 
 // ─── Section wrapper (matches Home.tsx pattern) ───────────────────────────────
 
@@ -139,6 +145,8 @@ export function GGSonar(): JSX.Element {
   const { setView, setSettingsTab } = useAppStore()
 
   const [presetSwitcherEnabled, setPresetSwitcherEnabled] = useState(true)
+  const [activeChip, setActiveChip] = useState('all')
+  const [search, setSearch] = useState('')
 
   // Fetch fresh state on page mount (covers navigation to this page)
   useEffect(() => {
@@ -160,7 +168,14 @@ export function GGSonar(): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--color-bg)' }}>
-      <MainPageHeader title="GG Sonar" />
+      <MainPageHeader
+        title="GG Sonar"
+        chips={SONAR_CHIPS}
+        activeChip={activeChip}
+        onChipSelect={setActiveChip}
+        searchValue={search}
+        onSearchChange={setSearch}
+      />
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <HomeSection
         title={

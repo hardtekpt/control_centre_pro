@@ -12,9 +12,8 @@ import type {
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { IconHeadset } from '../components/notifications/icons'
-import { MainPageHeader } from '../components/MainPageHeader'
+import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
 import { Toggle } from '../components/plugins/Toggle'
-import { PageSearchBar, PageFilterChips, PageDivider, type FilterChipDef } from '../components/PageControls'
 
 // ── Save helpers ──────────────────────────────────────────────────────────────
 
@@ -598,13 +597,12 @@ export function Notifications(): JSX.Element {
       <MainPageHeader
         title="Notifications"
         subtitle={`${totalEnabled} enabled${notifService ? ` · ${notifService.enabled ? 'Service active' : 'Service disabled'}` : ''}`}
-        actions={<PageSearchBar value={search} onChange={setSearch} inputRef={searchRef} />}
-        bottomSlot={
-          <>
-            <PageFilterChips chips={notifChips} active={filter} onSelect={setFilter} />
-            <PageDivider />
-          </>
-        }
+        chips={notifChips}
+        activeChip={filter}
+        onChipSelect={setFilter}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchRef={searchRef}
       />
 
       {/* Scrollable content */}

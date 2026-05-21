@@ -1,19 +1,20 @@
+import { useState } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
 import { useSonarStore } from '../stores/sonarStore'
 import { CompactHeadsetCard } from '../components/home/CompactHeadsetCard'
 import { CompactSonarCard } from '../components/home/CompactSonarCard'
 import { DisplayCard } from '../components/home/DisplayCard'
-import { MainPageHeader } from '../components/MainPageHeader'
+import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
+
+const HOME_CHIPS: FilterChipDef[] = [
+  { id: 'all',     label: 'All' },
+  { id: 'audio',   label: 'Audio' },
+  { id: 'display', label: 'Display' },
+]
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
-function HomeSection({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}): JSX.Element {
+function HomeSection({ title, children }: { title: string; children: React.ReactNode }): JSX.Element {
   return (
     <section className="flex flex-col gap-2">
       <h2
@@ -32,6 +33,8 @@ function HomeSection({
 export function Home(): JSX.Element {
   const { arctisState, ddcMonitors, settings } = useServiceStore()
   const { sonarState } = useSonarStore()
+  const [activeChip, setActiveChip] = useState('all')
+  const [search, setSearch] = useState('')
 
   const sortedMonitors = [...ddcMonitors].sort((a, b) => {
     if (a.is_primary === b.is_primary) return 0
@@ -42,7 +45,14 @@ export function Home(): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <MainPageHeader title="Home" />
+      <MainPageHeader
+        title="Home"
+        chips={HOME_CHIPS}
+        activeChip={activeChip}
+        onChipSelect={setActiveChip}
+        searchValue={search}
+        onSearchChange={setSearch}
+      />
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {showAudio && (
           <HomeSection title="Audio">

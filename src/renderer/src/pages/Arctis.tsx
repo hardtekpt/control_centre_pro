@@ -5,8 +5,7 @@ import { AudioOptionsPanel } from '../components/home/AudioOptionsPanel'
 import { WirelessAudioPanel } from '../components/home/WirelessAudioPanel'
 import { BaseStationPanel } from '../components/home/BaseStationPanel'
 import { EqPanel } from '../components/home/EqPanel'
-import { MainPageHeader } from '../components/MainPageHeader'
-import { PageSearchBar, PageFilterChips, PageDivider, type FilterChipDef } from '../components/PageControls'
+import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
 
 type ArctisFilter = 'all' | 'audio' | 'wireless' | 'eq'
 
@@ -56,13 +55,12 @@ export function Arctis(): JSX.Element {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <MainPageHeader
         title="Arctis Nova Pro"
-        actions={<PageSearchBar value={search} onChange={setSearch} inputRef={searchRef} />}
-        bottomSlot={
-          <>
-            <PageFilterChips chips={ARCTIS_CHIPS} active={filter} onSelect={(id) => setFilter(id as ArctisFilter)} />
-            <PageDivider />
-          </>
-        }
+        chips={ARCTIS_CHIPS}
+        activeChip={filter}
+        onChipSelect={(id) => setFilter(id as ArctisFilter)}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchRef={searchRef}
       />
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {showHeadset && (
