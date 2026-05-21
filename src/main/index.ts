@@ -435,10 +435,13 @@ function registerIpcHandlers(): void {
       httpApiServer?.stop()
       httpApiServer = null
       serviceManager.setWsBroadcast(null)
+      sonarService.setWsBroadcast(null)
       if (settings.remoteEnabled) {
         httpApiServer = new HttpApiServer({ serviceManager, sonarService })
         httpApiServer.start(settings.remotePort ?? 8080)
-        serviceManager.setWsBroadcast((type, payload) => httpApiServer?.broadcast(type, payload))
+        const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
+        serviceManager.setWsBroadcast(broadcast)
+        sonarService.setWsBroadcast(broadcast)
       }
     }
   })
@@ -1006,7 +1009,9 @@ app.whenReady().then(() => {
   if (bootSettings.remoteEnabled) {
     httpApiServer = new HttpApiServer({ serviceManager, sonarService })
     httpApiServer.start(bootSettings.remotePort ?? 8080)
-    serviceManager.setWsBroadcast((type, payload) => httpApiServer?.broadcast(type, payload))
+    const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
+    serviceManager.setWsBroadcast(broadcast)
+    sonarService.setWsBroadcast(broadcast)
   }
   if (typeof bootSettings.minimizeToTray === 'boolean') minimizeToTray = bootSettings.minimizeToTray
   if (typeof bootSettings.openOnActiveDisplay === 'boolean') openOnActiveDisplay = bootSettings.openOnActiveDisplay

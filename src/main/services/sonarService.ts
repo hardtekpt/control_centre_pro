@@ -46,6 +46,7 @@ export class SonarService {
   // Callbacks wired by main/index.ts so SonarService can emit into the service infrastructure
   private logFn: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangeFn: (() => void) | null = null
+  private wsBroadcast: ((type: string, payload: unknown) => void) | null = null
 
   private pollingConfig: SonarPollingConfig = {
     pollingIntervalMs: 1000,
@@ -75,6 +76,10 @@ export class SonarService {
   /** Wire a callback that fires whenever availability flips so the service list refreshes */
   setStateChangeNotifier(fn: () => void): void {
     this.stateChangeFn = fn
+  }
+
+  setWsBroadcast(fn: ((type: string, payload: unknown) => void) | null): void {
+    this.wsBroadcast = fn
   }
 
   getState(): SonarState {
@@ -510,6 +515,7 @@ export class SonarService {
     if (this.window && !this.window.isDestroyed()) {
       this.window.webContents.send(IPC_CHANNELS.SONAR_STATE_CHANGE, this.state)
     }
+    this.wsBroadcast?.('sonar:stateChange', this.state)
     // Detect availability transitions and notify the service infrastructure
     const nowAvailable = this.state.available
     if (nowAvailable !== this.lastAvailable) {

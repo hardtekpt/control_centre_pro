@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useWebSocket } from './api/websocket'
 import { useServiceStore } from './stores/serviceStore'
+import { useSonarStore } from './stores/sonarStore'
 import { Home } from './pages/Home'
 import { Arctis } from './pages/Arctis'
 import { Sonar } from './pages/Sonar'
@@ -28,8 +29,9 @@ export function App(): JSX.Element {
     } else {
       setArctisDisconnected()
     }
-    // sonar handled by sonarStore in Phase 3
-    void sonar
+    if (sonar) {
+      useSonarStore.getState().setSonarState(sonar)
+    }
   }, [setArctisConnected, setArctisDisconnected])
 
   const handleArctisConnected = useCallback((payload: unknown) => {
@@ -45,12 +47,17 @@ export function App(): JSX.Element {
     updateArctisState(data as Partial<ArctisState>)
   }, [updateArctisState])
 
+  const handleSonarStateChange = useCallback((payload: unknown) => {
+    useSonarStore.getState().setSonarState(payload as SonarState)
+  }, [])
+
   useWebSocket({
     handlers: {
       'init': handleInit,
       'arctis:connected': handleArctisConnected,
       'arctis:disconnected': handleArctisDisconnected,
       'arctis:event': handleArctisEvent,
+      'sonar:stateChange': handleSonarStateChange,
     },
     onStatusChange: setWsStatus,
   })
