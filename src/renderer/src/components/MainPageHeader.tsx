@@ -35,10 +35,9 @@ function IconSearch(): JSX.Element {
 // ── MainPageHeader ─────────────────────────────────────────────────────────────
 //
 // Vertical layout (top to bottom):
-//   title
-//   subtitle                        (optional)
-//   [chips ········]  [search]      (optional row — shown when either is present)
-//   ───────────────────────────     (divider — shown with the controls row)
+//   [title + subtitle (left)]  [search + trailing (right)]   ← title row
+//   [chips ········]                                          (optional chips row)
+//   ───────────────────────────                               (divider — when chips present)
 
 export function MainPageHeader({
   title,
@@ -51,77 +50,80 @@ export function MainPageHeader({
   searchRef,
   trailingActions,
 }: MainPageHeaderProps): JSX.Element {
-  const hasControls = (chips && chips.length > 0) || searchValue !== undefined || trailingActions
+  const hasSearch = searchValue !== undefined || trailingActions
+  const hasChips = chips && chips.length > 0
 
   return (
     <div style={{ padding: '18px 20px 0', flexShrink: 0 }}>
-      {/* Title */}
-      <h1
-        style={{
-          fontSize: 18,
-          fontWeight: 600,
-          color: 'var(--color-text-primary)',
-          letterSpacing: '-0.01em',
-          lineHeight: 1.2,
-          marginBottom: subtitle ? 4 : 0,
-        }}
-      >
-        {title}
-      </h1>
+      {/* Title row: title/subtitle left, search/trailing right */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <h1
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              letterSpacing: '-0.01em',
+              lineHeight: 1.2,
+              marginBottom: subtitle ? 4 : 0,
+            }}
+          >
+            {title}
+          </h1>
+          {subtitle && (
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: 0 }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
 
-      {/* Subtitle */}
-      {subtitle && (
-        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: 0 }}>
-          {subtitle}
-        </p>
-      )}
-
-      {/* Controls row: chips (left) + search / trailing (right) */}
-      {hasControls && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14 }}>
-            {/* Chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-              {chips?.map((chip) => (
-                <button
-                  key={chip.id}
-                  type="button"
-                  className={`filter-chip${activeChip === chip.id ? ' active' : ''}`}
-                  onClick={() => onChipSelect?.(chip.id)}
-                >
-                  {chip.icon}
-                  {chip.label}
-                  {chip.count !== undefined && (
-                    <span className="chip-count">{chip.count}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Search + trailing actions */}
-            {(searchValue !== undefined || trailingActions) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {searchValue !== undefined && (
-                  <div className="search-input-wrap">
-                    <span className="search-icon"><IconSearch /></span>
-                    <input
-                      ref={searchRef}
-                      className="search-input"
-                      type="text"
-                      placeholder="Search…"
-                      value={searchValue}
-                      onChange={(e) => onSearchChange?.(e.target.value)}
-                    />
-                  </div>
-                )}
-                {trailingActions}
+        {/* Search + trailing actions */}
+        {hasSearch && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2, flexShrink: 0 }}>
+            {searchValue !== undefined && (
+              <div className="search-input-wrap">
+                <span className="search-icon"><IconSearch /></span>
+                <input
+                  ref={searchRef}
+                  className="search-input"
+                  type="text"
+                  placeholder="Search…"
+                  value={searchValue}
+                  onChange={(e) => onSearchChange?.(e.target.value)}
+                />
               </div>
             )}
+            {trailingActions}
           </div>
+        )}
+      </div>
 
-          {/* Divider */}
+      {/* Chips row + divider */}
+      {hasChips && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 14 }}>
+            {chips.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                className={`filter-chip${activeChip === chip.id ? ' active' : ''}`}
+                onClick={() => onChipSelect?.(chip.id)}
+              >
+                {chip.icon}
+                {chip.label}
+                {chip.count !== undefined && (
+                  <span className="chip-count">{chip.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
           <div style={{ height: 1, background: 'var(--color-border)', margin: '12px 0 0' }} />
         </>
+      )}
+
+      {/* Divider when only search (no chips) */}
+      {!hasChips && hasSearch && (
+        <div style={{ height: 1, background: 'var(--color-border)', margin: '14px 0 0' }} />
       )}
     </div>
   )
