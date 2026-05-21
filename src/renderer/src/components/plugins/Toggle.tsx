@@ -20,12 +20,12 @@ export function Toggle({ checked, onChange, size = 'sm' }: ToggleProps): JSX.Ele
         height,
         borderRadius: '999px',
         border: 'none',
-        background: checked ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+        background: checked ? 'var(--color-text-primary)' : 'var(--color-border)',
         cursor: 'pointer',
         padding: '2px',
         display: 'flex',
         alignItems: 'center',
-        transition: 'background 0.2s',
+        transition: 'background 0.15s',
         position: 'relative',
       }}
     >
@@ -34,8 +34,8 @@ export function Toggle({ checked, onChange, size = 'sm' }: ToggleProps): JSX.Ele
           width: dotSize,
           height: dotSize,
           borderRadius: '999px',
-          background: 'white',
-          transition: 'transform 0.2s',
+          background: checked ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+          transition: 'transform 0.15s, background 0.15s',
           transform: checked ? `translateX(${isSm ? '14px' : '18px'})` : 'translateX(0)',
         }}
       />
