@@ -185,7 +185,7 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
               borderRadius: 10,
               overflow: 'hidden',
               zIndex: 9999,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
+              boxShadow: 'var(--shadow-panel)',
             }}
           >
             {/* Identity header */}

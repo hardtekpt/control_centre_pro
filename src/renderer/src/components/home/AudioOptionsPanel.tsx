@@ -171,7 +171,7 @@ function AncModeControl({
                 style={{
                   fontSize: 10,
                   opacity: 0.75,
-                  background: 'rgba(0,0,0,0.18)',
+                  background: 'var(--color-overlay-dim)',
                   borderRadius: 3,
                   padding: '0 3px',
                   lineHeight: '14px',

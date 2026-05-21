@@ -192,7 +192,7 @@ export function RemoteAccessSettings(): JSX.Element {
             <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
               <div
                 style={{
-                  background: '#ffffff',
+                  background: 'var(--color-qr-bg)',
                   padding: 12,
                   borderRadius: 8,
                   display: 'inline-flex',

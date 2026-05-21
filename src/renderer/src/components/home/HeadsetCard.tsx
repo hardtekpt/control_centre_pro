@@ -271,23 +271,19 @@ function VolumeLimiterIcon(): JSX.Element {
   )
 }
 
-const GREEN = '#22c55e'
-const RED   = '#ef4444'
-const BLUE  = '#3b82f6'
-
 type DotState = 'off' | 'on' | 'connected' | 'pairing'
 
 const DOT_COLOR: Record<DotState, string> = {
-  off:       RED,
-  on:        GREEN,
-  connected: BLUE,
-  pairing:   BLUE,
+  off:       'var(--color-status-error)',
+  on:        'var(--color-status-ok)',
+  connected: 'var(--color-status-info)',
+  pairing:   'var(--color-status-info)',
 }
 const DOT_BG: Record<DotState, string> = {
-  off:       'rgba(239,68,68,0.12)',
-  on:        'rgba(34,197,94,0.14)',
-  connected: 'rgba(59,130,246,0.14)',
-  pairing:   'rgba(59,130,246,0.14)',
+  off:       'var(--color-status-error-bg)',
+  on:        'var(--color-status-ok-bg)',
+  connected: 'var(--color-status-info-bg)',
+  pairing:   'var(--color-status-info-bg)',
 }
 
 function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dotState: DotState; title: string }): JSX.Element {
@@ -325,9 +321,9 @@ function SonarIndicator({ connected }: { connected: boolean }): JSX.Element {
       title={connected ? 'GG Sonar connected' : 'GG Sonar not detected'}
       className="w-5 h-5 rounded flex items-center justify-center"
       style={{
-        background: connected ? 'rgba(34,197,94,0.14)' : 'rgba(140,140,140,0.10)',
-        border: `1px solid ${connected ? GREEN : 'var(--color-border)'}`,
-        color: connected ? GREEN : 'var(--color-text-secondary)',
+        background: connected ? 'var(--color-status-ok-bg)' : 'var(--color-status-inactive-bg)',
+        border: `1px solid ${connected ? 'var(--color-status-ok)' : 'var(--color-border)'}`,
+        color: connected ? 'var(--color-status-ok)' : 'var(--color-text-secondary)',
       }}
     >
       <SonarIcon />
@@ -343,9 +339,9 @@ function VolumeLimiterIndicator({ on }: { on: boolean }): JSX.Element {
       title={on ? 'Volume limiter on' : 'Volume limiter off'}
       className="w-5 h-5 rounded flex items-center justify-center"
       style={{
-        background: on ? 'rgba(34,197,94,0.14)' : 'rgba(140,140,140,0.10)',
-        border: `1px solid ${on ? GREEN : 'var(--color-border)'}`,
-        color: on ? GREEN : 'var(--color-text-secondary)',
+        background: on ? 'var(--color-status-ok-bg)' : 'var(--color-status-inactive-bg)',
+        border: `1px solid ${on ? 'var(--color-status-ok)' : 'var(--color-border)'}`,
+        color: on ? 'var(--color-status-ok)' : 'var(--color-text-secondary)',
       }}
     >
       <VolumeLimiterIcon />
@@ -471,11 +467,11 @@ function BoltIcon(): JSX.Element {
 function BatteryIndicator({ level, charging, title }: { level: number; charging: boolean; title: string }): JSX.Element {
   const SEGMENTS = 4
   const filled   = Math.round((level / 100) * SEGMENTS)
-  const color    = level <= 20 ? RED : level <= 50 ? '#f59e0b' : GREEN
+  const color    = level <= 20 ? 'var(--color-status-error)' : level <= 50 ? 'var(--color-status-warn-fg)' : 'var(--color-status-ok)'
   return (
     <div title={title} className="flex items-center gap-1" style={{ height: 24 }}>
       {charging && (
-        <span style={{ color: '#f59e0b' }}>
+        <span style={{ color: 'var(--color-status-warn-fg)' }}>
           <BoltIcon />
         </span>
       )}

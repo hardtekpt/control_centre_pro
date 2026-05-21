@@ -336,7 +336,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                 {monitor.red_gain !== null && (
                   <SliderRow
                     label="R"
-                    labelColor="#e87070"
+                    labelColor="var(--color-rgb-r)"
                     value={monitor.red_gain}
                     max={monitor.rgb_max}
                     onChange={(v) => {
@@ -349,7 +349,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                 {monitor.green_gain !== null && (
                   <SliderRow
                     label="G"
-                    labelColor="#6db96d"
+                    labelColor="var(--color-rgb-g)"
                     value={monitor.green_gain}
                     max={monitor.rgb_max}
                     onChange={(v) => {
@@ -362,7 +362,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                 {monitor.blue_gain !== null && (
                   <SliderRow
                     label="B"
-                    labelColor="#7090d8"
+                    labelColor="var(--color-rgb-b)"
                     value={monitor.blue_gain}
                     max={monitor.rgb_max}
                     onChange={(v) => {
@@ -531,8 +531,8 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
               className="text-xs px-3 py-1.5 rounded"
               style={{
                 background: 'var(--color-surface)',
-                color: '#c0392b',
-                border: '1px solid #c0392b44',
+                color: 'var(--color-danger)',
+                border: '1px solid var(--color-danger-border)',
                 cursor: 'pointer',
               }}
             >
@@ -586,7 +586,7 @@ function CollapsibleSection({
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between py-3 text-xs font-semibold uppercase tracking-wide"
         style={{
-          color: danger ? '#c0392b88' : 'var(--color-text-secondary)',
+          color: danger ? 'var(--color-danger-muted)' : 'var(--color-text-secondary)',
           background: 'none',
           border: 'none',
           cursor: 'pointer',

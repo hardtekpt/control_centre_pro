@@ -243,7 +243,7 @@ function ChannelRow({
               width: 4,
               height: 4,
               borderRadius: '50%',
-              background: '#22c55e',
+              background: 'var(--color-status-ok)',
               flexShrink: 0,
             }}
           />
@@ -272,9 +272,9 @@ function ChannelRow({
           title={muted ? 'Unmute' : 'Mute'}
           className="shrink-0 w-6 h-6 flex items-center justify-center rounded"
           style={{
-            background: muted ? 'rgba(239,68,68,0.12)' : 'transparent',
+            background: muted ? 'var(--color-status-error-bg)' : 'transparent',
             border: '1px solid var(--color-border)',
-            color: muted ? '#ef4444' : 'var(--color-text-secondary)',
+            color: muted ? 'var(--color-status-error)' : 'var(--color-text-secondary)',
             cursor: 'pointer',
             transition: 'all 150ms ease',
           }}
@@ -424,7 +424,7 @@ export function CompactSonarCard(): JSX.Element {
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: '#22c55e',
+              background: 'var(--color-status-ok)',
               flexShrink: 0,
             }}
           />

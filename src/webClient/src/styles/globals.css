@@ -22,6 +22,24 @@
   --color-warn:            #9a6a2c;
   --color-ok:              #4a6d4c;
   --color-border-strong:   #C0C0C0;
+
+  /* Status indicator colors */
+  --color-status-ok:          #22c55e;
+  --color-status-ok-bg:       rgba(34, 197, 94, 0.14);
+  --color-status-error:       #ef4444;
+  --color-status-error-bg:    rgba(239, 68, 68, 0.12);
+  --color-status-info:        #3b82f6;
+  --color-status-info-bg:     rgba(59, 130, 246, 0.14);
+  --color-status-warn-fg:     #f59e0b;
+  --color-status-inactive-bg: rgba(140, 140, 140, 0.10);
+
+  /* Overlays / backdrops */
+  --color-overlay:     rgba(0, 0, 0, 0.45);
+  --color-overlay-dim: rgba(0, 0, 0, 0.18);
+
+  /* Shadows */
+  --shadow-panel:    0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-dropdown: 0 10px 28px rgba(0, 0, 0, 0.10), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
 [data-theme="dark"] {
@@ -42,6 +60,14 @@
   --color-warn:            #c4a36a;
   --color-ok:              #8baa7b;
   --color-border-strong:   #555555;
+
+  /* Overlays / backdrops (stronger in dark mode) */
+  --color-overlay:     rgba(0, 0, 0, 0.60);
+  --color-overlay-dim: rgba(0, 0, 0, 0.30);
+
+  /* Shadows (stronger in dark mode) */
+  --shadow-panel:    0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-dropdown: 0 10px 28px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
 }
 
 /* ── Reset & base ─────────────────────────────────────────────────────────── */

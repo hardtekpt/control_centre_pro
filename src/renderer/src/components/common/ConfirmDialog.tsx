@@ -37,7 +37,7 @@ export function ConfirmDialog({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--color-overlay)',
         zIndex: 9999,
       }}
       onClick={(e) => {
@@ -52,7 +52,7 @@ export function ConfirmDialog({
           padding: '24px',
           maxWidth: '400px',
           minWidth: '300px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          boxShadow: 'var(--shadow-dialog)',
         }}
       >
         <h2
@@ -122,7 +122,7 @@ export function ConfirmDialog({
               fontSize: '13px',
               fontWeight: 500,
               color: isDangerous ? 'var(--color-bg)' : 'var(--color-bg)',
-              backgroundColor: isDangerous ? '#d32f2f' : 'var(--color-accent)',
+              backgroundColor: isDangerous ? 'var(--color-danger-bright)' : 'var(--color-accent)',
               border: 'none',
               borderRadius: '6px',
               cursor: 'pointer',
@@ -131,7 +131,7 @@ export function ConfirmDialog({
             onMouseEnter={(e) => {
               const btn = e.currentTarget as HTMLButtonElement
               if (isDangerous) {
-                btn.style.backgroundColor = '#f44336'
+                btn.style.backgroundColor = 'var(--color-danger-hover)'
               } else {
                 btn.style.opacity = '0.8'
               }
@@ -139,7 +139,7 @@ export function ConfirmDialog({
             onMouseLeave={(e) => {
               const btn = e.currentTarget as HTMLButtonElement
               if (isDangerous) {
-                btn.style.backgroundColor = '#d32f2f'
+                btn.style.backgroundColor = 'var(--color-danger-bright)'
               } else {
                 btn.style.opacity = '1'
               }

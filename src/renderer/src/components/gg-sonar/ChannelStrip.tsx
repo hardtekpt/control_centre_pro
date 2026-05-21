@@ -126,7 +126,7 @@ function VerticalFaderComponent({
           width: 20,
           height: 10,
           background: disabled ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          boxShadow: 'var(--shadow-thumb)',
         }}
       />
     </div>

@@ -167,7 +167,7 @@ function SliderInputComponent({
               width: 18,
               height: 10,
               background: 'var(--color-text-primary)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              boxShadow: 'var(--shadow-thumb)',
             }}
           />
         </>
@@ -210,7 +210,7 @@ function SliderInputComponent({
               width: 10,
               height: 18,
               background: 'var(--color-text-primary)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              boxShadow: 'var(--shadow-thumb)',
             }}
           />
         </>

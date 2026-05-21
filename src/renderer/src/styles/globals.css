@@ -36,6 +36,45 @@
   --notif-border: rgba(20, 20, 20, 0.10);
   --notif-shadow: 0 8px 28px rgba(0, 0, 0, 0.10),
                   0 1px 0 rgba(255, 255, 255, 0.6) inset;
+
+  /* Status indicator colors */
+  --color-status-ok:          #22c55e;
+  --color-status-ok-bg:       rgba(34, 197, 94, 0.14);
+  --color-status-error:       #ef4444;
+  --color-status-error-bg:    rgba(239, 68, 68, 0.12);
+  --color-status-info:        #3b82f6;
+  --color-status-info-bg:     rgba(59, 130, 246, 0.14);
+  --color-status-warn-fg:     #f59e0b;
+  --color-status-inactive-bg: rgba(140, 140, 140, 0.10);
+
+  /* Danger / destructive actions */
+  --color-danger:             #c0392b;
+  --color-danger-bright:      #d32f2f;
+  --color-danger-hover:       #f44336;
+  --color-danger-muted:       rgba(192, 57, 43, 0.53);
+  --color-danger-border:      rgba(192, 57, 43, 0.27);
+
+  /* RGB channel labels (DDC settings) */
+  --color-rgb-r:              #e87070;
+  --color-rgb-g:              #6db96d;
+  --color-rgb-b:              #7090d8;
+
+  /* Windows chrome close button */
+  --color-win-close:          #c42b1c;
+  --color-win-close-text:     #ffffff;
+
+  /* Overlays / backdrops */
+  --color-overlay:            rgba(0, 0, 0, 0.45);
+  --color-overlay-dim:        rgba(0, 0, 0, 0.18);
+
+  /* QR code container (must stay white for scanability) */
+  --color-qr-bg:              #ffffff;
+
+  /* Shadows */
+  --shadow-thumb:             0 1px 4px rgba(0, 0, 0, 0.20);
+  --shadow-panel:             0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-dialog:            0 20px 25px -5px rgba(0, 0, 0, 0.10);
+  --shadow-dropdown:          0 10px 28px rgba(0, 0, 0, 0.10), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
 [data-theme="dark"] {
@@ -68,6 +107,16 @@
   --notif-border: rgba(255, 255, 255, 0.08);
   --notif-shadow: 0 10px 32px rgba(0, 0, 0, 0.55),
                   0 1px 0 rgba(255, 255, 255, 0.04) inset;
+
+  /* Overlays / backdrops (stronger in dark mode) */
+  --color-overlay:     rgba(0, 0, 0, 0.60);
+  --color-overlay-dim: rgba(0, 0, 0, 0.30);
+
+  /* Shadows (stronger in dark mode) */
+  --shadow-thumb:     0 1px 4px rgba(0, 0, 0, 0.50);
+  --shadow-panel:     0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-dialog:    0 20px 25px -5px rgba(0, 0, 0, 0.35);
+  --shadow-dropdown:  0 10px 28px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
 }
 
 /* ── Reset & base ─────────────────────────────────────────────────────────── */

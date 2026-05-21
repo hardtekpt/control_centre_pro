@@ -211,8 +211,8 @@ function WindowControl({ children, onClick, label, isClose = false }: WindowCont
       className="w-11 h-10 flex items-center justify-center transition-colors duration-100"
       style={{ color: 'var(--color-nav-text)', background: 'transparent', border: 'none' }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = isClose ? '#c42b1c' : 'var(--color-hover-overlay)'
-        if (isClose) e.currentTarget.style.color = '#fff'
+        e.currentTarget.style.background = isClose ? 'var(--color-win-close)' : 'var(--color-hover-overlay)'
+        if (isClose) e.currentTarget.style.color = 'var(--color-win-close-text)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent'
