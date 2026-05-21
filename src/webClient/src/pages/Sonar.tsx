@@ -1,17 +1,21 @@
-import { useSonarStore } from '../stores/sonarStore'
-import { sonarSetVolume, sonarSetMute, sonarSelectPreset, sonarSetMode } from '../stores/sonarStore'
-import type { SonarChannel } from '@shared/types'
+import { useSonarStore, sonarSetVolume, sonarSetMute, sonarSelectPreset, sonarSetMode } from '../stores/sonarStore'
+import type { SonarChannel, SonarConfig } from '@shared/types'
 
+const CHANNEL_ORDER: SonarChannel[] = ['master', 'game', 'media', 'chatRender', 'chatCapture', 'aux']
 const CHANNEL_LABELS: Record<SonarChannel, string> = {
   master: 'Master',
   game: 'Game',
+  media: 'Media',
   chatRender: 'Chat',
   chatCapture: 'Mic',
-  media: 'Media',
   aux: 'Aux',
 }
 
-const CHANNELS: SonarChannel[] = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux']
+function getFavoritesForChannel(configs: SonarConfig[], device: string): SonarConfig[] {
+  return configs
+    .filter((c) => c.virtualAudioDevice === device && c.isFavorite)
+    .sort((a, b) => (a.favoritePosition ?? 0) - (b.favoritePosition ?? 0))
+}
 
 export function Sonar(): JSX.Element {
   const sonarState = useSonarStore((s) => s.sonarState)
@@ -33,12 +37,12 @@ export function Sonar(): JSX.Element {
   const configs = sonarState.configs
 
   return (
-    <div style={{ padding: 16, paddingBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ padding: 16, paddingBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Header + mode toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>
           GG Sonar
         </h1>
-        {/* Mode toggle */}
         <div style={{ display: 'flex', gap: 6 }}>
           {(['classic', 'streamer'] as const).map((m) => (
             <button
@@ -62,52 +66,6 @@ export function Sonar(): JSX.Element {
         </div>
       </div>
 
-      {/* Presets */}
-      {configs.length > 0 && (
-        <div
-          style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            padding: '12px 14px',
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: 10 }}>
-            Presets
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {configs.map((config) => {
-              const isActive = activePresetIds[config.virtualAudioDevice] === config.id || config.isSelected
-              return (
-                <button
-                  key={config.id}
-                  onClick={() => void sonarSelectPreset(config.id, config.virtualAudioDevice)}
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    border: '1px solid var(--color-border)',
-                    background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
-                    color: 'var(--color-text-primary)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: 13,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <span>{config.name}</span>
-                  {isActive && (
-                    <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>ACTIVE</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Channel mixer */}
       {classic && (
         <div
@@ -121,50 +79,48 @@ export function Sonar(): JSX.Element {
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: 10 }}>
             Mixer
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} className="sonar-channel-mixer">
-            {CHANNELS.map((ch) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {CHANNEL_ORDER.map((ch) => {
               const vol = ch === 'master'
                 ? classic.masters.classic
                 : classic.devices[ch as keyof typeof classic.devices]?.classic
               if (!vol) return null
 
+              const device = ch as string
+              const favorites = getFavoritesForChannel(configs, device)
+              const activeId = activePresetIds[device] ?? configs.find(c => c.virtualAudioDevice === device && c.isSelected)?.id
+
               return (
-                <div
-                  key={ch}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, height: 40 }}
-                  className="channel-strip"
-                >
-                  <span style={{ color: 'var(--color-text-secondary)', fontSize: 12, minWidth: 56 }}>
+                <div key={ch} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: 'var(--color-text-secondary)', fontSize: 12, minWidth: 52 }}>
                     {CHANNEL_LABELS[ch]}
                   </span>
-                  <div className="slider-track" style={{ flex: 1 }}>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={Math.round(vol.volume * 100)}
-                      onChange={(e) => {
-                        void sonarSetVolume(ch, Number(e.target.value) / 100)
-                      }}
-                      onMouseDown={beginDrag}
-                      onTouchStart={beginDrag}
-                      onMouseUp={endDrag}
-                      onTouchEnd={endDrag}
-                      style={{
-                        width: '100%',
-                        accentColor: vol.muted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
-                        cursor: 'pointer',
-                        opacity: vol.muted ? 0.5 : 1,
-                      }}
-                    />
-                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(vol.volume * 100)}
+                    onChange={(e) => void sonarSetVolume(ch, Number(e.target.value) / 100)}
+                    onMouseDown={beginDrag}
+                    onTouchStart={beginDrag}
+                    onMouseUp={endDrag}
+                    onTouchEnd={endDrag}
+                    style={{
+                      flex: 1,
+                      accentColor: vol.muted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
+                      cursor: 'pointer',
+                      opacity: vol.muted ? 0.5 : 1,
+                    }}
+                  />
                   <span style={{ color: 'var(--color-text-secondary)', fontSize: 11, minWidth: 34, textAlign: 'right' }}>
                     {Math.round(vol.volume * 100)}%
                   </span>
                   <button
                     onClick={() => void sonarSetMute(ch, !vol.muted)}
+                    title={vol.muted ? 'Unmute' : 'Mute'}
                     style={{
-                      padding: '3px 7px',
+                      width: 26,
+                      height: 26,
                       borderRadius: 4,
                       border: '1px solid var(--color-border)',
                       background: vol.muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
@@ -172,10 +128,37 @@ export function Sonar(): JSX.Element {
                       fontSize: 10,
                       cursor: 'pointer',
                       fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
                     }}
                   >
-                    {vol.muted ? 'M' : 'M'}
+                    M
                   </button>
+                  {favorites.length > 0 && (
+                    <select
+                      value={activeId ?? ''}
+                      onChange={(e) => void sonarSelectPreset(e.target.value, device)}
+                      style={{
+                        fontSize: 11,
+                        background: 'var(--color-surface-raised)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 4,
+                        padding: '3px 5px',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        maxWidth: 90,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <option value="" disabled>Preset</option>
+                      {favorites.map((f) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )
             })}

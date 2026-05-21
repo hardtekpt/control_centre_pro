@@ -29,6 +29,7 @@ export class DdcService {
   private running = false
   private logEmitter: ((level: 'info' | 'warn' | 'error', msg: string) => void) | null = null
   private stateChangedCallback: ((monitors: DdcMonitor[]) => void) | null = null
+  private wsBroadcast: ((type: string, payload: unknown) => void) | null = null
 
   private pendingCallbacks = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>()
   private nextId = 1
@@ -41,12 +42,17 @@ export class DdcService {
     this.stateChangedCallback = callback
   }
 
+  setWsBroadcast(fn: ((type: string, payload: unknown) => void) | null): void {
+    this.wsBroadcast = fn
+  }
+
   private log(level: 'info' | 'warn' | 'error', message: string): void {
     this.logEmitter?.(level, message)
   }
 
   private notifyStateChanged(): void {
     this.stateChangedCallback?.(this.cachedMonitors)
+    this.wsBroadcast?.('ddc:update', this.cachedMonitors)
   }
 
   isAvailable(): boolean {

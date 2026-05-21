@@ -436,12 +436,14 @@ function registerIpcHandlers(): void {
       httpApiServer = null
       serviceManager.setWsBroadcast(null)
       sonarService.setWsBroadcast(null)
+      ddcService.setWsBroadcast(null)
       if (settings.remoteEnabled) {
-        httpApiServer = new HttpApiServer({ serviceManager, sonarService })
+        httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService })
         httpApiServer.start(settings.remotePort ?? 8080)
         const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
         serviceManager.setWsBroadcast(broadcast)
         sonarService.setWsBroadcast(broadcast)
+        ddcService.setWsBroadcast(broadcast)
       }
     }
   })
@@ -1007,11 +1009,12 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   const bootSettings = loadAppSettings()
   if (bootSettings.remoteEnabled) {
-    httpApiServer = new HttpApiServer({ serviceManager, sonarService })
+    httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService })
     httpApiServer.start(bootSettings.remotePort ?? 8080)
     const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
     serviceManager.setWsBroadcast(broadcast)
     sonarService.setWsBroadcast(broadcast)
+    ddcService.setWsBroadcast(broadcast)
   }
   if (typeof bootSettings.minimizeToTray === 'boolean') minimizeToTray = bootSettings.minimizeToTray
   if (typeof bootSettings.openOnActiveDisplay === 'boolean') openOnActiveDisplay = bootSettings.openOnActiveDisplay

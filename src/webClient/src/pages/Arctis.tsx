@@ -1,6 +1,17 @@
 import { useServiceStore } from '../stores/serviceStore'
 import { post } from '../api/http'
-import type { ArctisState } from '@shared/types'
+import type { ArctisState, TimeoutStep } from '@shared/types'
+
+const TIMEOUT_STEPS: TimeoutStep[] = ['OFF', 'ONE_MIN', 'FIVE_MIN', 'TEN_MIN', 'FIFTEEN_MIN', 'THIRTY_MIN', 'SIXTY_MIN']
+const TIMEOUT_LABELS: Record<TimeoutStep, string> = {
+  OFF: 'Off',
+  ONE_MIN: '1 min',
+  FIVE_MIN: '5 min',
+  TEN_MIN: '10 min',
+  FIFTEEN_MIN: '15 min',
+  THIRTY_MIN: '30 min',
+  SIXTY_MIN: '60 min',
+}
 
 export function Arctis(): JSX.Element {
   const arctis = useServiceStore((s) => s.arctisState)
@@ -21,32 +32,38 @@ export function Arctis(): JSX.Element {
     await post('/api/arctis/cmd', { cmd, value })
   }
 
+  const disabled = !arctis.baseStationConnected
+  const disabledStyle: React.CSSProperties = disabled
+    ? { opacity: 0.4, pointerEvents: 'none' }
+    : {}
+
   return (
-    <div style={{ padding: 16, paddingBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ padding: 16, paddingBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>
         Arctis Nova Pro
       </h1>
 
-      {/* Status row */}
+      {/* Status */}
       <Section title="Status">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <BatteryRow label="Headset" value={arctis.batteryHeadset} />
           <BatteryRow label="Dock" value={arctis.batteryDock} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Wireless</span>
-            <span style={{ color: 'var(--color-text-primary)' }}>
-              {arctis.wirelessConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
+          <InfoRow label="Wireless" value={arctis.wirelessConnected ? 'Connected' : 'Disconnected'} />
+          <InfoRow label="BT" value={arctis.btStatus} />
+          <InfoRow
+            label="Mic"
+            value={arctis.micMuted ? 'Muted' : 'Active'}
+            valueColor={arctis.micMuted ? 'var(--color-warn)' : 'var(--color-ok)'}
+          />
         </div>
       </Section>
 
       {/* Volume */}
-      <Section title="Volume">
+      <Section title="Volume" style={disabledStyle}>
         <SliderRow
           value={arctis.volume}
           max={100}
-          label={`${arctis.volume}%`}
+          label={`${Math.round(arctis.volume)}%`}
           onChange={(v) => {
             updateArctis({ volume: v })
             void sendCmd('setVolume', v)
@@ -54,40 +71,29 @@ export function Arctis(): JSX.Element {
         />
       </Section>
 
-      {/* Mic */}
-      <Section title="Microphone">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <PillButton
-              label="Muted"
-              active={arctis.micMuted}
-              onClick={() => { updateArctis({ micMuted: true }); void sendCmd('setMicMute', true) }}
-            />
-            <PillButton
-              label="Active"
-              active={!arctis.micMuted}
-              onClick={() => { updateArctis({ micMuted: false }); void sendCmd('setMicMute', false) }}
+      {/* ChatMix */}
+      {arctis.chatmixEnabled && (
+        <Section title="ChatMix" style={disabledStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+            <span>Game {arctis.chatmixGame}</span>
+            <span>Chat {arctis.chatmixChat}</span>
+          </div>
+          <div style={{ height: 6, background: 'var(--color-surface-raised)', borderRadius: 3, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${arctis.chatmixGame}%`,
+                height: '100%',
+                background: 'var(--color-accent)',
+                borderRadius: 3,
+              }}
             />
           </div>
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Gain</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {(['LOW', 'HIGH'] as ArctisState['micGain'][]).map((g) => (
-                <PillButton
-                  key={g}
-                  label={g === 'LOW' ? 'Low' : 'High'}
-                  active={arctis.micGain === g}
-                  onClick={() => { updateArctis({ micGain: g }); void sendCmd('setMicGain', g) }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </Section>
+        </Section>
+      )}
 
       {/* ANC */}
-      <Section title="ANC Mode">
-        <div style={{ display: 'flex', gap: 8 }}>
+      <Section title="ANC Mode" style={disabledStyle}>
+        <div style={{ display: 'flex', gap: 6 }}>
           {(['OFF', 'TRANSPARENCY', 'ANC'] as ArctisState['ancMode'][]).map((m) => (
             <PillButton
               key={m}
@@ -98,11 +104,24 @@ export function Arctis(): JSX.Element {
             />
           ))}
         </div>
+        {arctis.ancMode === 'TRANSPARENCY' && (
+          <div style={{ marginTop: 8 }}>
+            <SliderRow
+              value={arctis.transparencyLevel}
+              max={10}
+              label={`${arctis.transparencyLevel}`}
+              onChange={(v) => {
+                updateArctis({ transparencyLevel: v })
+                void sendCmd('setTransparencyLevel', v)
+              }}
+            />
+          </div>
+        )}
       </Section>
 
       {/* Sidetone */}
-      <Section title="Sidetone">
-        <div style={{ display: 'flex', gap: 8 }}>
+      <Section title="Sidetone" style={disabledStyle}>
+        <div style={{ display: 'flex', gap: 6 }}>
           {(['OFF', 'LOW', 'MEDIUM', 'HIGH'] as ArctisState['sidetone'][]).map((s) => (
             <PillButton
               key={s}
@@ -115,15 +134,193 @@ export function Arctis(): JSX.Element {
         </div>
       </Section>
 
+      {/* Audio Options + Wireless — 2-column on wider screens */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {/* Audio Options */}
+        <Section title="Audio Options" style={disabledStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 5 }}>Mic Gain</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['LOW', 'HIGH'] as ArctisState['micGain'][]).map((g) => (
+                  <PillButton
+                    key={g}
+                    label={g === 'LOW' ? 'Low' : 'High'}
+                    active={arctis.micGain === g}
+                    onClick={() => { updateArctis({ micGain: g }); void sendCmd('setMicGain', g) }}
+                    style={{ flex: 1 }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Mic Volume</div>
+              <SliderRow
+                value={arctis.micVolume}
+                max={10}
+                label={`${arctis.micVolume}`}
+                onChange={(v) => {
+                  updateArctis({ micVolume: v })
+                  void sendCmd('setMicVolume', v)
+                }}
+              />
+            </div>
+          </div>
+        </Section>
+
+        {/* Wireless Audio */}
+        <Section title="Wireless" style={disabledStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 5 }}>2.4 GHz Mode</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['PERFORMANCE', 'EXTENDED_RANGE'] as ArctisState['wirelessMode'][]).map((m) => (
+                  <PillButton
+                    key={m}
+                    label={m === 'PERFORMANCE' ? 'Performance' : 'Extended'}
+                    active={arctis.wirelessMode === m}
+                    onClick={() => { updateArctis({ wirelessMode: m }); void sendCmd('setWirelessMode', m) }}
+                    style={{ flex: 1 }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 5 }}>BT Auto Mute</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['OFF', 'DB_MINUS_12', 'FULL'] as ArctisState['btAutoMute'][]).map((m) => (
+                  <PillButton
+                    key={m}
+                    label={m === 'OFF' ? 'Off' : m === 'DB_MINUS_12' ? '-12 dB' : 'Full'}
+                    active={arctis.btAutoMute === m}
+                    onClick={() => { updateArctis({ btAutoMute: m }); void sendCmd('setBtAutoMute', m) }}
+                    style={{ flex: 1 }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 5 }}>Audio Output</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['SPEAKERS', 'STREAM'] as ArctisState['audioOutput'][]).map((m) => (
+                  <PillButton
+                    key={m}
+                    label={m === 'SPEAKERS' ? 'Speakers' : 'Stream'}
+                    active={arctis.audioOutput === m}
+                    onClick={() => { updateArctis({ audioOutput: m }); void sendCmd('setAudioOutput', m) }}
+                    style={{ flex: 1 }}
+                  />
+                ))}
+              </div>
+            </div>
+            {arctis.audioOutput === 'STREAM' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 2 }}>Stream Levels</div>
+                <SliderRow
+                  value={arctis.streamMain}
+                  max={100}
+                  label={`Main ${Math.round(arctis.streamMain)}%`}
+                  onChange={(v) => { updateArctis({ streamMain: v }); void sendCmd('setStreamMain', v) }}
+                />
+                <SliderRow
+                  value={arctis.streamAux}
+                  max={100}
+                  label={`Aux ${Math.round(arctis.streamAux)}%`}
+                  onChange={(v) => { updateArctis({ streamAux: v }); void sendCmd('setStreamAux', v) }}
+                />
+                <SliderRow
+                  value={arctis.streamMic}
+                  max={100}
+                  label={`Mic ${Math.round(arctis.streamMic)}%`}
+                  onChange={(v) => { updateArctis({ streamMic: v }); void sendCmd('setStreamMic', v) }}
+                />
+              </div>
+            )}
+          </div>
+        </Section>
+      </div>
+
+      {/* Base Station */}
+      <Section title="Base Station" style={disabledStyle}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4 }}>OLED Brightness</div>
+            <SliderRow
+              value={arctis.oledBrightness}
+              max={10}
+              label={`${arctis.oledBrightness}`}
+              onChange={(v) => { updateArctis({ oledBrightness: v }); void sendCmd('setOledBrightness', v) }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Mic LED</div>
+            <SliderRow
+              value={arctis.micLedBrightness}
+              max={10}
+              label={`${arctis.micLedBrightness}`}
+              onChange={(v) => { updateArctis({ micLedBrightness: v }); void sendCmd('setMicLedBrightness', v) }}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Dim Screen</div>
+              <select
+                value={arctis.dimTimeout}
+                onChange={(e) => {
+                  const v = e.target.value as TimeoutStep
+                  updateArctis({ dimTimeout: v })
+                  void sendCmd('setDimTimeout', v)
+                }}
+                style={selectStyle}
+              >
+                {TIMEOUT_STEPS.map((s) => (
+                  <option key={s} value={s}>{TIMEOUT_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Auto Off</div>
+              <select
+                value={arctis.autoOffTimeout}
+                onChange={(e) => {
+                  const v = e.target.value as TimeoutStep
+                  updateArctis({ autoOffTimeout: v })
+                  void sendCmd('setAutoOffTimeout', v)
+                }}
+                style={selectStyle}
+              >
+                {TIMEOUT_STEPS.map((s) => (
+                  <option key={s} value={s}>{TIMEOUT_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 5 }}>Homescreen</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['DETAILED', 'SIMPLE'] as ArctisState['homescreenMode'][]).map((m) => (
+                <PillButton
+                  key={m}
+                  label={m === 'DETAILED' ? 'Detailed' : 'Simple'}
+                  active={arctis.homescreenMode === m}
+                  onClick={() => { updateArctis({ homescreenMode: m }); void sendCmd('setHomescreenMode', m) }}
+                  style={{ flex: 1 }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
+
       {/* EQ */}
-      <Section title="EQ">
-        <div
-          style={{
-            overflowX: 'auto',
-            paddingBottom: 8,
-          }}
-          className="eq-panel-faders"
-        >
+      <Section title="EQ" style={disabledStyle}>
+        <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'row', gap: 12, minWidth: 'max-content' }}>
             {arctis.eqBands.map((band, i) => (
               <EqFader
@@ -145,7 +342,21 @@ export function Arctis(): JSX.Element {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }): JSX.Element {
+// ── Primitives ────────────────────────────────────────────────────────────────
+
+const selectStyle: React.CSSProperties = {
+  width: '100%',
+  fontSize: 12,
+  background: 'var(--color-surface-raised)',
+  color: 'var(--color-text-primary)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 4,
+  padding: '4px 6px',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
+
+function Section({ title, children, style }: { title: string; children: React.ReactNode; style?: React.CSSProperties }): JSX.Element {
   return (
     <div
       style={{
@@ -153,6 +364,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         border: '1px solid var(--color-border)',
         borderRadius: 8,
         padding: '12px 14px',
+        ...style,
       }}
     >
       <div
@@ -172,19 +384,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }): JSX.Element {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+      <span style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
+      <span style={{ color: valueColor ?? 'var(--color-text-primary)' }}>{value}</span>
+    </div>
+  )
+}
+
 function BatteryRow({ label, value }: { label: string; value: number }): JSX.Element {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
       <span style={{ color: 'var(--color-text-secondary)', minWidth: 60 }}>{label}</span>
-      <div
-        style={{
-          flex: 1,
-          height: 6,
-          background: 'var(--color-surface-raised)',
-          borderRadius: 3,
-          overflow: 'hidden',
-        }}
-      >
+      <div style={{ flex: 1, height: 6, background: 'var(--color-surface-raised)', borderRadius: 3, overflow: 'hidden' }}>
         <div
           style={{
             width: `${value}%`,
@@ -218,7 +431,7 @@ function SliderRow({
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ flex: 1, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
       />
-      <span style={{ color: 'var(--color-text-primary)', fontSize: 13, minWidth: 36, textAlign: 'right' }}>
+      <span style={{ color: 'var(--color-text-primary)', fontSize: 12, minWidth: 48, textAlign: 'right' }}>
         {label}
       </span>
     </div>
@@ -237,7 +450,7 @@ function PillButton({
     <button
       onClick={onClick}
       style={{
-        padding: '6px 12px',
+        padding: '5px 10px',
         borderRadius: 6,
         border: '1px solid var(--color-border)',
         background: active ? 'var(--color-accent)' : 'var(--color-surface-raised)',
@@ -258,20 +471,13 @@ function PillButton({
 const EQ_LABELS = ['65', '125', '250', '500', '1k', '2k', '4k', '8k', '16k', '20k']
 
 function EqFader({ band, value, onChange }: { band: number; value: number; onChange: (v: number) => void }): JSX.Element {
-  // value: 0–40 where 20 = flat (0 dB), range is ±6 dB in 0.5 dB steps
   const db = ((value - 20) * 0.5).toFixed(1)
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 4,
-        minWidth: 40,
-      }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 40 }}
       className="eq-fader-column"
     >
-      <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{db > '0' ? `+${db}` : db}</span>
+      <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{Number(db) > 0 ? `+${db}` : db}</span>
       <input
         type="range"
         min={0}

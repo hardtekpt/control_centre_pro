@@ -5,7 +5,7 @@ import { useSonarStore } from './stores/sonarStore'
 import { Home } from './pages/Home'
 import { Arctis } from './pages/Arctis'
 import { Sonar } from './pages/Sonar'
-import type { ArctisState, SonarState } from '@shared/types'
+import type { ArctisState, SonarState, DdcMonitor } from '@shared/types'
 
 type Tab = 'home' | 'arctis' | 'sonar'
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
@@ -20,10 +20,10 @@ export function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>('home')
   const [wsStatus, setWsStatus] = useState<ConnectionStatus>('disconnected')
 
-  const { setArctisConnected, setArctisDisconnected, updateArctisState } = useServiceStore()
+  const { setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } = useServiceStore()
 
   const handleInit = useCallback((payload: unknown) => {
-    const { arctis, sonar } = payload as { arctis: ArctisState | null; sonar: SonarState | null }
+    const { arctis, sonar, ddc } = payload as { arctis: ArctisState | null; sonar: SonarState | null; ddc?: DdcMonitor[] }
     if (arctis) {
       setArctisConnected(arctis)
     } else {
@@ -32,7 +32,10 @@ export function App(): JSX.Element {
     if (sonar) {
       useSonarStore.getState().setSonarState(sonar)
     }
-  }, [setArctisConnected, setArctisDisconnected])
+    if (ddc) {
+      setDdcMonitors(ddc)
+    }
+  }, [setArctisConnected, setArctisDisconnected, setDdcMonitors])
 
   const handleArctisConnected = useCallback((payload: unknown) => {
     setArctisConnected(payload as ArctisState)
@@ -51,6 +54,10 @@ export function App(): JSX.Element {
     useSonarStore.getState().setSonarState(payload as SonarState)
   }, [])
 
+  const handleDdcUpdate = useCallback((payload: unknown) => {
+    setDdcMonitors(payload as DdcMonitor[])
+  }, [setDdcMonitors])
+
   useWebSocket({
     handlers: {
       'init': handleInit,
@@ -58,6 +65,7 @@ export function App(): JSX.Element {
       'arctis:disconnected': handleArctisDisconnected,
       'arctis:event': handleArctisEvent,
       'sonar:stateChange': handleSonarStateChange,
+      'ddc:update': handleDdcUpdate,
     },
     onStatusChange: setWsStatus,
   })

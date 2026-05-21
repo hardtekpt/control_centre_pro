@@ -6,11 +6,13 @@ import { join, extname, resolve } from 'path'
 import { networkInterfaces } from 'os'
 import type { ServiceManager } from './services/serviceManager'
 import type { SonarService } from './services/sonarService'
+import type { DdcService } from './services/apis/ddc/service'
 import type { SonarChannel, SonarMode } from '../shared/types'
 
 interface ServerDeps {
   serviceManager: ServiceManager
   sonarService: SonarService
+  ddcService: DdcService
 }
 
 function getLanIp(): string {
@@ -74,7 +76,8 @@ export class HttpApiServer {
       // Send initial full-state snapshot so the client can sync immediately
       const arctis = this.deps.serviceManager.getArctisState()
       const sonar = this.deps.sonarService.getState()
-      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar } }))
+      const ddc = this.deps.ddcService.getCachedMonitors()
+      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc } }))
       ws.on('close', () => this.clients.delete(ws))
       ws.on('error', () => this.clients.delete(ws))
     })
@@ -228,6 +231,30 @@ export class HttpApiServer {
       try {
         const body = await readBody(req)
         await this.deps.sonarService.setMode(body.mode as SonarMode)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (url === '/api/ddc/monitors' && method === 'GET') {
+      return jsonResponse(res, 200, this.deps.ddcService.getCachedMonitors())
+    }
+
+    if (url === '/api/ddc/brightness' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        this.deps.ddcService.setBrightness(body.monitorId as number, body.brightness as number)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (url === '/api/ddc/input' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        this.deps.ddcService.setInputSource(body.monitorId as number, body.input as string)
         return jsonResponse(res, 200, { ok: true })
       } catch {
         return jsonResponse(res, 400, { error: 'Bad request' })
