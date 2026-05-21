@@ -12,6 +12,7 @@ const SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'ddc', label: 'DDC' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'plugins', label: 'Plugins' },
+  { id: 'remote-access', label: 'Remote Access' },
   { id: 'about', label: 'About' },
 ]
 

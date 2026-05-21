@@ -7,13 +7,14 @@ import { DDCSettings } from '../../pages/settings/DDCSettings'
 import { NotificationsSettings } from '../../pages/settings/NotificationsSettings'
 import { Plugins } from '../../pages/settings/Plugins'
 import { About } from '../../pages/settings/About'
+import { RemoteAccessSettings } from '../../pages/settings/RemoteAccessSettings'
 import { useAppStore } from '../../stores/appStore'
 import { SettingsFormProvider, useSettingsForm } from '../../contexts/settingsFormContext'
 import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import type { SettingsTab } from '@shared/types'
 
 // All settings tabs show the save footer for consistent layout (About shows disabled button)
-const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins', 'about']
+const SAVEABLE_TABS: SettingsTab[] = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins', 'remote-access', 'about']
 
 function SettingsLayoutInner(): JSX.Element {
   const { currentSettingsTab, setSettingsTab, goBack } = useAppStore()
@@ -77,6 +78,7 @@ function SettingsLayoutInner(): JSX.Element {
             {currentSettingsTab === 'ddc' && <DDCSettings />}
             {currentSettingsTab === 'notifications' && <NotificationsSettings />}
             {currentSettingsTab === 'plugins' && <Plugins />}
+            {currentSettingsTab === 'remote-access' && <RemoteAccessSettings />}
             {currentSettingsTab === 'about' && <About />}
           </div>
           {showFooter && (

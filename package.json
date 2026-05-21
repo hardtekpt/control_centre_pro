@@ -17,6 +17,7 @@
     "electron-updater": "^6.1.7",
     "fft.js": "*",
     "naudiodon2": "*",
+    "qrcode.react": "^4.2.0",
     "ws": "^8.20.1"
   },
   "optionalDependencies": {
