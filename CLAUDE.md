@@ -179,6 +179,27 @@
 3. For optional drag state coordination (e.g., Sonar needs `beginDrag`), pass `onDragStart`/`onDragEnd` callbacks
 4. If the slider needs a muted state indicator (fill color changes), pass `muted` and `showMuted={true}`
 
+### Remote Web Client
+
+A local-network web app served by `HttpApiServer` (main process). The phone browser talks to the same Electron process via HTTP REST + WebSocket.
+
+**Key files**:
+- `src/main/httpApiServer.ts` — HTTP + WS server; serves `out/webClient/` as SPA
+- `src/webClient/` — Separate Vite build (`vite.config.web.ts`, `tsconfig.webclient.json`)
+- `src/webClient/src/api/http.ts` — `get<T>` / `post<T>` helpers
+- `src/webClient/src/api/websocket.ts` — Singleton WS with exponential backoff, `useWebSocket` hook
+- `src/webClient/src/stores/` — Zustand stores mirroring renderer (IPC → fetch/WS)
+- `src/renderer/src/pages/settings/RemoteAccessSettings.tsx` — Enable toggle, port, QR code
+
+**Architecture rules**:
+- `HttpApiServer` runs in main process only, never renderer
+- No `window.api.*` in web client — use `fetch` and WS
+- Web client has its own tsconfig to avoid mixing with `electron.d.ts` augmentations
+- `build:web` script builds web client; it is NOT part of `npm run build` (run separately before packaging)
+- WS broadcast has a 16 KB backpressure guard (`client.bufferedAmount < 16384`)
+- `SonarService.setWsBroadcast()` and `ServiceManager.setWsBroadcast()` both called on server start/stop from `index.ts`
+- On WS connect the server sends an `init` snapshot `{ arctis, sonar }` so the client has immediate state
+
 ---
 
 ## Git Workflow
@@ -236,4 +257,4 @@ This ensures work is tracked incrementally and prevents context loss if sessions
 
 ---
 
-**For detailed service documentation** (Arctis HID, DDC/CI, GG Sonar, Discord RPC, shortcuts, preset auto-switcher), see `agents/` folder or search the codebase directly.
+**For detailed service documentation** (Arctis HID, DDC/CI, GG Sonar, Discord RPC, shortcuts, preset auto-switcher, remote web client), see `agents/` folder or search the codebase directly.
