@@ -169,9 +169,7 @@ function Section({
           </span>
         </div>
       </button>
-      <div className={`collapsible-panel${open ? ' open' : ''}`}>
-        <div className="flex flex-col gap-2.5 pb-3">{children}</div>
-      </div>
+      {open && <div className="expand-in flex flex-col gap-2.5 pb-3">{children}</div>}
     </div>
   )
 }

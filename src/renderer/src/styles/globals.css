@@ -270,25 +270,15 @@ body {
   border-color: var(--segment-active-bg);
 }
 
-/* ── Collapsible panel (CSS grid height trick) ───────────────────────────── */
+/* ── Collapsible / expandable section entrance ───────────────────────────── */
 
-.collapsible-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition:
-    grid-template-rows var(--anim-collapse-duration) var(--anim-collapse-easing),
-    opacity            var(--anim-collapse-duration) ease;
-  opacity: 0;
+@keyframes expand-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.collapsible-panel.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-
-.collapsible-panel > * {
-  overflow: hidden;
-  min-height: 0;
+.expand-in {
+  animation: expand-in var(--anim-collapse-duration) var(--anim-collapse-easing) forwards;
 }
 
 /* ── Portaled dropdown / menu entrance ───────────────────────────────────── */

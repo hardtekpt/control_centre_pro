@@ -292,9 +292,9 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
       </button>
 
       {/* Expandable body */}
-      <div className={`collapsible-panel${expanded ? ' open' : ''}`}>
+      {expanded && (
         <div
-          className="px-4 py-3 gap-x-6 gap-y-3"
+          className="expand-in px-4 py-3 gap-x-6 gap-y-3"
           style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}
         >
             {/* Left column: brightness, contrast, sharpness, audio, rgb gain */}
@@ -542,7 +542,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
               </div>
             </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
