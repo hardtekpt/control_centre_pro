@@ -124,7 +124,7 @@ function ThresholdInput({
       className="flex items-center gap-1 flex-shrink-0"
       style={{ opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}
     >
-      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>at</span>
+      <span className="card-row-label">at</span>
       <input
         type="number"
         min={1}
@@ -143,7 +143,7 @@ function ThresholdInput({
           outline: 'none',
         }}
       />
-      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>%</span>
+      <span className="card-row-label">%</span>
     </div>
   )
 }
@@ -171,7 +171,7 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
         <button
           onClick={onPreview}
           disabled={!value.enabled}
-          className="text-sm font-medium text-left transition-colors"
+          className="card-title text-left transition-colors"
           style={{
             color: value.enabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
             background: 'none',
@@ -195,7 +195,7 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
           {label}
         </button>
         {description && (
-          <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{description}</div>
+          <div className="card-row-label mt-0.5">{description}</div>
         )}
       </div>
       <ShapePicker
@@ -229,7 +229,7 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
         <button
           onClick={onPreview}
           disabled={!value.enabled}
-          className="text-sm font-medium text-left transition-colors"
+          className="card-title text-left transition-colors"
           style={{
             color: value.enabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
             background: 'none',
@@ -253,7 +253,7 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
           {label}
         </button>
         {description && (
-          <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{description}</div>
+          <div className="card-row-label mt-0.5">{description}</div>
         )}
       </div>
       <ShapePicker
@@ -285,7 +285,7 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
         <button
           onClick={onPreview}
           disabled={!value.enabled}
-          className="text-sm font-medium text-left transition-colors"
+          className="card-title text-left transition-colors"
           style={{
             color: value.enabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
             background: 'none',
@@ -308,7 +308,7 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
         >
           Low battery
         </button>
-        <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>Notify when headset battery drops below threshold</div>
+        <div className="card-row-label mt-0.5">Notify when headset battery drops below threshold</div>
       </div>
       <ThresholdInput
         value={value.threshold}
@@ -330,16 +330,8 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
 
 function Section({ title, children }: { title: string; children: ReactNode }): JSX.Element {
   return (
-    <div
-      className="rounded-lg px-4 pt-3 pb-1"
-      style={{
-        background: 'transparent',
-        border: '1px solid var(--color-border)',
-      }}
-    >
-      <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-        {title}
-      </h2>
+    <div className="card pb-1">
+      <h2 className="card-field-label mb-2">{title}</h2>
       {children}
     </div>
   )
@@ -609,7 +601,7 @@ export function Notifications(): JSX.Element {
           <div className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
             {createElement(IconHeadset, { size: 18 })}
           </div>
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Arctis Nova Pro</span>
+          <span className="card-title">Arctis Nova Pro</span>
         </div>
 
         {/* Grid layout for sections */}
@@ -726,7 +718,7 @@ export function Notifications(): JSX.Element {
               <path d="M9 5v8l6 0" />
             </svg>
           </div>
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>GG Sonar</span>
+          <span className="card-title">GG Sonar</span>
         </div>
 
         {/* Grid layout for sections */}
@@ -755,7 +747,7 @@ export function Notifications(): JSX.Element {
               <line x1="2" y1="17" x2="22" y2="17" />
             </svg>
           </div>
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Display</span>
+          <span className="card-title">Display</span>
         </div>
 
         {/* Grid layout for sections */}
