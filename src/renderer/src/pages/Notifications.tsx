@@ -7,8 +7,6 @@ import type {
   NotifSimple,
   NotifValue,
   NotifBatteryLow,
-  NotifSimpleShape,
-  NotifValueShape,
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { IconHeadset } from '../components/notifications/icons'
@@ -53,43 +51,50 @@ async function saveDisplaySettings(display: DisplayNotificationSettings): Promis
   })
 }
 
-// ── Segmented shape picker ────────────────────────────────────────────────────
+// ── Shape icon toggle ─────────────────────────────────────────────────────────
 
-interface ShapeOption<T extends string> {
-  value: T
-  label: string
-}
-
-function ShapePicker<T extends string>({
-  value,
-  options,
+function ShapeIconButton({
+  shape,
   disabled,
-  onChange,
+  onClick,
 }: {
-  value: T
-  options: ShapeOption<T>[]
+  shape: string
   disabled?: boolean
-  onChange: (v: T) => void
+  onClick: () => void
 }): JSX.Element {
+  const isCircular = shape === 'circle' || shape === 'ring'
   return (
-    <div
-      className="segment-group flex-shrink-0"
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={isCircular ? 'Circle notification — click to switch to Rect' : 'Rect notification — click to switch to Circle'}
       style={{
-        opacity: disabled ? 0.4 : 1,
-        pointerEvents: disabled ? 'none' : 'auto',
+        background: 'none',
+        border: 'none',
+        padding: 2,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.35 : 0.6,
+        color: 'var(--color-text-primary)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        borderRadius: 4,
+        transition: 'opacity 0.15s',
       }}
+      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = disabled ? '0.35' : '0.6' }}
     >
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`segment-btn px-2.5${value === opt.value ? ' active' : ''}`}
-          style={{ minWidth: 54 }}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+      {isCircular ? (
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <circle cx="10" cy="10" r="7" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <rect x="2" y="5" width="16" height="10" rx="2.5" />
+        </svg>
+      )}
+    </button>
   )
 }
 
@@ -154,17 +159,11 @@ interface SimpleRowProps {
   label: string
   description?: string
   value: NotifSimple
-  shapeOptions?: ShapeOption<NotifSimpleShape>[]
   onChange: (v: NotifSimple) => void
   onPreview: () => void
 }
 
-const SIMPLE_SHAPES: ShapeOption<NotifSimpleShape>[] = [
-  { value: 'circle', label: 'Circle' },
-  { value: 'rect',   label: 'Rect'   },
-]
-
-function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, onChange, onPreview }: SimpleRowProps): JSX.Element {
+function SimpleRow({ label, description, value, onChange, onPreview }: SimpleRowProps): JSX.Element {
   return (
     <div className="flex items-center gap-2.5 py-2.5" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
@@ -198,11 +197,10 @@ function SimpleRow({ label, description, value, shapeOptions = SIMPLE_SHAPES, on
           <div className="card-row-label mt-0.5">{description}</div>
         )}
       </div>
-      <ShapePicker
-        value={value.shape}
-        options={shapeOptions}
+      <ShapeIconButton
+        shape={value.shape}
         disabled={!value.enabled}
-        onChange={(shape) => onChange({ ...value, shape })}
+        onClick={() => onChange({ ...value, shape: value.shape === 'circle' ? 'rect' : 'circle' })}
       />
       <Toggle checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
@@ -216,11 +214,6 @@ interface ValueRowProps {
   onChange: (v: NotifValue) => void
   onPreview: () => void
 }
-
-const VALUE_SHAPES: ShapeOption<NotifValueShape>[] = [
-  { value: 'volume', label: 'Slider' },
-  { value: 'ring',   label: 'Ring'   },
-]
 
 function ValueRow({ label, description, value, onChange, onPreview }: ValueRowProps): JSX.Element {
   return (
@@ -256,11 +249,10 @@ function ValueRow({ label, description, value, onChange, onPreview }: ValueRowPr
           <div className="card-row-label mt-0.5">{description}</div>
         )}
       </div>
-      <ShapePicker
-        value={value.shape}
-        options={VALUE_SHAPES}
+      <ShapeIconButton
+        shape={value.shape}
         disabled={!value.enabled}
-        onChange={(shape) => onChange({ ...value, shape })}
+        onClick={() => onChange({ ...value, shape: value.shape === 'ring' ? 'volume' : 'ring' })}
       />
       <Toggle checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
@@ -272,11 +264,6 @@ interface BatteryLowRowProps {
   onChange: (v: NotifBatteryLow) => void
   onPreview: () => void
 }
-
-const BATTERY_LOW_SHAPES: ShapeOption<'ring' | 'rect'>[] = [
-  { value: 'ring', label: 'Ring' },
-  { value: 'rect', label: 'Rect' },
-]
 
 function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.Element {
   return (
@@ -315,11 +302,10 @@ function BatteryLowRow({ value, onChange, onPreview }: BatteryLowRowProps): JSX.
         disabled={!value.enabled}
         onChange={(threshold) => onChange({ ...value, threshold })}
       />
-      <ShapePicker
-        value={value.shape}
-        options={BATTERY_LOW_SHAPES}
+      <ShapeIconButton
+        shape={value.shape}
         disabled={!value.enabled}
-        onChange={(shape) => onChange({ ...value, shape })}
+        onClick={() => onChange({ ...value, shape: value.shape === 'ring' ? 'rect' : 'ring' })}
       />
       <Toggle checked={value.enabled} onChange={(enabled) => onChange({ ...value, enabled })} />
     </div>
