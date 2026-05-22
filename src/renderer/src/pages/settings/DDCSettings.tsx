@@ -233,11 +233,6 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
 
   const sup = monitor.supports
 
-  // Build subtitle metadata
-  const metaParts: string[] = [`Monitor ${monitor.monitor_id}`]
-  if (monitor.vcp_version) metaParts.push(`VCP ${monitor.vcp_version}`)
-  if (monitor.usage_time_hours !== null) metaParts.push(`${monitor.usage_time_hours.toLocaleString()} hrs`)
-
   return (
     <div
       className="rounded overflow-hidden"
@@ -246,51 +241,47 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
       {/* Header — click to collapse/expand */}
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full px-4 py-3 flex items-center gap-3 text-left"
+        className="w-full px-4 pt-3 pb-2.5 flex flex-col gap-1.5 text-left"
         style={{
           background: 'var(--color-surface-raised)',
           border: 'none',
           cursor: 'pointer',
         }}
       >
-        {/* Title & meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              {monitor.name}
-            </p>
-            {monitor.is_primary && (
-              <span
-                className="text-xs px-1.5 py-0.5 rounded shrink-0"
-                style={{ background: 'var(--color-accent)', color: 'var(--color-bg)' }}
-              >
-                Primary
-              </span>
-            )}
-          </div>
-          <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-            {metaParts.join(' · ')}
+        {/* Row 1: name + primary badge + chevron */}
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold flex-1" style={{ color: 'var(--color-text-primary)' }}>
+            {monitor.name}
           </p>
-          <div className="flex flex-wrap gap-1">
-            {sup.map((f) => (
-              <span
-                key={f}
-                className="text-xs px-1.5 py-0.5 rounded"
-                style={{
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text-secondary)',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                {f}
-              </span>
-            ))}
-          </div>
+          {monitor.is_primary && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded shrink-0"
+              style={{ background: 'var(--color-accent)', color: 'var(--color-bg)' }}
+            >
+              Primary
+            </span>
+          )}
+          <span className="shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+            <ChevronIcon open={expanded} />
+          </span>
         </div>
 
-        <span className="shrink-0 ml-2" style={{ color: 'var(--color-text-secondary)' }}>
-          <ChevronIcon open={expanded} />
-        </span>
+        {/* Row 2: feature tags */}
+        <div className="flex flex-wrap gap-1">
+          {sup.map((f) => (
+            <span
+              key={f}
+              className="text-xs px-1.5 py-0.5 rounded"
+              style={{
+                background: 'var(--color-surface)',
+                color: 'var(--color-text-secondary)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              {f}
+            </span>
+          ))}
+        </div>
       </button>
 
       {/* Expandable body */}
@@ -369,6 +360,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
               )}
               {sup.includes('rgb_gain') && (
                 <>
+                  <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>RGB Gain</p>
                   {monitor.red_gain !== null && (
                     <SliderRow
                       label="R"
