@@ -148,11 +148,12 @@ function Section({
   expandByDefault?: boolean
 }): JSX.Element {
   const [open, setOpen] = useState(expandByDefault)
+  const [wasToggled, setWasToggled] = useState(false)
   return (
     <div style={{ borderTop: '1px solid var(--color-border)' }}>
       <button
         className="w-full flex items-center justify-between"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setWasToggled(true); setOpen((o) => !o) }}
         style={{ cursor: 'pointer', background: 'none', border: 'none', padding: '10px 0' }}
       >
         <span className="card-title">
@@ -169,7 +170,7 @@ function Section({
           </span>
         </div>
       </button>
-      {open && <div className="expand-in flex flex-col gap-2.5 pb-3">{children}</div>}
+      {open && <div className={`${wasToggled ? 'expand-in ' : ''}flex flex-col gap-2.5 pb-3`}>{children}</div>}
     </div>
   )
 }

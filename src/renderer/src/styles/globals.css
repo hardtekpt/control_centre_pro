@@ -98,7 +98,7 @@
   --card-field-label-tracking:  0.08em;
   --card-row-label-size:        11px;
 
-  /* ── Page transition tokens ────────────────────────────────────────────── */
+  /* ── Page transition tokens (unused — page transitions removed for instant nav) */
   --anim-page-duration:  100ms;
   --anim-page-easing:    cubic-bezier(0.16, 1, 0.3, 1);
   --anim-page-distance:  4px;
