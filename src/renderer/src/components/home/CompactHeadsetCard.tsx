@@ -169,18 +169,11 @@ function BoltIcon(): JSX.Element {
 }
 
 function BatteryIndicator({ level, charging, title, hidePercent }: { level: number; charging: boolean; title: string; hidePercent?: boolean }): JSX.Element {
-  const [hovered, setHovered] = useState(false)
   const SEGMENTS = 4
   const filled   = Math.round((level / 100) * SEGMENTS)
   const color    = level <= 20 ? 'var(--color-status-error)' : level <= 50 ? 'var(--color-status-warn-fg)' : 'var(--color-status-ok)'
   return (
-    <div
-      title={title}
-      className="flex items-center gap-1"
-      style={{ height: 24 }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div title={title} className="flex items-center gap-1" style={{ height: 24 }}>
       {charging && (
         <span style={{ color: 'var(--color-status-warn-fg)' }}>
           <BoltIcon />
@@ -201,19 +194,11 @@ function BatteryIndicator({ level, charging, title, hidePercent }: { level: numb
           />
         ))}
       </div>
-      <span
-        className="mono"
-        style={{
-          color: 'var(--color-text-primary)',
-          fontSize: 11,
-          lineHeight: 1,
-          width: 28,
-          opacity: hidePercent && !hovered ? 0 : 1,
-          transition: 'opacity 150ms ease',
-        }}
-      >
-        {level}%
-      </span>
+      {!hidePercent && (
+        <span className="mono" style={{ color: 'var(--color-text-primary)', fontSize: 11, lineHeight: 1 }}>
+          {level}%
+        </span>
+      )}
     </div>
   )
 }
