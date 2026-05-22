@@ -331,15 +331,10 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
       {/* Expandable body */}
       {expanded && (
         <div
-          className="divide-y"
-          style={{ borderColor: 'var(--color-border)' }}
+          className="px-4 py-3 gap-x-6 gap-y-3"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}
         >
-          {/* 2-column grid for main controls */}
-          <div
-            className="px-4 py-3 gap-x-6 gap-y-3"
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}
-          >
-            {/* Left column: brightness, contrast, sharpness, audio */}
+            {/* Left column: brightness, contrast, sharpness, audio, rgb gain */}
             <div className="flex flex-col gap-3">
               {sup.includes('brightness') && (
                 <SliderRow
@@ -406,6 +401,49 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                     }}
                   />
                 </div>
+              )}
+              {sup.includes('rgb_gain') && (
+                <>
+                  {monitor.red_gain !== null && (
+                    <SliderRow
+                      label="R"
+                      labelColor="var(--color-rgb-r)"
+                      value={monitor.red_gain}
+                      max={monitor.rgb_max}
+                      onChange={(v) => {
+                        setMonitor((m) => ({ ...m, red_gain: v }))
+                        lockWrite()
+                        window.api.ddcSetRedGain(monitor.monitor_id, v)
+                      }}
+                    />
+                  )}
+                  {monitor.green_gain !== null && (
+                    <SliderRow
+                      label="G"
+                      labelColor="var(--color-rgb-g)"
+                      value={monitor.green_gain}
+                      max={monitor.rgb_max}
+                      onChange={(v) => {
+                        setMonitor((m) => ({ ...m, green_gain: v }))
+                        lockWrite()
+                        window.api.ddcSetGreenGain(monitor.monitor_id, v)
+                      }}
+                    />
+                  )}
+                  {monitor.blue_gain !== null && (
+                    <SliderRow
+                      label="B"
+                      labelColor="var(--color-rgb-b)"
+                      value={monitor.blue_gain}
+                      max={monitor.rgb_max}
+                      onChange={(v) => {
+                        setMonitor((m) => ({ ...m, blue_gain: v }))
+                        lockWrite()
+                        window.api.ddcSetBlueGain(monitor.monitor_id, v)
+                      }}
+                    />
+                  )}
+                </>
               )}
             </div>
 
@@ -502,60 +540,6 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* RGB Gain — full width if present */}
-          {sup.includes('rgb_gain') && (
-            <div className="px-4 py-3">
-              <p
-                className="text-xs font-semibold uppercase tracking-wide mb-2"
-                style={{ color: 'var(--color-text-secondary)', letterSpacing: '0.06em' }}
-              >
-                RGB Gain
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {monitor.red_gain !== null && (
-                  <SliderRow
-                    label="R"
-                    labelColor="var(--color-rgb-r)"
-                    value={monitor.red_gain}
-                    max={monitor.rgb_max}
-                    onChange={(v) => {
-                      setMonitor((m) => ({ ...m, red_gain: v }))
-                      lockWrite()
-                      window.api.ddcSetRedGain(monitor.monitor_id, v)
-                    }}
-                  />
-                )}
-                {monitor.green_gain !== null && (
-                  <SliderRow
-                    label="G"
-                    labelColor="var(--color-rgb-g)"
-                    value={monitor.green_gain}
-                    max={monitor.rgb_max}
-                    onChange={(v) => {
-                      setMonitor((m) => ({ ...m, green_gain: v }))
-                      lockWrite()
-                      window.api.ddcSetGreenGain(monitor.monitor_id, v)
-                    }}
-                  />
-                )}
-                {monitor.blue_gain !== null && (
-                  <SliderRow
-                    label="B"
-                    labelColor="var(--color-rgb-b)"
-                    value={monitor.blue_gain}
-                    max={monitor.rgb_max}
-                    onChange={(v) => {
-                      setMonitor((m) => ({ ...m, blue_gain: v }))
-                      lockWrite()
-                      window.api.ddcSetBlueGain(monitor.monitor_id, v)
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
