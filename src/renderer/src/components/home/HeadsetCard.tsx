@@ -127,7 +127,7 @@ function ChevronIcon({ open }: { open: boolean }): JSX.Element {
       strokeLinejoin="round"
       style={{
         transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-        transition: 'transform 150ms ease',
+        transition: 'transform 80ms ease',
         flexShrink: 0,
       }}
     >
