@@ -4,10 +4,8 @@ import { IPC_CHANNELS } from '../../shared/types'
 import type { ServiceManager } from '../services/serviceManager'
 import type { SonarService } from '../services/sonarService'
 import type { DdcService } from '../services/apis/ddc/service'
-import { getForegroundWindow, restoreForegroundWindow } from '../win32Focus'
 
 let _mainWindow: BrowserWindow | null = null
-let _prevForegroundHwnd = 0
 let _serviceManager: ServiceManager | null = null
 let _sonarService: SonarService | null = null
 let _ddcService: DdcService | null = null
@@ -183,11 +181,8 @@ async function _dispatch(actionId: string, value?: unknown): Promise<void> {
     // ── App ───────────────────────────────────────────────────────────────────
     case 'app.toggle':
       if (_mainWindow?.isVisible()) {
-        restoreForegroundWindow(_prevForegroundHwnd)
         _mainWindow.hide()
       } else {
-        // Capture the currently focused external window before stealing focus
-        getForegroundWindow().then((hwnd) => { _prevForegroundHwnd = hwnd })
         _showMainWindow ? _showMainWindow() : _mainWindow?.show()
       }
       break
