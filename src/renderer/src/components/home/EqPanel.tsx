@@ -85,21 +85,12 @@ function OptionGroup<T extends string>({
   onChange: (v: T) => void
 }): JSX.Element {
   return (
-    <div
-      className="flex overflow-hidden rounded"
-      style={{ border: '1px solid var(--color-border)' }}
-    >
-      {options.map((opt, i) => (
+    <div className="segment-group">
+      {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className="flex-1 text-xs py-1 px-2 transition-colors"
-          style={{
-            background: value === opt.value ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-            color: value === opt.value ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-            borderRight: i < options.length - 1 ? '1px solid var(--color-border)' : 'none',
-            cursor: 'pointer',
-          }}
+          className={`flex-1 segment-btn${value === opt.value ? ' active' : ''}`}
         >
           {opt.label}
         </button>

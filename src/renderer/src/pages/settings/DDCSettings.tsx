@@ -308,19 +308,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                         setMonitor((m) => ({ ...m, color_preset: p.value }))
                         window.api.ddcSetColorPreset(monitor.monitor_id, p.value)
                       }}
-                      className="text-xs px-3 py-1.5 rounded transition-colors"
-                      style={{
-                        background:
-                          monitor.color_preset === p.value
-                            ? 'var(--color-accent)'
-                            : 'var(--color-surface)',
-                        color:
-                          monitor.color_preset === p.value
-                            ? 'var(--color-bg)'
-                            : 'var(--color-text-secondary)',
-                        border: '1px solid var(--color-border)',
-                        cursor: 'pointer',
-                      }}
+                      className={`selector-chip${monitor.color_preset === p.value ? ' active' : ''}`}
                     >
                       {p.label}
                     </button>
@@ -420,13 +408,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                     setMonitor((m) => ({ ...m, muted: next }))
                     window.api.ddcSetMute(monitor.monitor_id, next)
                   }}
-                  className="text-xs px-3 py-1.5 rounded transition-colors"
-                  style={{
-                    background: monitor.muted ? 'var(--color-accent)' : 'var(--color-surface)',
-                    color: monitor.muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                    border: '1px solid var(--color-border)',
-                    cursor: 'pointer',
-                  }}
+                  className={`selector-chip${monitor.muted ? ' active' : ''}`}
                 >
                   {monitor.muted ? 'Muted' : 'Unmuted'}
                 </button>
@@ -657,15 +639,7 @@ function InputSourceSelector({
         <button
           key={hex}
           onClick={() => onSelect(hex)}
-          className="text-xs px-3 py-1.5 rounded transition-colors"
-          style={{
-            background:
-              monitor.input_source === hex ? 'var(--color-accent)' : 'var(--color-surface)',
-            color:
-              monitor.input_source === hex ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-            border: '1px solid var(--color-border)',
-            cursor: 'pointer',
-          }}
+          className={`selector-chip${monitor.input_source === hex ? ' active' : ''}`}
         >
           {DDC_INPUT_NAMES[hex] ?? hex}
         </button>

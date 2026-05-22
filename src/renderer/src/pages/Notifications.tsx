@@ -73,25 +73,18 @@ function ShapePicker<T extends string>({
 }): JSX.Element {
   return (
     <div
-      className="flex overflow-hidden rounded flex-shrink-0"
+      className="segment-group flex-shrink-0"
       style={{
-        border: `1px solid var(--color-border)`,
         opacity: disabled ? 0.4 : 1,
         pointerEvents: disabled ? 'none' : 'auto',
       }}
     >
-      {options.map((opt, i) => (
+      {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className="text-xs py-1 px-2.5 transition-colors"
-          style={{
-            background: value === opt.value ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-            color: value === opt.value ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-            borderRight: i < options.length - 1 ? '1px solid var(--color-border)' : 'none',
-            cursor: 'pointer',
-            minWidth: 54,
-          }}
+          className={`segment-btn px-2.5${value === opt.value ? ' active' : ''}`}
+          style={{ minWidth: 54 }}
         >
           {opt.label}
         </button>

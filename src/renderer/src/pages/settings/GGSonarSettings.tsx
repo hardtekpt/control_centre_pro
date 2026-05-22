@@ -128,19 +128,12 @@ export function GGSonarSettings(): JSX.Element {
           <SettingSection title="Mixer Mode">
         {sonarState && (
           <div className="px-5 py-3.5">
-            <div className="flex rounded overflow-hidden w-fit" style={{ border: '1px solid var(--color-border)' }}>
+            <div className="segment-group w-fit">
               {(['classic', 'streamer'] as SonarMode[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => handleModeChange(m)}
-                  className="text-xs px-4 py-2 capitalize transition-colors font-medium"
-                  style={{
-                    background: sonarState.mode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                    color: sonarState.mode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    border: 'none',
-                    outline: 'none',
-                  }}
+                  className={`segment-btn px-4 py-2 capitalize font-medium${sonarState.mode === m ? ' active' : ''}`}
                 >
                   {m}
                 </button>
