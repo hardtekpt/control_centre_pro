@@ -94,9 +94,10 @@ export function RemoteAccessSettings(): JSX.Element {
   )
 
   return (
-    <SettingsPageWrapper>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title="Remote Access" description="Control your devices from a browser on the same network." />
-
+      <div className="flex-1 overflow-y-auto">
+      <SettingsPageWrapper>
       <SettingSection title="Server">
         <SettingRow
           label="Enable remote access"
@@ -223,6 +224,8 @@ export function RemoteAccessSettings(): JSX.Element {
           </p>
         </SettingSection>
       )}
-    </SettingsPageWrapper>
+      </SettingsPageWrapper>
+      </div>
+    </div>
   )
 }
