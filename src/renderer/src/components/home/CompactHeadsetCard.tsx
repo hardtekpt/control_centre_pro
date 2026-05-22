@@ -168,12 +168,19 @@ function BoltIcon(): JSX.Element {
   )
 }
 
-function BatteryIndicator({ level, charging, title }: { level: number; charging: boolean; title: string }): JSX.Element {
+function BatteryIndicator({ level, charging, title, hidePercent }: { level: number; charging: boolean; title: string; hidePercent?: boolean }): JSX.Element {
+  const [hovered, setHovered] = useState(false)
   const SEGMENTS = 4
   const filled   = Math.round((level / 100) * SEGMENTS)
   const color    = level <= 20 ? 'var(--color-status-error)' : level <= 50 ? 'var(--color-status-warn-fg)' : 'var(--color-status-ok)'
   return (
-    <div title={title} className="flex items-center gap-1" style={{ height: 24 }}>
+    <div
+      title={title}
+      className="flex items-center gap-1"
+      style={{ height: 24 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       {charging && (
         <span style={{ color: 'var(--color-status-warn-fg)' }}>
           <BoltIcon />
@@ -196,7 +203,14 @@ function BatteryIndicator({ level, charging, title }: { level: number; charging:
       </div>
       <span
         className="mono"
-        style={{ color: 'var(--color-text-primary)', fontSize: 11, lineHeight: 1 }}
+        style={{
+          color: 'var(--color-text-primary)',
+          fontSize: 11,
+          lineHeight: 1,
+          width: 28,
+          opacity: hidePercent && !hovered ? 0 : 1,
+          transition: 'opacity 150ms ease',
+        }}
       >
         {level}%
       </span>
@@ -398,8 +412,10 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
-          <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
+          {state.headsetPowered !== false && (
+            <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
+          )}
+          <BatteryIndicator level={batteryDock} charging={true} title={`Dock battery: ${batteryDock}%`} hidePercent />
         </div>
       </div>
 
