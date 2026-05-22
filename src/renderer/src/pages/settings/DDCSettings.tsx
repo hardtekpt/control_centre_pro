@@ -40,26 +40,6 @@ function ChevronIcon({ open }: { open: boolean }): JSX.Element {
   )
 }
 
-function ResetColorIcon(): JSX.Element {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="13.5" cy="6.5" r="2.5" />
-      <circle cx="17.5" cy="13.5" r="2.5" />
-      <circle cx="8.5" cy="13.5" r="2.5" />
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10" />
-    </svg>
-  )
-}
-
-function FactoryResetIcon(): JSX.Element {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="1 4 1 10 7 10" />
-      <path d="M3.51 15a9 9 0 1 0 .49-4.4" />
-    </svg>
-  )
-}
-
 // ─── Main settings page ──────────────────────────────────────────────────────
 
 export function DDCSettings(): JSX.Element {
@@ -258,10 +238,6 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
   if (monitor.vcp_version) metaParts.push(`VCP ${monitor.vcp_version}`)
   if (monitor.usage_time_hours !== null) metaParts.push(`${monitor.usage_time_hours.toLocaleString()} hrs`)
 
-  const featureLabels = sup
-    .filter((f) => !['brightness', 'contrast'].includes(f))
-    .slice(0, 4)
-
   return (
     <div
       className="rounded overflow-hidden"
@@ -279,7 +255,7 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
       >
         {/* Title & meta */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-1">
             <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
               {monitor.name}
             </p>
@@ -292,38 +268,27 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
               </span>
             )}
           </div>
-          <p className="text-xs truncate" style={{ color: 'var(--color-text-secondary)' }}>
+          <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
             {metaParts.join(' · ')}
-            {featureLabels.length > 0 && (
-              <span> · {featureLabels.join(', ')}{sup.length > featureLabels.length + 2 ? '…' : ''}</span>
-            )}
           </p>
+          <div className="flex flex-wrap gap-1">
+            {sup.map((f) => (
+              <span
+                key={f}
+                className="text-xs px-1.5 py-0.5 rounded"
+                style={{
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                {f}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* Action buttons (stop propagation so they don't toggle collapse) */}
-        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <IconButton
-            title="Reset colors"
-            onClick={() => {
-              if (!window.confirm(`Reset color settings on ${monitor.name}? This cannot be undone.`)) return
-              window.api.ddcColorReset(monitor.monitor_id)
-            }}
-          >
-            <ResetColorIcon />
-          </IconButton>
-          <IconButton
-            title="Factory reset"
-            danger
-            onClick={() => {
-              if (!window.confirm(`Factory reset ${monitor.name}? This will reset ALL monitor settings and cannot be undone.`)) return
-              window.api.ddcFactoryReset(monitor.monitor_id)
-            }}
-          >
-            <FactoryResetIcon />
-          </IconButton>
-        </div>
-
-        <span style={{ color: 'var(--color-text-secondary)' }}>
+        <span className="shrink-0 ml-2" style={{ color: 'var(--color-text-secondary)' }}>
           <ChevronIcon open={expanded} />
         </span>
       </button>
@@ -539,6 +504,43 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                   </button>
                 </div>
               </div>
+
+              {/* Reset controls */}
+              <div>
+                <p className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>Reset</p>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => {
+                      if (!window.confirm(`Reset color settings on ${monitor.name}? This cannot be undone.`)) return
+                      window.api.ddcColorReset(monitor.monitor_id)
+                    }}
+                    className="text-xs px-2.5 py-1 rounded flex-1"
+                    style={{
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-secondary)',
+                      border: '1px solid var(--color-border)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Reset Colors
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!window.confirm(`Factory reset ${monitor.name}? This will reset ALL monitor settings and cannot be undone.`)) return
+                      window.api.ddcFactoryReset(monitor.monitor_id)
+                    }}
+                    className="text-xs px-2.5 py-1 rounded flex-1"
+                    style={{
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-secondary)',
+                      border: '1px solid var(--color-border)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Factory Reset
+                  </button>
+                </div>
+              </div>
             </div>
         </div>
       )}
@@ -546,44 +548,6 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
   )
 }
 
-// ─── Icon button ─────────────────────────────────────────────────────────────
-
-function IconButton({
-  children,
-  title,
-  danger = false,
-  onClick,
-}: {
-  children: React.ReactNode
-  title: string
-  danger?: boolean
-  onClick: () => void
-}): JSX.Element {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className="p-1.5 rounded flex items-center justify-center"
-      style={{
-        background: 'transparent',
-        color: danger ? 'var(--color-danger-muted, var(--color-text-secondary))' : 'var(--color-text-secondary)',
-        border: '1px solid var(--color-border)',
-        cursor: 'pointer',
-        transition: 'all 0.12s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--color-surface)'
-        e.currentTarget.style.color = danger ? 'var(--color-danger, #e55)' : 'var(--color-text-primary)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent'
-        e.currentTarget.style.color = danger ? 'var(--color-danger-muted, var(--color-text-secondary))' : 'var(--color-text-secondary)'
-      }}
-    >
-      {children}
-    </button>
-  )
-}
 
 // ─── Slider row ──────────────────────────────────────────────────────────────
 
