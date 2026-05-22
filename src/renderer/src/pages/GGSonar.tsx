@@ -141,7 +141,8 @@ function SonarIcon(): JSX.Element {
 // ─── GGSonar page ─────────────────────────────────────────────────────────────
 
 export function GGSonar(): JSX.Element {
-  const { sonarState, setSonarState } = useSonarStore()
+  const sonarState    = useSonarStore(s => s.sonarState)
+  const setSonarState = useSonarStore(s => s.setSonarState)
   const { setView, setSettingsTab } = useAppStore()
 
   const [presetSwitcherEnabled, setPresetSwitcherEnabled] = useState(true)

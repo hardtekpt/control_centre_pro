@@ -75,8 +75,8 @@ function InlinePresetSelector({
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
-  const favoritePresets = presets.filter((p) => p.isFavorite)
-  const activePreset = presets.find((p) => p.id === activePresetId)
+  const favoritePresets = useMemo(() => presets.filter((p) => p.isFavorite), [presets])
+  const activePreset    = useMemo(() => presets.find((p) => p.id === activePresetId), [presets, activePresetId])
 
   function toggle(): void {
     if (!open && btnRef.current) {
@@ -297,7 +297,10 @@ function ChannelRow({
 // ─── Compact Sonar Card ───────────────────────────────────────────────────────
 
 export function CompactSonarCard(): JSX.Element {
-  const { sonarState, activePresetIds, patchClassicVolume, setActivePreset } = useSonarStore()
+  const sonarState         = useSonarStore(s => s.sonarState)
+  const activePresetIds    = useSonarStore(s => s.activePresetIds)
+  const patchClassicVolume = useSonarStore(s => s.patchClassicVolume)
+  const setActivePreset    = useSonarStore(s => s.setActivePreset)
   const { setView } = useAppStore()
 
   const presetsByChannel = useMemo(() => {

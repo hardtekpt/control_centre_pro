@@ -528,7 +528,7 @@ export interface ChannelStripProps {
   onMute: (channel: SonarChannel) => void
   onPresetSelect: (channel: SonarChannel, presetId: string) => void
   onDeviceSelect: (channel: SonarChannel, deviceId: string) => void
-  onProcessDrop: (processId: number, sourceRole: string) => void
+  onProcessDrop: (processId: number) => void
 }
 
 function ChannelStripComponent({
@@ -581,7 +581,7 @@ function ChannelStripComponent({
         sourceRole: string
       }
       if (data.sourceRole !== channel) {
-        onProcessDrop(data.processId, data.sourceRole)
+        onProcessDrop(data.processId)
       }
     } catch {
       // malformed drag data — ignore

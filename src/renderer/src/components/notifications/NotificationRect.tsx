@@ -56,7 +56,7 @@ export function NotificationVolume({
           <div className="pct">{Math.round(clamped)}%</div>
         </div>
         <div className="track">
-          <div className="fill" style={{ width: `${clamped}%` }} />
+          <div className="fill" style={{ transform: `scaleX(${clamped / 100})` }} />
         </div>
       </div>
     </div>

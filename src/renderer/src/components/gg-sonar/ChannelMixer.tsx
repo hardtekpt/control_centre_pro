@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback, useEffect, useRef } from 'react'
 import { useSonarStore } from '../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { notifySonarPresetChange } from '../../lib/notifyFromEvent'
@@ -8,6 +8,7 @@ import type {
   SonarDeviceChannel,
   SonarConfig,
   SonarAudioSession,
+  SonarStreamerMix,
 } from '@shared/types'
 
 // ─── Channel definitions ──────────────────────────────────────────────────────
@@ -28,7 +29,12 @@ interface ChannelMixerProps {
 }
 
 export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
-  const { activePresetIds, patchClassicVolume, patchRedirection, patchRouting, setActivePreset, visibleChannels } = useSonarStore()
+  const activePresetIds    = useSonarStore(s => s.activePresetIds)
+  const visibleChannels    = useSonarStore(s => s.visibleChannels)
+  const patchClassicVolume = useSonarStore(s => s.patchClassicVolume)
+  const patchRedirection   = useSonarStore(s => s.patchRedirection)
+  const patchRouting       = useSonarStore(s => s.patchRouting)
+  const setActivePreset    = useSonarStore(s => s.setActivePreset)
 
   // Group presets by virtualAudioDevice (which is the channel name: game, chatRender, etc.)
   const presetsByChannel = useMemo(() => {
@@ -59,78 +65,91 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
     return map
   }, [sonarState.routing])
 
-  function getVolume(channel: SonarChannel): { volume: number; muted: boolean } {
+  const volumes = useMemo(() => {
     const classic = sonarState.classic
-    if (!classic) return { volume: 1, muted: false }
-    if (channel === 'master') return classic.masters.classic
-    return classic.devices[channel as SonarDeviceChannel].classic
-  }
+    const map: Record<string, { volume: number; muted: boolean }> = {}
+    for (const def of CHANNEL_DEFS) {
+      if (def.channel === 'master') {
+        map['master'] = classic?.masters.classic ?? { volume: 1, muted: false }
+      } else {
+        map[def.channel] = classic?.devices[def.channel as SonarDeviceChannel]?.classic ?? { volume: 1, muted: false }
+      }
+    }
+    return map
+  }, [sonarState.classic])
 
-  function getStreamerMix(channel: SonarChannel) {
+  const streamerMixes = useMemo(() => {
     const streamer = sonarState.streamer
-    if (!streamer) return undefined
-    if (channel === 'master') return streamer.masters.stream
-    return streamer.devices[channel as SonarDeviceChannel].stream
-  }
+    const map: Record<string, SonarStreamerMix | undefined> = {}
+    for (const def of CHANNEL_DEFS) {
+      if (def.channel === 'master') {
+        map['master'] = streamer?.masters.stream
+      } else {
+        map[def.channel] = streamer?.devices[def.channel as SonarDeviceChannel]?.stream
+      }
+    }
+    return map
+  }, [sonarState.streamer])
 
-  function handleVolume(channel: SonarChannel, value: number): void {
+  const handleVolume = useCallback((channel: SonarChannel, value: number): void => {
     patchClassicVolume(channel, { volume: value })
     window.api.sonarSetVolume(channel, value).catch(console.error)
-  }
+  }, [patchClassicVolume])
 
-  function handleMute(channel: SonarChannel): void {
-    const { muted } = getVolume(channel)
-    patchClassicVolume(channel, { muted: !muted })
-    window.api.sonarSetMute(channel, !muted).catch(console.error)
-  }
+  const handleMute = useCallback((channel: SonarChannel): void => {
+    const vol = volumes[channel] ?? { volume: 1, muted: false }
+    patchClassicVolume(channel, { muted: !vol.muted })
+    window.api.sonarSetMute(channel, !vol.muted).catch(console.error)
+  }, [patchClassicVolume, volumes])
 
-  function handlePresetSelect(channel: SonarChannel, presetId: string): void {
+  const handlePresetSelect = useCallback((channel: SonarChannel, presetId: string): void => {
     setActivePreset(channel, presetId)
     window.api.sonarSelectPreset(presetId).catch(console.error)
-
     const preset = sonarState.configs.find((c) => c.id === presetId)
-    const presetName = preset?.name ?? 'Preset'
-    notifySonarPresetChange(presetName)
-  }
+    notifySonarPresetChange(preset?.name ?? 'Preset')
+  }, [setActivePreset, sonarState.configs])
 
-  function handleDeviceSelect(channel: SonarChannel, deviceId: string): void {
+  const handleDeviceSelect = useCallback((channel: SonarChannel, deviceId: string): void => {
     if (channel === 'master') return
     const device = sonarState.audioDevices.find((d) => d.id === deviceId)
     if (device) patchRedirection(channel as SonarDeviceChannel, device)
     window.api.sonarSetRedirection(channel as SonarDeviceChannel, deviceId).catch(console.error)
-  }
+  }, [patchRedirection, sonarState.audioDevices])
 
-  function handleProcessDrop(targetChannel: SonarChannel, processId: number): void {
-    patchRouting(processId, targetChannel)
-    window.api.sonarRouteProcess(processId, targetChannel).catch(console.error)
-  }
+  // Stable per-channel drop handlers stored in a ref so ChannelStrip memo isn't busted
+  const dropHandlersRef = useRef<Record<string, (pid: number) => void>>({})
+  useEffect(() => {
+    for (const { channel } of CHANNEL_DEFS) {
+      dropHandlersRef.current[channel] = (pid: number) => {
+        patchRouting(pid, channel)
+        window.api.sonarRouteProcess(pid, channel).catch(console.error)
+      }
+    }
+  }, [patchRouting])
 
   return (
     <div className="flex overflow-x-auto gap-3 items-stretch">
-      {CHANNEL_DEFS.filter(({ channel }) => visibleChannels.has(channel)).map(({ channel, label }) => {
-        const { volume, muted } = getVolume(channel)
-        return (
-          <ChannelStrip
-            key={channel}
-            channel={channel}
-            label={label}
-            volume={volume}
-            muted={muted}
-            streamerMix={getStreamerMix(channel)}
-            mode={sonarState.mode}
-            presets={presetsByChannel[channel] ?? []}
-            activePresetId={activePresetIds[channel]}
-            routedSessions={sessionsByRole[channel] ?? []}
-            audioDevices={sonarState.audioDevices}
-            currentDevice={sonarState.redirections[channel]}
-            onVolume={handleVolume}
-            onMute={handleMute}
-            onPresetSelect={handlePresetSelect}
-            onDeviceSelect={handleDeviceSelect}
-            onProcessDrop={(processId, _sourceRole) => handleProcessDrop(channel, processId)}
-          />
-        )
-      })}
+      {CHANNEL_DEFS.filter(({ channel }) => visibleChannels.has(channel)).map(({ channel, label }) => (
+        <ChannelStrip
+          key={channel}
+          channel={channel}
+          label={label}
+          volume={volumes[channel]?.volume ?? 1}
+          muted={volumes[channel]?.muted ?? false}
+          streamerMix={streamerMixes[channel]}
+          mode={sonarState.mode}
+          presets={presetsByChannel[channel] ?? []}
+          activePresetId={activePresetIds[channel]}
+          routedSessions={sessionsByRole[channel] ?? []}
+          audioDevices={sonarState.audioDevices}
+          currentDevice={sonarState.redirections[channel]}
+          onVolume={handleVolume}
+          onMute={handleMute}
+          onPresetSelect={handlePresetSelect}
+          onDeviceSelect={handleDeviceSelect}
+          onProcessDrop={dropHandlersRef.current[channel]}
+        />
+      ))}
     </div>
   )
 }

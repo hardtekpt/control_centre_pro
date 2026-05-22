@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, memo } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import { SliderInput } from '../SliderInput'
 import { notifyDisplayInputChange } from '../../lib/notifyFromEvent'
@@ -48,7 +48,7 @@ function SetPrimaryIcon(): JSX.Element {
   )
 }
 
-export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCardProps): JSX.Element {
+function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
   const [confirmedBrightness, setConfirmedBrightness] = useState(monitor.brightness)
@@ -199,3 +199,5 @@ export function DisplayCard({ monitor, syncBrightness, allMonitors }: DisplayCar
     </div>
   )
 }
+
+export const DisplayCard = memo(DisplayCardComponent)

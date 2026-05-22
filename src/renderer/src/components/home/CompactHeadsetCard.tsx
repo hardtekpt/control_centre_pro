@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import { useAppStore } from '../../stores/appStore'
 import { SliderInput } from '../SliderInput'
@@ -308,7 +308,7 @@ const SIDETONE_OPTIONS: Option<ArctisState['sidetone']>[] = [
 
 // ─── Compact Headset Card ─────────────────────────────────────────────────────
 
-export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Element {
+function CompactHeadsetCardComponent({ state }: { state: ArctisState }): JSX.Element {
   const { updateArctisState } = useServiceStore()
   const { setView } = useAppStore()
 
@@ -463,3 +463,5 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
     </div>
   )
 }
+
+export const CompactHeadsetCard = memo(CompactHeadsetCardComponent)
