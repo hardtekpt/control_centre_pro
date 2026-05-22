@@ -20,6 +20,46 @@ const COLOR_PRESETS = [
   { label: '9300K', value: 0x08 },
 ]
 
+// ─── Icons ───────────────────────────────────────────────────────────────────
+
+function ChevronIcon({ open }: { open: boolean }): JSX.Element {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ transition: 'transform 0.15s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+function ResetColorIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="13.5" cy="6.5" r="2.5" />
+      <circle cx="17.5" cy="13.5" r="2.5" />
+      <circle cx="8.5" cy="13.5" r="2.5" />
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10" />
+    </svg>
+  )
+}
+
+function FactoryResetIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 .49-4.4" />
+    </svg>
+  )
+}
+
 // ─── Main settings page ──────────────────────────────────────────────────────
 
 export function DDCSettings(): JSX.Element {
@@ -93,7 +133,7 @@ export function DDCSettings(): JSX.Element {
           {monitors.length > 0 && (
             <SettingSection>
               <div
-                className="px-5 py-3.5 border-b flex items-center justify-between"
+                className="px-5 py-3 border-b flex items-center justify-between"
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
@@ -102,19 +142,19 @@ export function DDCSettings(): JSX.Element {
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="text-sm px-4 py-2 rounded font-medium transition-colors"
+                  className="text-xs px-3 py-1.5 rounded font-medium transition-colors"
                   style={{
-                    background: 'var(--color-accent)',
-                    color: 'var(--color-bg)',
-                    border: 'none',
+                    background: 'var(--color-surface-raised)',
+                    color: 'var(--color-text-secondary)',
+                    border: '1px solid var(--color-border)',
                     cursor: isRefreshing ? 'default' : 'pointer',
                     opacity: isRefreshing ? 0.6 : 1,
                   }}
                 >
-                  {isRefreshing ? 'Refreshing…' : 'Refresh Monitors'}
+                  {isRefreshing ? 'Refreshing…' : 'Refresh'}
                 </button>
               </div>
-              <div className="px-5 py-4 flex flex-col gap-4">
+              <div className="px-5 py-4 flex flex-col gap-2">
                 {monitors.map((monitor) => (
                   <MonitorCard key={monitor.monitor_id} monitor={monitor} />
                 ))}
@@ -194,9 +234,9 @@ export function DDCSettings(): JSX.Element {
 
 function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element {
   const [monitor, setMonitor] = useState(initial)
+  const [expanded, setExpanded] = useState(false)
   const writeLockRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Accept upstream updates only when not mid-drag (write lock active)
   useEffect(() => {
     if (!writeLockRef.current) {
       setMonitor(initial)
@@ -213,114 +253,267 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
 
   const sup = monitor.supports
 
+  // Build subtitle metadata
+  const metaParts: string[] = [`Monitor ${monitor.monitor_id}`]
+  if (monitor.vcp_version) metaParts.push(`VCP ${monitor.vcp_version}`)
+  if (monitor.usage_time_hours !== null) metaParts.push(`${monitor.usage_time_hours.toLocaleString()} hrs`)
+
+  const featureLabels = sup
+    .filter((f) => !['brightness', 'contrast'].includes(f))
+    .slice(0, 4)
+
   return (
     <div
       className="rounded overflow-hidden"
       style={{ border: '1px solid var(--color-border)' }}
     >
-      {/* Header */}
-      <div
-        className="px-4 py-3 flex items-center justify-between"
-        style={{ background: 'var(--color-surface-raised)' }}
+      {/* Header — click to collapse/expand */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full px-4 py-3 flex items-center gap-3 text-left"
+        style={{
+          background: 'var(--color-surface-raised)',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       >
-        <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {monitor.name}
-          </p>
-          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            Monitor {monitor.monitor_id}
-            {monitor.vcp_version ? ` · VCP ${monitor.vcp_version}` : ''}
+        {/* Title & meta */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+              {monitor.name}
+            </p>
+            {monitor.is_primary && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded shrink-0"
+                style={{ background: 'var(--color-accent)', color: 'var(--color-bg)' }}
+              >
+                Primary
+              </span>
+            )}
+          </div>
+          <p className="text-xs truncate" style={{ color: 'var(--color-text-secondary)' }}>
+            {metaParts.join(' · ')}
+            {featureLabels.length > 0 && (
+              <span> · {featureLabels.join(', ')}{sup.length > featureLabels.length + 2 ? '…' : ''}</span>
+            )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {monitor.is_primary && (
-            <span
-              className="text-xs px-2 py-0.5 rounded"
-              style={{
-                background: 'var(--color-accent)',
-                color: 'var(--color-bg)',
-              }}
-            >
-              Primary
-            </span>
-          )}
+
+        {/* Action buttons (stop propagation so they don't toggle collapse) */}
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <IconButton
+            title="Reset colors"
+            onClick={() => {
+              if (!window.confirm(`Reset color settings on ${monitor.name}? This cannot be undone.`)) return
+              window.api.ddcColorReset(monitor.monitor_id)
+            }}
+          >
+            <ResetColorIcon />
+          </IconButton>
+          <IconButton
+            title="Factory reset"
+            danger
+            onClick={() => {
+              if (!window.confirm(`Factory reset ${monitor.name}? This will reset ALL monitor settings and cannot be undone.`)) return
+              window.api.ddcFactoryReset(monitor.monitor_id)
+            }}
+          >
+            <FactoryResetIcon />
+          </IconButton>
         </div>
-      </div>
 
-      {/* Sections */}
-      <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+        <span style={{ color: 'var(--color-text-secondary)' }}>
+          <ChevronIcon open={expanded} />
+        </span>
+      </button>
 
-        {/* Basic: brightness + contrast */}
-        {(sup.includes('brightness') || sup.includes('contrast')) && (
-          <FeatureSection label="Basic">
-            {sup.includes('brightness') && (
-              <SliderRow
-                label="Brightness"
-                value={monitor.brightness}
-                max={100}
-                unit="%"
-                onChange={(v) => {
-                  setMonitor((m) => ({ ...m, brightness: v }))
-                  lockWrite()
-                  window.api.ddcSetBrightness(monitor.monitor_id, v)
-                }}
-              />
-            )}
-            {sup.includes('contrast') && (
-              <SliderRow
-                label="Contrast"
-                value={monitor.contrast}
-                max={100}
-                unit="%"
-                onChange={(v) => {
-                  setMonitor((m) => ({ ...m, contrast: v }))
-                  lockWrite()
-                  window.api.ddcSetContrast(monitor.monitor_id, v)
-                }}
-              />
-            )}
-          </FeatureSection>
-        )}
+      {/* Expandable body */}
+      {expanded && (
+        <div
+          className="divide-y"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          {/* 2-column grid for main controls */}
+          <div
+            className="px-4 py-3 gap-x-6 gap-y-3"
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}
+          >
+            {/* Left column: brightness, contrast, sharpness, audio */}
+            <div className="flex flex-col gap-3">
+              {sup.includes('brightness') && (
+                <SliderRow
+                  label="Brightness"
+                  value={monitor.brightness}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => {
+                    setMonitor((m) => ({ ...m, brightness: v }))
+                    lockWrite()
+                    window.api.ddcSetBrightness(monitor.monitor_id, v)
+                  }}
+                />
+              )}
+              {sup.includes('contrast') && (
+                <SliderRow
+                  label="Contrast"
+                  value={monitor.contrast}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => {
+                    setMonitor((m) => ({ ...m, contrast: v }))
+                    lockWrite()
+                    window.api.ddcSetContrast(monitor.monitor_id, v)
+                  }}
+                />
+              )}
+              {sup.includes('sharpness') && monitor.sharpness !== null && (
+                <SliderRow
+                  label="Sharpness"
+                  value={monitor.sharpness}
+                  max={monitor.sharpness_max}
+                  onChange={(v) => {
+                    setMonitor((m) => ({ ...m, sharpness: v }))
+                    lockWrite()
+                    window.api.ddcSetSharpness(monitor.monitor_id, v)
+                  }}
+                />
+              )}
+              {sup.includes('volume') && monitor.volume !== null && (
+                <SliderRow
+                  label="Volume"
+                  value={monitor.volume}
+                  max={100}
+                  unit="%"
+                  onChange={(v) => {
+                    setMonitor((m) => ({ ...m, volume: v }))
+                    lockWrite()
+                    window.api.ddcSetVolume(monitor.monitor_id, v)
+                  }}
+                />
+              )}
+              {sup.includes('mute') && monitor.muted !== null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs w-16 shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                    Mute
+                  </span>
+                  <ToggleSetting
+                    checked={monitor.muted}
+                    onChange={() => {
+                      const next = !monitor.muted
+                      setMonitor((m) => ({ ...m, muted: next }))
+                      window.api.ddcSetMute(monitor.monitor_id, next)
+                    }}
+                  />
+                </div>
+              )}
+            </div>
 
-        {/* Input source */}
-        {sup.includes('input_source') && (
-          <FeatureSection label="Input">
-            <InputSourceSelector monitor={monitor} onSelect={(hex) => {
-              setMonitor((m) => ({ ...m, input_source: hex }))
-              window.api.ddcSetInputSource(monitor.monitor_id, hex)
-            }} />
-          </FeatureSection>
-        )}
+            {/* Right column: input source, color temp, power */}
+            <div className="flex flex-col gap-3">
+              {sup.includes('input_source') && monitor.available_inputs.length > 0 && (
+                <div>
+                  <p className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>Input Source</p>
+                  <select
+                    value={monitor.input_source}
+                    onChange={(e) => {
+                      const hex = e.currentTarget.value
+                      setMonitor((m) => ({ ...m, input_source: hex }))
+                      window.api.ddcSetInputSource(monitor.monitor_id, hex)
+                    }}
+                    className="w-full text-xs p-1.5 rounded"
+                    style={{
+                      background: 'var(--color-surface-raised)',
+                      color: 'var(--color-text-primary)',
+                      border: '1px solid var(--color-border)',
+                    }}
+                  >
+                    {monitor.available_inputs.map((hex) => (
+                      <option key={hex} value={hex}>
+                        {DDC_INPUT_NAMES[hex] ?? hex}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-        {/* Color: preset + RGB gain */}
-        {(sup.includes('color_preset') || sup.includes('rgb_gain')) && (
-          <FeatureSection label="Color">
-            {sup.includes('color_preset') && (
-              <div className="py-1">
-                <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                  Color Temperature
-                </p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {COLOR_PRESETS.map((p) => (
-                    <button
-                      key={p.value}
-                      onClick={() => {
-                        setMonitor((m) => ({ ...m, color_preset: p.value }))
-                        window.api.ddcSetColorPreset(monitor.monitor_id, p.value)
-                      }}
-                      className={`selector-chip${monitor.color_preset === p.value ? ' active' : ''}`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+              {sup.includes('color_preset') && (
+                <div>
+                  <p className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>Color Temperature</p>
+                  <select
+                    value={monitor.color_preset ?? ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.currentTarget.value, 10)
+                      if (isNaN(val)) return
+                      setMonitor((m) => ({ ...m, color_preset: val }))
+                      window.api.ddcSetColorPreset(monitor.monitor_id, val)
+                    }}
+                    className="w-full text-xs p-1.5 rounded"
+                    style={{
+                      background: 'var(--color-surface-raised)',
+                      color: 'var(--color-text-primary)',
+                      border: '1px solid var(--color-border)',
+                    }}
+                  >
+                    {COLOR_PRESETS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Power controls */}
+              <div>
+                <p className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>Power</p>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => {
+                      setMonitor((m) => ({ ...m, power_mode: 2 }))
+                      window.api.ddcSetPowerMode(monitor.monitor_id, 2)
+                    }}
+                    className="text-xs px-2.5 py-1 rounded flex-1"
+                    style={{
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-secondary)',
+                      border: '1px solid var(--color-border)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Standby
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!window.confirm(`Turn off ${monitor.name}?`)) return
+                      setMonitor((m) => ({ ...m, power_mode: 4 }))
+                      window.api.ddcSetPowerMode(monitor.monitor_id, 4)
+                    }}
+                    className="text-xs px-2.5 py-1 rounded flex-1"
+                    style={{
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-secondary)',
+                      border: '1px solid var(--color-border)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Turn Off
+                  </button>
                 </div>
               </div>
-            )}
-            {sup.includes('rgb_gain') && (
-              <div className="py-1 mt-1.5 space-y-2">
-                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  RGB Gain
-                </p>
+            </div>
+          </div>
+
+          {/* RGB Gain — full width if present */}
+          {sup.includes('rgb_gain') && (
+            <div className="px-4 py-3">
+              <p
+                className="text-xs font-semibold uppercase tracking-wide mb-2"
+                style={{ color: 'var(--color-text-secondary)', letterSpacing: '0.06em' }}
+              >
+                RGB Gain
+              </p>
+              <div className="flex flex-col gap-1.5">
                 {monitor.red_gain !== null && (
                   <SliderRow
                     label="R"
@@ -361,225 +554,50 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
                   />
                 )}
               </div>
-            )}
-          </FeatureSection>
-        )}
-
-        {/* Image: sharpness */}
-        {sup.includes('sharpness') && monitor.sharpness !== null && (
-          <FeatureSection label="Image">
-            <SliderRow
-              label="Sharpness"
-              value={monitor.sharpness}
-              max={monitor.sharpness_max}
-              onChange={(v) => {
-                setMonitor((m) => ({ ...m, sharpness: v }))
-                lockWrite()
-                window.api.ddcSetSharpness(monitor.monitor_id, v)
-              }}
-            />
-          </FeatureSection>
-        )}
-
-        {/* Audio: volume + mute */}
-        {(sup.includes('volume') || sup.includes('mute')) && (
-          <FeatureSection label="Audio">
-            {sup.includes('volume') && monitor.volume !== null && (
-              <SliderRow
-                label="Volume"
-                value={monitor.volume}
-                max={100}
-                unit="%"
-                onChange={(v) => {
-                  setMonitor((m) => ({ ...m, volume: v }))
-                  lockWrite()
-                  window.api.ddcSetVolume(monitor.monitor_id, v)
-                }}
-              />
-            )}
-            {sup.includes('mute') && monitor.muted !== null && (
-              <div className="py-1 flex items-center justify-between">
-                <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  Mute
-                </span>
-                <button
-                  onClick={() => {
-                    const next = !monitor.muted
-                    setMonitor((m) => ({ ...m, muted: next }))
-                    window.api.ddcSetMute(monitor.monitor_id, next)
-                  }}
-                  className={`selector-chip${monitor.muted ? ' active' : ''}`}
-                >
-                  {monitor.muted ? 'Muted' : 'Unmuted'}
-                </button>
-              </div>
-            )}
-          </FeatureSection>
-        )}
-
-        {/* Power */}
-        <FeatureSection label="Power">
-          <div className="py-1 flex items-center gap-2">
-            <button
-              onClick={() => {
-                setMonitor((m) => ({ ...m, power_mode: 2 }))
-                window.api.ddcSetPowerMode(monitor.monitor_id, 2)
-              }}
-              className="text-xs px-3 py-1.5 rounded"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-secondary)',
-                border: '1px solid var(--color-border)',
-                cursor: 'pointer',
-              }}
-            >
-              Standby
-            </button>
-            <button
-              onClick={() => {
-                if (!window.confirm(`Turn off ${monitor.name}?`)) return
-                setMonitor((m) => ({ ...m, power_mode: 4 }))
-                window.api.ddcSetPowerMode(monitor.monitor_id, 4)
-              }}
-              className="text-xs px-3 py-1.5 rounded"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-secondary)',
-                border: '1px solid var(--color-border)',
-                cursor: 'pointer',
-              }}
-            >
-              Turn Off
-            </button>
-          </div>
-        </FeatureSection>
-
-        {/* Info */}
-        {(monitor.usage_time_hours !== null || monitor.vcp_version !== null) && (
-          <CollapsibleSection label="Info">
-            <div className="py-1 space-y-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              {monitor.usage_time_hours !== null && (
-                <div className="flex justify-between">
-                  <span>Usage Time</span>
-                  <span style={{ color: 'var(--color-text-primary)' }}>
-                    {monitor.usage_time_hours.toLocaleString()} hrs
-                  </span>
-                </div>
-              )}
-              {monitor.vcp_version !== null && (
-                <div className="flex justify-between">
-                  <span>VCP Version</span>
-                  <span style={{ color: 'var(--color-text-primary)' }}>{monitor.vcp_version}</span>
-                </div>
-              )}
-              <div className="flex gap-1 flex-wrap pt-1">
-                {monitor.supports.map((f) => (
-                  <span
-                    key={f}
-                    className="px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--color-surface-raised)' }}
-                  >
-                    {f}
-                  </span>
-                ))}
-              </div>
             </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Reset (danger zone) */}
-        <CollapsibleSection label="Reset" danger>
-          <div className="py-1 flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (!window.confirm(`Reset color settings on ${monitor.name}? This cannot be undone.`)) return
-                window.api.ddcColorReset(monitor.monitor_id)
-              }}
-              className="text-xs px-3 py-1.5 rounded"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-secondary)',
-                border: '1px solid var(--color-border)',
-                cursor: 'pointer',
-              }}
-            >
-              Reset Colors
-            </button>
-            <button
-              onClick={() => {
-                if (!window.confirm(`Factory reset ${monitor.name}? This will reset ALL monitor settings and cannot be undone.`)) return
-                window.api.ddcFactoryReset(monitor.monitor_id)
-              }}
-              className="text-xs px-3 py-1.5 rounded"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-danger)',
-                border: '1px solid var(--color-danger-border)',
-                cursor: 'pointer',
-              }}
-            >
-              Factory Reset
-            </button>
-          </div>
-        </CollapsibleSection>
-      </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── Feature section header ──────────────────────────────────────────────────
+// ─── Icon button ─────────────────────────────────────────────────────────────
 
-function FeatureSection({
-  label,
+function IconButton({
   children,
-}: {
-  label: string
-  children: React.ReactNode
-}): JSX.Element {
-  return (
-    <div className="px-4 py-3">
-      <p
-        className="text-xs font-semibold uppercase tracking-wide mb-2"
-        style={{ color: 'var(--color-text-secondary)', letterSpacing: '0.06em' }}
-      >
-        {label}
-      </p>
-      {children}
-    </div>
-  )
-}
-
-// ─── Collapsible section (for Info and Reset) ────────────────────────────────
-
-function CollapsibleSection({
-  label,
+  title,
   danger = false,
-  children,
+  onClick,
 }: {
-  label: string
-  danger?: boolean
   children: React.ReactNode
+  title: string
+  danger?: boolean
+  onClick: () => void
 }): JSX.Element {
-  const [open, setOpen] = useState(false)
-
   return (
-    <div className="px-4">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between py-3 text-xs font-semibold uppercase tracking-wide"
-        style={{
-          color: danger ? 'var(--color-danger-muted)' : 'var(--color-text-secondary)',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          letterSpacing: '0.06em',
-        }}
-      >
-        <span>{label}</span>
-        <span style={{ fontSize: 10, opacity: 0.6 }}>{open ? '▲' : '▼'}</span>
-      </button>
-      {open && <div className="pb-3">{children}</div>}
-    </div>
+    <button
+      title={title}
+      onClick={onClick}
+      className="p-1.5 rounded flex items-center justify-center"
+      style={{
+        background: 'transparent',
+        color: danger ? 'var(--color-danger-muted, var(--color-text-secondary))' : 'var(--color-text-secondary)',
+        border: '1px solid var(--color-border)',
+        cursor: 'pointer',
+        transition: 'all 0.12s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--color-surface)'
+        e.currentTarget.style.color = danger ? 'var(--color-danger, #e55)' : 'var(--color-text-primary)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent'
+        e.currentTarget.style.color = danger ? 'var(--color-danger-muted, var(--color-text-secondary))' : 'var(--color-text-secondary)'
+      }}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -601,7 +619,7 @@ function SliderRow({
   onChange: (v: number) => void
 }): JSX.Element {
   return (
-    <div className="flex items-center gap-3 py-0.5">
+    <div className="flex items-center gap-2">
       <span
         className="text-xs shrink-0 w-16"
         style={{ color: labelColor ?? 'var(--color-text-secondary)' }}
@@ -612,38 +630,15 @@ function SliderRow({
         <SliderInput
           value={max > 0 ? value / max : 0}
           onChange={(v) => onChange(Math.round(v * max))}
+          disableWheel
         />
       </div>
       <span
-        className="text-xs shrink-0 w-10 text-right mono"
+        className="text-xs shrink-0 w-9 text-right mono"
         style={{ color: 'var(--color-text-primary)' }}
       >
         {value}{unit}
       </span>
-    </div>
-  )
-}
-
-// ─── Input source selector ───────────────────────────────────────────────────
-
-function InputSourceSelector({
-  monitor,
-  onSelect,
-}: {
-  monitor: DdcMonitor
-  onSelect: (hex: string) => void
-}): JSX.Element {
-  return (
-    <div className="flex gap-1.5 flex-wrap py-1">
-      {monitor.available_inputs.map((hex) => (
-        <button
-          key={hex}
-          onClick={() => onSelect(hex)}
-          className={`selector-chip${monitor.input_source === hex ? ' active' : ''}`}
-        >
-          {DDC_INPUT_NAMES[hex] ?? hex}
-        </button>
-      ))}
     </div>
   )
 }

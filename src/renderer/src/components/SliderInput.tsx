@@ -14,6 +14,7 @@ function SliderInputComponent({
   onDragStart,
   onDragEnd,
   orientation = 'horizontal',
+  disableWheel = false,
 }: {
   value: number
   onChange: (v: number) => void
@@ -23,6 +24,7 @@ function SliderInputComponent({
   onDragStart?: () => void
   onDragEnd?: () => void
   orientation?: 'horizontal' | 'vertical'
+  disableWheel?: boolean
 }): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
@@ -32,10 +34,12 @@ function SliderInputComponent({
 
   // Keep refs in sync so the wheel handler always reads fresh props without re-registering
   const disabledRef = useRef(disabled)
+  const disableWheelRef = useRef(disableWheel)
   const orientationRef = useRef(orientation)
   const valueRef = useRef(value)
   const onChangeRef = useRef(onChange)
   disabledRef.current = disabled
+  disableWheelRef.current = disableWheel
   orientationRef.current = orientation
   valueRef.current = value
   onChangeRef.current = onChange
@@ -65,7 +69,7 @@ function SliderInputComponent({
     const el = containerRef.current
     if (!el) return
     function handleWheel(e: WheelEvent): void {
-      if (disabledRef.current) return
+      if (disabledRef.current || disableWheelRef.current) return
       e.preventDefault()
       const delta = orientationRef.current === 'vertical' ? -e.deltaY : e.deltaY
       const current = dragValueRef.current !== null ? dragValueRef.current : valueRef.current
