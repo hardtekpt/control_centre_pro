@@ -16,6 +16,7 @@ import { KvmDetector } from './services/kvmDetector'
 import { HomeAssistantService } from './services/homeAssistantService'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
+import { destroyFocusHelper } from './win32Focus'
 import { HttpApiServer } from './httpApiServer'
 
 const settingsFilePath = join(app.getPath('userData'), 'settings.json')
@@ -1201,4 +1202,5 @@ app.on('will-quit', () => {
   notifWindow = null
   activeWindowMonitor?.stop()
   serviceManager?.stopAll()
+  destroyFocusHelper()
 })
