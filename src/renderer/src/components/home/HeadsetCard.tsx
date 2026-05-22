@@ -240,24 +240,6 @@ function SonarIcon(): JSX.Element {
   )
 }
 
-function UsbIcon(): JSX.Element {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="9" width="6" height="6" rx="1" />
-      <rect x="16" y="9" width="6" height="6" rx="1" />
-      <line x1="8" y1="12" x2="16" y2="12" />
-    </svg>
-  )
-}
-
-function PowerIcon(): JSX.Element {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-      <line x1="12" y1="2" x2="12" y2="12" />
-    </svg>
-  )
-}
 
 function VolumeLimiterIcon(): JSX.Element {
   return (
@@ -271,45 +253,44 @@ function VolumeLimiterIcon(): JSX.Element {
   )
 }
 
-type DotState = 'off' | 'on' | 'connected' | 'pairing'
-
-const DOT_COLOR: Record<DotState, string> = {
-  off:       'var(--color-status-error)',
-  on:        'var(--color-status-ok)',
-  connected: 'var(--color-status-info)',
-  pairing:   'var(--color-status-info)',
-}
-const DOT_BG: Record<DotState, string> = {
-  off:       'var(--color-status-error-bg)',
-  on:        'var(--color-status-ok-bg)',
-  connected: 'var(--color-status-info-bg)',
-  pairing:   'var(--color-status-info-bg)',
-}
-
-function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dotState: DotState; title: string }): JSX.Element {
+function ConnectivityIcon({
+  icon,
+  active,
+  pairing,
+  title,
+}: {
+  icon: React.ReactNode
+  active: boolean
+  pairing?: boolean
+  title: string
+}): JSX.Element {
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
-    if (dotState !== 'pairing') { setVisible(true); return }
+    if (!pairing) { setVisible(true); return }
     const id = setInterval(() => setVisible((v) => !v), 600)
     return () => clearInterval(id)
-  }, [dotState])
+  }, [pairing])
 
-  const color = DOT_COLOR[dotState]
+  const color = pairing
+    ? 'var(--color-status-info)'
+    : active
+      ? 'var(--color-status-ok)'
+      : 'var(--color-text-secondary)'
+
   return (
-    <div
+    <span
       title={title}
-      className="w-6 h-6 rounded-full flex items-center justify-center"
       style={{
-        background: DOT_BG[dotState],
-        border: `1px solid ${color}`,
         color,
-        opacity: visible ? 1 : 0.15,
+        opacity: pairing && !visible ? 0.15 : active ? 1 : 0.45,
         transition: 'opacity 200ms ease',
+        display: 'flex',
+        alignItems: 'center',
       }}
     >
       {icon}
-    </div>
+    </span>
   )
 }
 
@@ -538,12 +519,27 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
+          <span style={{ color: state.baseStationConnected && state.headsetPowered === true ? 'var(--color-status-ok)' : 'var(--color-accent)' }}>
+            <HeadphonesIcon />
+          </span>
           <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             Arctis Nova Pro Wireless
           </span>
           {state.baseStationConnected && (
             <>
+              <div className="flex flex-col gap-0.5">
+                <ConnectivityIcon
+                  icon={<WirelessIcon />}
+                  active={state.wirelessConnected}
+                  title={`2.4 GHz Wireless — ${state.wirelessConnected ? 'Active' : 'Absent'}`}
+                />
+                <ConnectivityIcon
+                  icon={<BluetoothIcon />}
+                  active={state.btStatus === 'CONNECTED'}
+                  pairing={state.btStatus === 'PAIRING'}
+                  title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
+                />
+              </div>
               <SonarIndicator connected={state.sonarConnected} />
               <VolumeLimiterIndicator on={state.volumeLimiterOn} />
               <UsbInputTag
@@ -553,31 +549,11 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
             </>
           )}
         </div>
-        {state.baseStationConnected ? (
+        {state.baseStationConnected && (
           <div className="flex items-center gap-2">
             <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
             <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
-            <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
-            <div className="flex items-center gap-1.5">
-              <ConnectivityDot
-                icon={<WirelessIcon />}
-                dotState={state.wirelessConnected ? 'on' : 'off'}
-                title={`2.4 GHz Wireless — ${state.wirelessConnected ? 'Active' : 'Absent'}`}
-              />
-              <ConnectivityDot
-                icon={<BluetoothIcon />}
-                dotState={state.btStatus === 'CONNECTED' ? 'on' : state.btStatus === 'PAIRING' ? 'pairing' : state.btStatus === 'ON' ? 'connected' : 'off'}
-                title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
-              />
-              <ConnectivityDot
-                icon={<PowerIcon />}
-                dotState={state.headsetPowered === true ? 'on' : 'off'}
-                title={`Headset power — ${state.headsetPowered === true ? 'On' : state.headsetPowered === false ? 'Off' : 'Unknown'}`}
-              />
-            </div>
           </div>
-        ) : (
-          <ConnectivityDot icon={<UsbIcon />} dotState="off" title="Base station USB disconnected" />
         )}
       </div>
 

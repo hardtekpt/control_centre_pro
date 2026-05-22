@@ -117,66 +117,44 @@ function BluetoothIcon(): JSX.Element {
   )
 }
 
-function UsbIcon(): JSX.Element {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2v12" />
-      <path d="M9 8l3-6 3 6" />
-      <path d="M9 14v3a3 3 0 0 0 6 0v-3" />
-      <circle cx="7.5" cy="14" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="16.5" cy="14" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  )
-}
-
-function PowerIcon(): JSX.Element {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-      <line x1="12" y1="2" x2="12" y2="12" />
-    </svg>
-  )
-}
-
-type DotState = 'off' | 'on' | 'connected' | 'pairing'
-
-const DOT_COLOR: Record<DotState, string> = {
-  off:       'var(--color-status-error)',
-  on:        'var(--color-status-ok)',
-  connected: 'var(--color-status-info)',
-  pairing:   'var(--color-status-info)',
-}
-const DOT_BG: Record<DotState, string> = {
-  off:       'var(--color-status-error-bg)',
-  on:        'var(--color-status-ok-bg)',
-  connected: 'var(--color-status-info-bg)',
-  pairing:   'var(--color-status-info-bg)',
-}
-
-function ConnectivityDot({ icon, dotState, title }: { icon: React.ReactNode; dotState: DotState; title: string }): JSX.Element {
+function ConnectivityIcon({
+  icon,
+  active,
+  pairing,
+  title,
+}: {
+  icon: React.ReactNode
+  active: boolean
+  pairing?: boolean
+  title: string
+}): JSX.Element {
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
-    if (dotState !== 'pairing') { setVisible(true); return }
+    if (!pairing) { setVisible(true); return }
     const id = setInterval(() => setVisible((v) => !v), 600)
     return () => clearInterval(id)
-  }, [dotState])
+  }, [pairing])
 
-  const color = DOT_COLOR[dotState]
+  const color = pairing
+    ? 'var(--color-status-info)'
+    : active
+      ? 'var(--color-status-ok)'
+      : 'var(--color-text-secondary)'
+
   return (
-    <div
+    <span
       title={title}
-      className="w-6 h-6 rounded-full flex items-center justify-center"
       style={{
-        background: DOT_BG[dotState],
-        border: `1px solid ${color}`,
         color,
-        opacity: visible ? 1 : 0.15,
+        opacity: pairing && !visible ? 0.15 : active ? 1 : 0.45,
         transition: 'opacity 200ms ease',
+        display: 'flex',
+        alignItems: 'center',
       }}
     >
       {icon}
-    </div>
+    </span>
   )
 }
 
@@ -361,40 +339,6 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
         className="rounded-lg px-4 py-3 flex flex-col"
         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
-            <button
-              onClick={() => setView('arctis')}
-              className="text-sm font-medium"
-              style={{
-                color: 'var(--color-text-primary)',
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-              }}
-            >
-              Arctis NPW
-            </button>
-          </div>
-          <ConnectivityDot
-            icon={<UsbIcon />}
-            dotState="off"
-            title="Base station USB disconnected"
-          />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-    >
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
           <button
@@ -411,27 +355,51 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
             Arctis NPW
           </button>
         </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3 flex flex-col"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+    >
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span style={{ color: state.headsetPowered === true ? 'var(--color-status-ok)' : 'var(--color-accent)' }}>
+            <HeadphonesIcon />
+          </span>
+          <button
+            onClick={() => setView('arctis')}
+            className="text-sm font-medium"
+            style={{
+              color: 'var(--color-text-primary)',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
+            Arctis NPW
+          </button>
+          <div className="flex flex-col gap-0.5">
+            <ConnectivityIcon
+              icon={<WirelessIcon />}
+              active={state.wirelessConnected}
+              title={`2.4 GHz Wireless — ${state.wirelessConnected ? 'Active' : 'Absent'}`}
+            />
+            <ConnectivityIcon
+              icon={<BluetoothIcon />}
+              active={state.btStatus === 'CONNECTED'}
+              pairing={state.btStatus === 'PAIRING'}
+              title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
+            />
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <BatteryIndicator level={batteryHeadset} charging={false} title={`Headset battery: ${batteryHeadset}%`} />
           <BatteryIndicator level={batteryDock}    charging={true}  title={`Dock battery: ${batteryDock}%`} />
-          <div style={{ width: 1, height: 14, background: 'var(--color-border)' }} />
-          <div className="flex items-center gap-1.5">
-            <ConnectivityDot
-              icon={<WirelessIcon />}
-              dotState={state.wirelessConnected ? 'on' : 'off'}
-              title={`2.4 GHz Wireless — ${state.wirelessConnected ? 'Active' : 'Absent'}`}
-            />
-            <ConnectivityDot
-              icon={<BluetoothIcon />}
-              dotState={state.btStatus === 'CONNECTED' ? 'on' : state.btStatus === 'PAIRING' ? 'pairing' : state.btStatus === 'ON' ? 'connected' : 'off'}
-              title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
-            />
-            <ConnectivityDot
-              icon={<PowerIcon />}
-              dotState={state.headsetPowered === true ? 'on' : 'off'}
-              title={`Headset power — ${state.headsetPowered === true ? 'On' : state.headsetPowered === false ? 'Off' : 'Unknown'}`}
-            />
-          </div>
         </div>
       </div>
 
