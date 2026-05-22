@@ -161,7 +161,7 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
   return (
     <div
       className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
     >
       <Section
         title="Base Station"

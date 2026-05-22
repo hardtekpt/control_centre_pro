@@ -56,7 +56,7 @@ export function Arctis(): JSX.Element {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <MainPageHeader
-        title="Arctis Nova Pro"
+        title="Arctis Nova Pro Wireless"
         subtitle={arctisSubtitle}
         chips={ARCTIS_CHIPS}
         activeChip={filter}

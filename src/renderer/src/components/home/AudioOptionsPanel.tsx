@@ -202,7 +202,7 @@ export function AudioOptionsPanel({ state, expandByDefault = false }: { state: A
   return (
     <div
       className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
     >
       <div className="flex items-center gap-2 mb-3">
         <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}><MicIcon /></span>

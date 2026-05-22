@@ -340,7 +340,7 @@ function Section({ title, children }: { title: string; children: ReactNode }): J
     <div
       className="rounded-lg px-4 pt-3 pb-1"
       style={{
-        background: 'var(--color-surface)',
+        background: 'transparent',
         border: '1px solid var(--color-border)',
       }}
     >
