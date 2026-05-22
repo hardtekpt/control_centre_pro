@@ -12,8 +12,10 @@ import { combinationFromEvent } from './lib/shortcuts/keys'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
 import { FloatingSidebar } from './components/layout/FloatingSidebar'
+import { MAIN_NAV } from './components/layout/navItems'
+import { SETTINGS_NAV } from './components/settings/SettingsSidebar'
 import { notifyArctisConnected, notifyArctisDisconnected, notifyArctisEvent, seedArctisTrackingState } from './lib/notifyFromEvent'
-import type { ArctisState } from '@shared/types'
+import type { ArctisState, AppView } from '@shared/types'
 
 /**
  * Root component — decides which top-level layout to render and wires up
@@ -100,8 +102,8 @@ export default function App(): JSX.Element {
 
   // Global keyboard shortcuts
   useEffect(() => {
-    const MAIN_VIEWS = ['home', 'arctis', 'gg-sonar', 'shortcuts', 'notifications'] as const
-    const SETTINGS_TABS = ['general', 'gg-sonar', 'ddc', 'notifications', 'plugins', 'about'] as const
+    const mainViews = MAIN_NAV.map((item) => item.id)
+    const settingsTabs = SETTINGS_NAV.map((item) => item.id)
 
     const onKeyDown = (e: KeyboardEvent): void => {
       // Esc — exit settings back to main view
@@ -126,31 +128,32 @@ export default function App(): JSX.Element {
       if (e.key === 'Tab') {
         e.preventDefault()
         if (inSettings) {
-          const idx = SETTINGS_TABS.indexOf(currentSettingsTab as typeof SETTINGS_TABS[number])
-          const next = e.shiftKey
-            ? (idx - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length
-            : (idx + 1) % SETTINGS_TABS.length
-          setSettingsTab(SETTINGS_TABS[next])
-        } else {
-          const idx = MAIN_VIEWS.indexOf(currentView as typeof MAIN_VIEWS[number])
+          const idx = settingsTabs.indexOf(currentSettingsTab)
           const base = idx === -1 ? 0 : idx
           const next = e.shiftKey
-            ? (base - 1 + MAIN_VIEWS.length) % MAIN_VIEWS.length
-            : (base + 1) % MAIN_VIEWS.length
-          setView(MAIN_VIEWS[next])
+            ? (base - 1 + settingsTabs.length) % settingsTabs.length
+            : (base + 1) % settingsTabs.length
+          setSettingsTab(settingsTabs[next])
+        } else {
+          const idx = mainViews.indexOf(currentView)
+          const base = idx === -1 ? 0 : idx
+          const next = e.shiftKey
+            ? (base - 1 + mainViews.length) % mainViews.length
+            : (base + 1) % mainViews.length
+          setView(mainViews[next] as AppView)
         }
         return
       }
 
-      // Ctrl+1–5 — jump to main page; Ctrl+1–6 in settings → jump to settings tab
+      // Ctrl+N — jump to Nth page (position matches sidebar order)
       const digit = parseInt(e.key, 10)
       if (!isNaN(digit) && digit >= 1) {
         if (inSettings) {
-          const tab = SETTINGS_TABS[digit - 1]
+          const tab = settingsTabs[digit - 1]
           if (tab) { e.preventDefault(); setSettingsTab(tab) }
         } else {
-          const view = MAIN_VIEWS[digit - 1]
-          if (view) { e.preventDefault(); setView(view) }
+          const view = mainViews[digit - 1]
+          if (view) { e.preventDefault(); setView(view as AppView) }
         }
       }
     }

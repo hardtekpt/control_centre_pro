@@ -6,7 +6,7 @@ interface SettingsNavItem {
   label: string
 }
 
-const SETTINGS_NAV: SettingsNavItem[] = [
+export const SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'general', label: 'General' },
   { id: 'gg-sonar', label: 'GG Sonar' },
   { id: 'ddc', label: 'DDC' },
