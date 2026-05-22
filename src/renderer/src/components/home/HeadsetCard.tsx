@@ -169,7 +169,9 @@ function Section({
           </span>
         </div>
       </button>
-      {open && <div className="flex flex-col gap-2.5 pb-3">{children}</div>}
+      <div className={`collapsible-panel${open ? ' open' : ''}`}>
+        <div className="flex flex-col gap-2.5 pb-3">{children}</div>
+      </div>
     </div>
   )
 }
@@ -388,6 +390,7 @@ function UsbInputTag({
       {open && pos && ReactDOM.createPortal(
         <div
           ref={menuRef}
+          className="menu-in"
           style={{
             position: 'fixed',
             top: pos.top,

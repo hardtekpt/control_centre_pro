@@ -168,6 +168,7 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
         createPortal(
           <div
             ref={menuRef}
+            className="menu-in"
             style={{
               position: 'fixed',
               bottom: menuPos.bottom,

@@ -102,6 +102,10 @@
   --anim-page-duration:  180ms;
   --anim-page-easing:    cubic-bezier(0.16, 1, 0.3, 1);
   --anim-page-distance:  6px;
+
+  /* ── Collapse / expand tokens ───────────────────────────────────────────── */
+  --anim-collapse-duration: 200ms;
+  --anim-collapse-easing:   cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
@@ -264,6 +268,38 @@ body {
   background: var(--segment-active-bg);
   color: var(--segment-active-color);
   border-color: var(--segment-active-bg);
+}
+
+/* ── Collapsible panel (CSS grid height trick) ───────────────────────────── */
+
+.collapsible-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows var(--anim-collapse-duration) var(--anim-collapse-easing),
+    opacity            var(--anim-collapse-duration) ease;
+  opacity: 0;
+}
+
+.collapsible-panel.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.collapsible-panel > * {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Portaled dropdown / menu entrance ───────────────────────────────────── */
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.menu-in {
+  animation: menu-in 140ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
 
 /* ── Floating sidebar peek animation ─────────────────────────────────────── */

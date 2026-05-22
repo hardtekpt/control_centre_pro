@@ -305,8 +305,8 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
       )}
 
       {/* Add form */}
-      {showAddForm && (
-        <>
+      <div className={`collapsible-panel${showAddForm ? ' open' : ''}`}>
+        <div>
           <div style={{ height: 1, background: 'var(--color-border)' }} />
           <div className="flex flex-col gap-2">
 
@@ -516,8 +516,8 @@ export function PresetSwitcherSection({ sonarState }: PresetSwitcherSectionProps
               </button>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   )
 }
