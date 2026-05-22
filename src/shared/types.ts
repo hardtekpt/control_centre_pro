@@ -317,7 +317,6 @@ export type AppView =
   | 'shortcuts'
   | 'notifications'
   | 'settings'
-  | 'sonar-preset-switcher'
 
 /** Generic select option with a typed value */
 export interface Option<T> {
