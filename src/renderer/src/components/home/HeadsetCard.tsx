@@ -113,7 +113,7 @@ function ControlRow({
 }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs shrink-0 w-32" style={{ color: 'var(--color-text-secondary)' }}>
+      <span className="mono shrink-0 w-32" style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
         {label}
       </span>
       <div className="flex-1">{children}</div>
@@ -164,7 +164,7 @@ function Section({
         onClick={() => setOpen((o) => !o)}
         style={{ cursor: 'pointer', background: 'none', border: 'none', padding: '10px 0' }}
       >
-        <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
           {title}
         </span>
         <div className="flex items-center gap-2">
@@ -521,7 +521,7 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
           <span style={{ color: state.baseStationConnected && state.headsetPowered === true ? 'var(--color-status-ok)' : 'var(--color-accent)' }}>
             <HeadphonesIcon />
           </span>
-          <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
             Arctis Nova Pro Wireless
           </span>
           {state.baseStationConnected && (
@@ -575,8 +575,9 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
       <div className="flex items-center gap-3" style={{ opacity: state.baseStationConnected ? 1 : 0.4, pointerEvents: state.baseStationConnected ? 'auto' : 'none' }}>
         <button
           onClick={() => cmd('setChatmixEnabled', !state.chatmixEnabled, { chatmixEnabled: !state.chatmixEnabled })}
-          className="text-xs shrink-0 w-32 text-left"
+          className="mono shrink-0 w-32 text-left"
           style={{
+            fontSize: 11,
             textDecoration: state.chatmixEnabled ? 'none' : 'line-through',
             background: 'none',
             border: 'none',

@@ -51,7 +51,7 @@ function Section({
     <div>
       <div className="flex items-center gap-2 mb-2.5">
         {icon && <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}>{icon}</span>}
-        <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
           {title}
         </span>
       </div>
@@ -69,7 +69,7 @@ function ControlRow({
 }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs shrink-0 w-32" style={{ color: 'var(--color-text-secondary)' }}>
+      <span className="mono shrink-0 w-32" style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
         {label}
       </span>
       <div className="flex-1">{children}</div>

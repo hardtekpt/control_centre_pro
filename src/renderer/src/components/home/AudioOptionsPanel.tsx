@@ -35,7 +35,7 @@ function GridRow({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
         {label}
       </span>
       {children}
@@ -206,7 +206,7 @@ export function AudioOptionsPanel({ state, expandByDefault = false }: { state: A
     >
       <div className="flex items-center gap-2 mb-3">
         <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}><MicIcon /></span>
-        <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
           Audio Options
         </span>
       </div>
