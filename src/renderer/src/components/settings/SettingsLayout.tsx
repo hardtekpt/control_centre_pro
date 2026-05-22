@@ -11,6 +11,7 @@ import { RemoteAccessSettings } from '../../pages/settings/RemoteAccessSettings'
 import { useAppStore } from '../../stores/appStore'
 import { SettingsFormProvider, useSettingsForm } from '../../contexts/settingsFormContext'
 import { UnsavedChangesDialog } from './UnsavedChangesDialog'
+import { PageTransition } from '../layout/PageTransition'
 import type { SettingsTab } from '@shared/types'
 
 // All settings tabs show the save footer for consistent layout (About shows disabled button)
@@ -73,13 +74,15 @@ function SettingsLayoutInner(): JSX.Element {
           style={{ background: 'var(--color-bg)' }}
         >
           <div className="flex-1 overflow-y-auto px-8 py-6">
-            {currentSettingsTab === 'general' && <GeneralSettings />}
-            {currentSettingsTab === 'gg-sonar' && <GGSonarSettings />}
-            {currentSettingsTab === 'ddc' && <DDCSettings />}
-            {currentSettingsTab === 'notifications' && <NotificationsSettings />}
-            {currentSettingsTab === 'plugins' && <Plugins />}
-            {currentSettingsTab === 'remote-access' && <RemoteAccessSettings />}
-            {currentSettingsTab === 'about' && <About />}
+            <PageTransition viewKey={currentSettingsTab}>
+              {currentSettingsTab === 'general' && <GeneralSettings />}
+              {currentSettingsTab === 'gg-sonar' && <GGSonarSettings />}
+              {currentSettingsTab === 'ddc' && <DDCSettings />}
+              {currentSettingsTab === 'notifications' && <NotificationsSettings />}
+              {currentSettingsTab === 'plugins' && <Plugins />}
+              {currentSettingsTab === 'remote-access' && <RemoteAccessSettings />}
+              {currentSettingsTab === 'about' && <About />}
+            </PageTransition>
           </div>
           {showFooter && (
             <div

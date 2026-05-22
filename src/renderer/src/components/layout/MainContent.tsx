@@ -4,6 +4,7 @@ import { Arctis } from '../../pages/Arctis'
 import { GGSonar } from '../../pages/GGSonar'
 import { Shortcuts } from '../../pages/Shortcuts'
 import { Notifications } from '../../pages/Notifications'
+import { PageTransition } from './PageTransition'
 
 const FLOAT_GAP = 6 // matches Sidebar's SIDEBAR_FLOAT_GAP
 
@@ -26,13 +27,13 @@ export function MainContent(): JSX.Element {
       }}
     >
       {/* Inner card that mirrors the floating sidebar card height */}
-      <div className="h-full">
+      <PageTransition viewKey={currentView}>
         {currentView === 'home' && <Home />}
         {currentView === 'arctis' && <Arctis />}
         {currentView === 'gg-sonar' && <GGSonar />}
         {currentView === 'shortcuts' && <Shortcuts />}
         {currentView === 'notifications' && <Notifications />}
-      </div>
+      </PageTransition>
     </main>
   )
 }

@@ -13,7 +13,8 @@ export default {
       transitionDuration: {
         fast: '100ms',
         normal: '150ms',
-        slow: '200ms'
+        slow: '200ms',
+        page: 'var(--anim-page-duration)'
       }
     }
   },
