@@ -248,9 +248,9 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
           cursor: 'pointer',
         }}
       >
-        {/* Row 1: name + primary badge + chevron */}
+        {/* Row 1: name + primary badge + metadata + chevron */}
         <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold flex-1" style={{ color: 'var(--color-text-primary)' }}>
+          <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--color-text-primary)' }}>
             {monitor.name}
           </p>
           {monitor.is_primary && (
@@ -261,6 +261,13 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
               Primary
             </span>
           )}
+          <span className="text-xs flex-1 text-right" style={{ color: 'var(--color-text-secondary)' }}>
+            {[
+              `Monitor ${monitor.monitor_id}`,
+              monitor.vcp_version ? `VCP ${monitor.vcp_version}` : null,
+              monitor.usage_time_hours !== null ? `${monitor.usage_time_hours.toLocaleString()} hrs` : null,
+            ].filter(Boolean).join(' · ')}
+          </span>
           <span className="shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
             <ChevronIcon open={expanded} />
           </span>
