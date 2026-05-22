@@ -35,7 +35,7 @@ function GridRow({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-1">
-      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+      <span className="card-field-label">
         {label}
       </span>
       {children}
@@ -200,15 +200,10 @@ export function AudioOptionsPanel({ state, expandByDefault = false }: { state: A
   }
 
   return (
-    <div
-      className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
-    >
+    <div className="card">
       <div className="flex items-center gap-2 mb-3">
         <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}><MicIcon /></span>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-          Audio Options
-        </span>
+        <span className="card-title">Audio Options</span>
       </div>
       <div className="flex flex-col gap-3">
         <GridRow label="ANC">

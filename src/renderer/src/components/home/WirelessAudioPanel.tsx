@@ -43,7 +43,7 @@ function GridRow({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-1">
-      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+      <span className="card-field-label">
         {label}
       </span>
       {children}
@@ -97,15 +97,10 @@ export function WirelessAudioPanel({ state }: { state: ArctisState }): JSX.Eleme
   }
 
   return (
-    <div
-      className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
-    >
+    <div className="card">
       <div className="flex items-center gap-2 mb-3">
         <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}><WirelessIcon /></span>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-          Wireless & Audio Output
-        </span>
+        <span className="card-title">Wireless & Audio Output</span>
       </div>
       <div className="flex flex-col gap-3">
         <GridRow label="2.4 GHz Mode">

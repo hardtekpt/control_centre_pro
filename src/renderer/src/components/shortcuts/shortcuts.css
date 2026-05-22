@@ -83,8 +83,9 @@
 /* ── Field label above controls ───────────────────────────────────────────── */
 
 .field-label {
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: var(--card-field-label-size);
+  font-weight: var(--card-field-label-weight);
+  letter-spacing: var(--card-field-label-tracking);
   text-transform: uppercase;
   color: var(--color-text-secondary);
   margin-bottom: 5px;

@@ -230,12 +230,7 @@ function ChannelRow({
   return (
     <div className="flex items-center gap-3 py-1">
       <div className="flex items-center gap-1 shrink-0" style={{ minWidth: '60px' }}>
-        <span
-          className="text-xs"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          {label}
-        </span>
+        <span className="card-row-label">{label}</span>
         {hasActiveApps && (
           <div
             title="Active routed app"
@@ -345,14 +340,8 @@ export function CompactSonarCard(): JSX.Element {
           <span style={{ color: 'var(--color-accent)' }}><SonarIcon /></span>
           <button
             onClick={() => setView('gg-sonar')}
-            className="text-sm font-medium"
-            style={{
-              color: 'var(--color-text-primary)',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-            }}
+            className="card-title"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
           >
             GG Sonar
           </button>
@@ -398,8 +387,7 @@ export function CompactSonarCard(): JSX.Element {
 
   return (
     <div
-      className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      className="card card-surface"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -407,14 +395,8 @@ export function CompactSonarCard(): JSX.Element {
           <span style={{ color: 'var(--color-accent)' }}><SonarIcon /></span>
           <button
             onClick={() => setView('gg-sonar')}
-            className="text-sm font-medium"
-            style={{
-              color: 'var(--color-text-primary)',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-            }}
+            className="card-title"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
           >
             GG Sonar
           </button>
@@ -429,7 +411,7 @@ export function CompactSonarCard(): JSX.Element {
             }}
           />
         </div>
-        <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+        <span className="card-row-label">
           {sonarState.mode === 'streamer' ? 'Streamer' : 'Classic'}
         </span>
       </div>

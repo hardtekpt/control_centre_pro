@@ -48,7 +48,7 @@ function ControlRow({
 }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', minWidth: '50px' }}>
+      <span className="card-row-label shrink-0" style={{ minWidth: '50px' }}>
         {label}
       </span>
       <div className="flex-1">{children}</div>
@@ -342,14 +342,8 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
           <span style={{ color: 'var(--color-accent)' }}><HeadphonesIcon /></span>
           <button
             onClick={() => setView('arctis')}
-            className="text-sm font-medium"
-            style={{
-              color: 'var(--color-text-primary)',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-            }}
+            className="card-title"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
           >
             Arctis NPW
           </button>
@@ -360,8 +354,7 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
 
   return (
     <div
-      className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      className="card card-surface"
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
@@ -371,14 +364,8 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
           </span>
           <button
             onClick={() => setView('arctis')}
-            className="text-sm font-medium"
-            style={{
-              color: 'var(--color-text-primary)',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-            }}
+            className="card-title"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
           >
             Arctis NPW
           </button>
@@ -421,14 +408,13 @@ export function CompactHeadsetCard({ state }: { state: ArctisState }): JSX.Eleme
         <div className="flex items-center gap-3">
           <button
             onClick={() => cmd('setChatmixEnabled', !state.chatmixEnabled, { chatmixEnabled: !state.chatmixEnabled })}
-            className="text-xs shrink-0 text-left"
+            className="card-row-label shrink-0 text-left"
             style={{
               textDecoration: state.chatmixEnabled ? 'none' : 'line-through',
               background: 'none',
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              color: 'var(--color-text-secondary)',
               minWidth: '50px',
             }}
           >

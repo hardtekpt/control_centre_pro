@@ -51,9 +51,7 @@ function Section({
     <div>
       <div className="flex items-center gap-2 mb-2.5">
         {icon && <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}>{icon}</span>}
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-          {title}
-        </span>
+        <span className="card-title">{title}</span>
       </div>
       <div className="flex flex-col gap-2.5">{children}</div>
     </div>
@@ -69,7 +67,7 @@ function ControlRow({
 }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <span className="mono shrink-0 w-32" style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+      <span className="card-row-label shrink-0 w-32">
         {label}
       </span>
       <div className="flex-1">{children}</div>
@@ -159,10 +157,7 @@ export function BaseStationPanel({ state, expandByDefault = false }: { state: Ar
   }
 
   return (
-    <div
-      className="rounded-lg px-4 py-3 flex flex-col"
-      style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
-    >
+    <div className="card">
       <Section
         title="Base Station"
         icon={<BaseStationIcon />}

@@ -75,6 +75,22 @@
   --shadow-panel:             0 8px 24px rgba(0, 0, 0, 0.18);
   --shadow-dialog:            0 20px 25px -5px rgba(0, 0, 0, 0.10);
   --shadow-dropdown:          0 10px 28px rgba(0, 0, 0, 0.10), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+
+  /* ── Card component tokens ──────────────────────────────────────────────── */
+  --card-bg:                    transparent;
+  --card-bg-surface:            var(--color-surface);
+  --card-border-color:          var(--color-border);
+  --card-radius:                8px;
+  --card-padding-x:             16px;
+  --card-padding-y:             12px;
+
+  /* Card typography */
+  --card-title-size:            13px;
+  --card-title-weight:          500;
+  --card-field-label-size:      10px;
+  --card-field-label-weight:    600;
+  --card-field-label-tracking:  0.08em;
+  --card-row-label-size:        11px;
 }
 
 [data-theme="dark"] {
@@ -149,6 +165,47 @@ body {
 .mono {
   font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
   font-size: 13px;
+}
+
+/* ── Card components ──────────────────────────────────────────────────────── */
+
+/* Base card container — transparent background, used on feature-detail pages */
+.card {
+  border-radius: var(--card-radius);
+  padding: var(--card-padding-y) var(--card-padding-x);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Surface-background variant — used on home page summary cards */
+.card-surface {
+  background: var(--card-bg-surface);
+}
+
+/* Section / panel header inside a card */
+.card-title {
+  font-size: var(--card-title-size);
+  font-weight: var(--card-title-weight);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+/* Label above a stacked control (uppercase, spaced) */
+.card-field-label {
+  font-size: var(--card-field-label-size);
+  font-weight: var(--card-field-label-weight);
+  letter-spacing: var(--card-field-label-tracking);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* Inline label beside a control (monospace) */
+.card-row-label {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: var(--card-row-label-size);
+  color: var(--color-text-secondary);
 }
 
 /* ── Floating sidebar peek animation ─────────────────────────────────────── */
