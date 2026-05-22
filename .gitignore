@@ -5,3 +5,9 @@ dist
 *.log
 .env
 .env.*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Claude Code settings
+.claude/settings.local.json
