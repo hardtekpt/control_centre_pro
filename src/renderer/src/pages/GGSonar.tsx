@@ -87,9 +87,10 @@ function ExternalLinkIcon(): JSX.Element {
 // ─── GGSonar page ─────────────────────────────────────────────────────────────
 
 export function GGSonar(): JSX.Element {
-  const sonarState    = useSonarStore((s) => s.sonarState)
-  const setSonarState = useSonarStore((s) => s.setSonarState)
-  const presetChips   = useSonarStore((s) => s.presetChips)
+  const sonarState      = useSonarStore((s) => s.sonarState)
+  const setSonarState   = useSonarStore((s) => s.setSonarState)
+  const presetChips     = useSonarStore((s) => s.presetChips)
+  const activePresetIds = useSonarStore((s) => s.activePresetIds)
   const setActivePreset = useSonarStore((s) => s.setActivePreset)
   const { setView, setSettingsTab } = useAppStore()
 
@@ -101,18 +102,27 @@ export function GGSonar(): JSX.Element {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
   }, [setSonarState])
 
-  // Chips whose specific (channel, configName) config is currently selected in the API
+  // Chips whose config is currently active — driven by activePresetIds which is
+  // updated optimistically on click (no poll delay) and synced from API state.
   const activeUids = useMemo((): Set<string> => {
     const configs = sonarState?.configs ?? []
     const result = new Set<string>()
     for (const chip of presetChips) {
-      const config = configs.find(
-        (c) => c.virtualAudioDevice === chip.virtualAudioDevice && c.name === chip.configName
-      )
-      if (config?.isSelected) result.add(chip.uid)
+      const activeConfigId = activePresetIds[chip.virtualAudioDevice]
+      if (activeConfigId) {
+        // Optimistic path: compare config ID → name to chip's stored configName
+        const config = configs.find((c) => c.id === activeConfigId)
+        if (config?.name === chip.configName) result.add(chip.uid)
+      } else {
+        // Fallback (initial load before first selection): use API isSelected flag
+        const config = configs.find(
+          (c) => c.virtualAudioDevice === chip.virtualAudioDevice && c.name === chip.configName
+        )
+        if (config?.isSelected) result.add(chip.uid)
+      }
     }
     return result
-  }, [sonarState, presetChips])
+  }, [sonarState, presetChips, activePresetIds])
 
   // Chips that match the auto-preset monitor's current matched config
   const autoUids = useMemo((): Set<string> => {
