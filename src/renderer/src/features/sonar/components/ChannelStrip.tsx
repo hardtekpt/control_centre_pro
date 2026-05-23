@@ -108,6 +108,7 @@ function ChannelStripComponent({
             <AppChip
               key={s.id}
               session={s}
+              sourceRole={channel}
               size="sm"
               draggable
               onDragStart={() => {}}

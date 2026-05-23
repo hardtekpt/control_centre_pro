@@ -4,6 +4,7 @@ import type { SonarAudioSession } from '@shared/types'
 
 export interface AppChipProps {
   session: SonarAudioSession
+  sourceRole?: string
   size?: 'sm' | 'md'
   draggable?: boolean
   isDragging?: boolean
@@ -14,6 +15,7 @@ export interface AppChipProps {
 
 function AppChipComponent({
   session,
+  sourceRole,
   size = 'sm',
   draggable = true,
   isDragging,
@@ -33,7 +35,7 @@ function AppChipComponent({
         e.stopPropagation()
         e.dataTransfer.setData(
           'application/sonar-session',
-          JSON.stringify({ processId: session.processId, sourceRole: '' }),
+          JSON.stringify({ processId: session.processId, sourceRole: sourceRole || '' }),
         )
         e.dataTransfer.effectAllowed = 'move'
         onDragStart?.(session)
