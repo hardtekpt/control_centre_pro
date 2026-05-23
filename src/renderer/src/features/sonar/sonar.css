@@ -418,6 +418,52 @@
 
 .sn-dd-check { color: var(--color-accent); flex-shrink: 0; }
 
+/* ── Preset selector ─────────────────────────────────────────────────────── */
+
+.sn-preset-sel {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+}
+
+.sn-preset-sel-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px 5px 5px;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  cursor: pointer;
+  font-size: 10.5px;
+  color: var(--color-text-primary);
+  transition: border-color 0.12s, background 0.12s;
+  text-align: left;
+}
+[data-theme="dark"] .sn-preset-sel-btn { background: rgba(0,0,0,0.25); }
+.sn-preset-sel-btn:hover { border-color: var(--color-border-strong); }
+.sn-preset-sel-btn.open {
+  border-color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+}
+
+.sn-preset-sel-ic {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.sn-preset-sel-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
 /* ── Vertical fader ──────────────────────────────────────────────────────── */
 
 .sn-fader-wrap {

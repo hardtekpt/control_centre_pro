@@ -73,6 +73,8 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
   const patchClassicVolume = useSonarStore((s) => s.patchClassicVolume)
   const patchRedirection   = useSonarStore((s) => s.patchRedirection)
   const patchRouting       = useSonarStore((s) => s.patchRouting)
+  const activePresetIds    = useSonarStore((s) => s.activePresetIds)
+  const setActivePreset    = useSonarStore((s) => s.setActivePreset)
 
   // Group sessions by role
   const sessionsByRole = useMemo(() => {
@@ -125,6 +127,11 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
     window.api.sonarSetRedirection(channel as SonarDeviceChannel, deviceId).catch(console.error)
   }, [patchRedirection, sonarState.audioDevices])
 
+  const handlePresetSelect = useCallback((channel: SonarChannel, configId: string): void => {
+    setActivePreset(channel, configId)
+    window.api.sonarSelectPreset(configId).catch(console.error)
+  }, [setActivePreset])
+
   const dropHandlersRef = useRef<Record<string, (pid: number) => void>>({})
   useEffect(() => {
     for (const { channel } of CHANNEL_DEFS) {
@@ -155,10 +162,13 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
               routedSessions={sessionsByRole[channel] ?? []}
               audioDevices={sonarState.audioDevices}
               currentDevice={sonarState.redirections[channel]}
+              configs={sonarState.configs}
+              activePresetId={activePresetIds[channel]}
               onVolume={handleVolume}
               onMute={handleMute}
               onDeviceSelect={handleDeviceSelect}
               onProcessDrop={dropHandlersRef.current[channel] ?? (() => {})}
+              onPresetSelect={handlePresetSelect}
             />
           )
         })}
@@ -171,9 +181,12 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
           peak={0}
           audioDevices={sonarState.audioDevices}
           currentDevice={sonarState.redirections['master']}
+          configs={sonarState.configs}
+          activePresetId={activePresetIds['master']}
           onVolume={handleVolume}
           onMute={handleMute}
           onDeviceSelect={handleDeviceSelect}
+          onPresetSelect={handlePresetSelect}
         />
       </div>
     </div>

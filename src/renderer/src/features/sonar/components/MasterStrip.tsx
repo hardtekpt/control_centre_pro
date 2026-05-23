@@ -1,8 +1,9 @@
 import { useCallback, memo } from 'react'
-import type { SonarChannel, SonarAudioDevice } from '@shared/types'
+import type { SonarChannel, SonarAudioDevice, SonarConfig } from '@shared/types'
 import { VerticalFader } from './VerticalFader'
 import { LevelMeter } from './LevelMeter'
 import { OutputDropdown } from './OutputDropdown'
+import { PresetSelector } from './PresetSelector'
 import { dbFor } from '../data/catalogues'
 import { useSonarStore } from '../../../stores/sonarStore'
 
@@ -24,9 +25,12 @@ export interface MasterStripProps {
   peak: number
   audioDevices: SonarAudioDevice[]
   currentDevice?: SonarAudioDevice
+  configs: SonarConfig[]
+  activePresetId?: string
   onVolume: (channel: SonarChannel, v: number) => void
   onMute: (channel: SonarChannel) => void
   onDeviceSelect: (channel: SonarChannel, deviceId: string) => void
+  onPresetSelect: (channel: SonarChannel, configId: string) => void
 }
 
 function MasterStripComponent({
@@ -35,9 +39,12 @@ function MasterStripComponent({
   peak,
   audioDevices,
   currentDevice,
+  configs,
+  activePresetId,
   onVolume,
   onMute,
   onDeviceSelect,
+  onPresetSelect,
 }: MasterStripProps): JSX.Element {
   const beginDrag = useSonarStore((s) => s.beginDrag)
   const endDrag   = useSonarStore((s) => s.endDrag)
@@ -93,6 +100,14 @@ function MasterStripComponent({
           M
         </button>
       </div>
+
+      {/* Preset selector */}
+      <PresetSelector
+        configs={configs}
+        activePresetId={activePresetId}
+        channel="master"
+        onSelect={onPresetSelect}
+      />
 
       {/* Output */}
       <OutputDropdown

@@ -1,9 +1,10 @@
 import { useState, useCallback, memo } from 'react'
-import type { SonarChannel, SonarAudioSession, SonarAudioDevice } from '@shared/types'
+import type { SonarChannel, SonarAudioSession, SonarAudioDevice, SonarConfig } from '@shared/types'
 import { VerticalFader } from './VerticalFader'
 import { LevelMeter } from './LevelMeter'
 import { AppChip } from './AppChip'
 import { OutputDropdown } from './OutputDropdown'
+import { PresetSelector } from './PresetSelector'
 import { dbFor } from '../data/catalogues'
 import { useSonarStore } from '../../../stores/sonarStore'
 
@@ -19,10 +20,13 @@ export interface ChannelStripProps {
   routedSessions: SonarAudioSession[]
   audioDevices: SonarAudioDevice[]
   currentDevice?: SonarAudioDevice
+  configs: SonarConfig[]
+  activePresetId?: string
   onVolume: (channel: SonarChannel, v: number) => void
   onMute: (channel: SonarChannel) => void
   onDeviceSelect: (channel: SonarChannel, deviceId: string) => void
   onProcessDrop: (processId: number) => void
+  onPresetSelect: (channel: SonarChannel, configId: string) => void
 }
 
 function ChannelStripComponent({
@@ -35,10 +39,13 @@ function ChannelStripComponent({
   routedSessions,
   audioDevices,
   currentDevice,
+  configs,
+  activePresetId,
   onVolume,
   onMute,
   onDeviceSelect,
   onProcessDrop,
+  onPresetSelect,
 }: ChannelStripProps): JSX.Element {
   const isMic = channel === 'chatCapture'
   const [isDragOver, setIsDragOver] = useState(false)
@@ -155,6 +162,16 @@ function ChannelStripComponent({
         </button>
         <button className="sn-solo-btn" title="Solo">S</button>
       </div>
+
+      {/* Preset selector */}
+      {!isMic && (
+        <PresetSelector
+          configs={configs}
+          activePresetId={activePresetId}
+          channel={channel}
+          onSelect={onPresetSelect}
+        />
+      )}
 
       {/* Output */}
       <OutputDropdown
