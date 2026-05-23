@@ -14,7 +14,7 @@ export interface ChannelStripProps {
   /** 0-1 */
   volume: number
   muted: boolean
-  /** Simulated peak 0-100 */
+  /** Peak level 0-100 (0 = no data yet) */
   peak: number
   routedSessions: SonarAudioSession[]
   audioDevices: SonarAudioDevice[]

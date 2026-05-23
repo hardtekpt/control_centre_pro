@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
+import { useMemo, useCallback, useEffect, useRef } from 'react'
 import { useSonarStore } from '../../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { MasterStrip } from './MasterStrip'
@@ -62,24 +62,6 @@ const CHANNEL_DEFS: ChannelDef[] = [
   { channel: 'chatCapture', label: 'Mic',   icon: <MicIcon /> },
 ]
 
-// ── Peak simulation ───────────────────────────────────────────────────────────
-
-type PeakMap = Record<string, number>
-
-function initPeaks(sonarState: SonarState): PeakMap {
-  const peaks: PeakMap = {}
-  const classic = sonarState.classic
-  for (const def of CHANNEL_DEFS) {
-    const vol =
-      def.channel === 'master'
-        ? (classic?.masters.classic.volume ?? 0.7)
-        : (classic?.devices[def.channel as SonarDeviceChannel]?.classic.volume ?? 0.7)
-    peaks[def.channel] = Math.round(vol * 80)
-  }
-  peaks['master'] = Math.round((classic?.masters.classic.volume ?? 0.8) * 80)
-  return peaks
-}
-
 // ── ChannelMixer ──────────────────────────────────────────────────────────────
 
 interface ChannelMixerProps {
@@ -91,48 +73,6 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
   const patchClassicVolume = useSonarStore((s) => s.patchClassicVolume)
   const patchRedirection   = useSonarStore((s) => s.patchRedirection)
   const patchRouting       = useSonarStore((s) => s.patchRouting)
-
-  // Simulated peak meters — driven by a 100ms interval
-  const [peaks, setPeaks] = useState<PeakMap>(() => initPeaks(sonarState))
-  const volumesRef = useRef<Record<string, number>>({})
-
-  // Keep a ref of current volumes so the interval closure doesn't stale
-  useEffect(() => {
-    const classic = sonarState.classic
-    for (const def of CHANNEL_DEFS) {
-      volumesRef.current[def.channel] =
-        def.channel === 'chatCapture'
-          ? (classic?.devices.chatCapture?.classic.volume ?? 0)
-          : def.channel === 'chatRender'
-            ? (classic?.devices.chatRender?.classic.volume ?? 0)
-            : def.channel === 'game'
-              ? (classic?.devices.game?.classic.volume ?? 0)
-              : def.channel === 'media'
-                ? (classic?.devices.media?.classic.volume ?? 0)
-                : def.channel === 'aux'
-                  ? (classic?.devices.aux?.classic.volume ?? 0)
-                  : (classic?.masters.classic.volume ?? 0)
-    }
-    volumesRef.current['master'] = classic?.masters.classic.volume ?? 0
-  }, [sonarState])
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPeaks((prev) => {
-        const next = { ...prev }
-        const allChannels = [...CHANNEL_DEFS.map((d) => d.channel), 'master' as SonarChannel]
-        for (const ch of allChannels) {
-          const vol = volumesRef.current[ch] ?? 0
-          const base = vol * 85
-          const jitter = (Math.random() - 0.45) * 18
-          const target = Math.max(4, Math.min(100, base + jitter))
-          next[ch] = (prev[ch] ?? 0) + (target - (prev[ch] ?? 0)) * 0.35
-        }
-        return next
-      })
-    }, 100)
-    return () => clearInterval(id)
-  }, [])
 
   // Group sessions by role
   const sessionsByRole = useMemo(() => {
@@ -211,7 +151,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
               icon={icon}
               volume={vol.volume}
               muted={vol.muted}
-              peak={peaks[channel] ?? 0}
+              peak={0}
               routedSessions={sessionsByRole[channel] ?? []}
               audioDevices={sonarState.audioDevices}
               currentDevice={sonarState.redirections[channel]}
@@ -228,7 +168,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
         <MasterStrip
           volume={masterVol.volume}
           muted={masterVol.muted}
-          peak={peaks['master'] ?? 0}
+          peak={0}
           audioDevices={sonarState.audioDevices}
           currentDevice={sonarState.redirections['master']}
           onVolume={handleVolume}
