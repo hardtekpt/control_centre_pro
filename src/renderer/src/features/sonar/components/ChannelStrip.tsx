@@ -58,6 +58,10 @@ function ChannelStripComponent({
     (v: number) => onVolume(channel, v / 100),
     [channel, onVolume],
   )
+  const handleVolumeDrag = useCallback(
+    (v: number) => window.api.sonarSetVolume(channel, v / 100).catch(console.error),
+    [channel],
+  )
   const handleMute = useCallback(() => onMute(channel), [channel, onMute])
   const beginDrag = useSonarStore((s) => s.beginDrag)
   const endDrag   = useSonarStore((s) => s.endDrag)
@@ -141,6 +145,7 @@ function ChannelStripComponent({
         <VerticalFader
           value={level}
           onChange={handleVolume}
+          onDragChange={handleVolumeDrag}
           muted={muted}
           height={200}
           onDragStart={beginDrag}

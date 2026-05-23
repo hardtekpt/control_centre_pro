@@ -50,6 +50,10 @@ function MasterStripComponent({
   const endDrag   = useSonarStore((s) => s.endDrag)
 
   const handleVolume = useCallback((v: number) => onVolume('master', v / 100), [onVolume])
+  const handleVolumeDrag = useCallback(
+    (v: number) => window.api.sonarSetVolume('master', v / 100).catch(console.error),
+    [],
+  )
   const handleMute   = useCallback(() => onMute('master'), [onMute])
 
   const level = Math.round(volume * 100)
@@ -75,6 +79,7 @@ function MasterStripComponent({
         <VerticalFader
           value={level}
           onChange={handleVolume}
+          onDragChange={handleVolumeDrag}
           muted={muted}
           height={200}
           onDragStart={beginDrag}

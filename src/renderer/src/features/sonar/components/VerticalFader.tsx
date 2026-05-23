@@ -4,6 +4,8 @@ export interface VerticalFaderProps {
   /** 0-100 */
   value: number
   onChange: (v: number) => void
+  /** Called on every drag frame — use for real-time API calls without store updates */
+  onDragChange?: (v: number) => void
   muted?: boolean
   /** Track height in px, default 200 */
   height?: number
@@ -23,6 +25,7 @@ const TICKS = [
 function VerticalFaderComponent({
   value,
   onChange,
+  onDragChange,
   muted,
   height = 200,
   onDragStart,
@@ -30,6 +33,7 @@ function VerticalFaderComponent({
 }: VerticalFaderProps): JSX.Element {
   const trackRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [localValue, setLocalValue] = useState<number | null>(null)
 
@@ -51,14 +55,27 @@ function VerticalFaderComponent({
     onDragStart?.()
     const v = valueFromClientY(e.clientY)
     setLocalValue(v)
+    onDragChange?.(v)
 
     function onMove(ev: PointerEvent): void {
       if (!draggingRef.current) return
-      setLocalValue(valueFromClientY(ev.clientY))
+      const v2 = valueFromClientY(ev.clientY)
+      setLocalValue(v2)
+      if (onDragChange) {
+        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null
+          onDragChange(v2)
+        })
+      }
     }
     function onUp(ev: PointerEvent): void {
       draggingRef.current = false
       setIsDragging(false)
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
       const v2 = valueFromClientY(ev.clientY)
       setLocalValue(null)
       onChange(v2)
