@@ -51,13 +51,10 @@ function VerticalFaderComponent({
     onDragStart?.()
     const v = valueFromClientY(e.clientY)
     setLocalValue(v)
-    onChange(v)
 
     function onMove(ev: PointerEvent): void {
       if (!draggingRef.current) return
-      const v2 = valueFromClientY(ev.clientY)
-      setLocalValue(v2)
-      onChange(v2)
+      setLocalValue(valueFromClientY(ev.clientY))
     }
     function onUp(ev: PointerEvent): void {
       draggingRef.current = false
