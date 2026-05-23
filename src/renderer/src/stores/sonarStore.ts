@@ -7,8 +7,9 @@ import type {
 import { DEFAULT_PRESET_CHIPS, type UserPresetChip } from '../features/sonar/data/catalogues'
 
 // Module-level drag tracking — not Zustand state, so no re-renders
-let _activeDrags = 0
-let _postDragHoldTimer: ReturnType<typeof setTimeout> | null = null
+// Tracks which channels have an active fader drag; setSonarState preserves
+// their volumes from the previous state rather than overwriting with backend data.
+const _draggingChannels: Set<string> = new Set()
 
 // Pending selections — user choices held for 5 s to survive API refreshes
 let _pendingPresetSelections: Record<string, number> = {}
@@ -37,9 +38,9 @@ interface SonarStoreState {
   setActivePreset: (virtualAudioDevice: string, presetId: string) => void
   setChannelVisibility: (channel: SonarChannel, visible: boolean) => void
   setPresetChips: (chips: UserPresetChip[]) => void
-  /** Called by VerticalFader on drag start/end to suppress poll updates during interaction */
-  beginDrag: () => void
-  endDrag: () => void
+  /** Lock/unlock a channel against backend volume updates while the fader is being dragged */
+  beginDrag: (channel: string) => void
+  endDrag: (channel: string) => void
 }
 
 const DEFAULT_VISIBLE_CHANNELS: SonarChannel[] = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux']
@@ -54,8 +55,6 @@ export const useSonarStore = create<SonarStoreState>()(
 
       setSonarState: (state) =>
         set((s) => {
-          // Suppress poll updates while a slider is being dragged or briefly after
-          if (_activeDrags > 0 || _postDragHoldTimer !== null) return s
           const merged = { ...s.activePresetIds }
           const now = Date.now()
 
@@ -124,8 +123,29 @@ export const useSonarStore = create<SonarStoreState>()(
             }
           }
 
+          // Preserve classic volumes for channels currently being dragged so
+          // a background poll cannot overwrite the user's in-progress adjustment.
+          let classic = state.classic
+          if (classic && _draggingChannels.size > 0 && s.sonarState?.classic) {
+            const prev = s.sonarState.classic
+            let newMasters = classic.masters
+            const newDevices = { ...classic.devices }
+            for (const ch of _draggingChannels) {
+              if (ch === 'master') {
+                newMasters = { ...newMasters, classic: prev.masters.classic }
+              } else {
+                const prevDev = prev.devices[ch as SonarDeviceChannel]
+                const currDev = newDevices[ch as SonarDeviceChannel]
+                if (prevDev && currDev) {
+                  newDevices[ch as SonarDeviceChannel] = { ...currDev, classic: prevDev.classic }
+                }
+              }
+            }
+            classic = { ...classic, masters: newMasters, devices: newDevices }
+          }
+
           return {
-            sonarState: { ...state, redirections: mergedRedirections, routing: mergedRouting },
+            sonarState: { ...state, classic, redirections: mergedRedirections, routing: mergedRouting },
             activePresetIds: merged,
           }
         }),
@@ -222,16 +242,8 @@ export const useSonarStore = create<SonarStoreState>()(
 
       setPresetChips: (chips) => set({ presetChips: chips }),
 
-      beginDrag: () => { _activeDrags++ },
-      endDrag: () => {
-        _activeDrags = Math.max(0, _activeDrags - 1)
-        if (_activeDrags === 0) {
-          if (_postDragHoldTimer !== null) clearTimeout(_postDragHoldTimer)
-          // Hold off poll updates for 1.5 s — enough for the write to settle and
-          // the next fast poll (1 s) to fetch the confirmed value from the API
-          _postDragHoldTimer = setTimeout(() => { _postDragHoldTimer = null }, 1500)
-        }
-      },
+      beginDrag: (channel) => { _draggingChannels.add(channel) },
+      endDrag: (channel) => { _draggingChannels.delete(channel) },
     }),
     {
       name: 'sonar-store',

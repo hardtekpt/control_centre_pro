@@ -224,8 +224,8 @@ function ChannelRow({
   const pct = Math.round(volume * 100)
   const channelHasPresets = presets.filter((p) => p.isFavorite).length > 0
   const handleVolume = useCallback((v: number) => onVolume(channel, v), [channel, onVolume])
-  const handleDragStart = useCallback(() => useSonarStore.getState().beginDrag(), [])
-  const handleDragEnd = useCallback(() => useSonarStore.getState().endDrag(), [])
+  const handleDragStart = useCallback(() => useSonarStore.getState().beginDrag(channel), [channel])
+  const handleDragEnd = useCallback(() => useSonarStore.getState().endDrag(channel), [channel])
 
   return (
     <div className="flex items-center gap-3 py-1">

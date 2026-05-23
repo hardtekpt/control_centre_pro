@@ -46,8 +46,10 @@ function MasterStripComponent({
   onDeviceSelect,
   onPresetSelect,
 }: MasterStripProps): JSX.Element {
-  const beginDrag = useSonarStore((s) => s.beginDrag)
-  const endDrag   = useSonarStore((s) => s.endDrag)
+  const _beginDrag = useSonarStore((s) => s.beginDrag)
+  const _endDrag   = useSonarStore((s) => s.endDrag)
+  const beginDrag  = useCallback(() => _beginDrag('master'), [_beginDrag])
+  const endDrag    = useCallback(() => _endDrag('master'), [_endDrag])
 
   const handleVolume = useCallback((v: number) => onVolume('master', v / 100), [onVolume])
   const handleVolumeDrag = useCallback(

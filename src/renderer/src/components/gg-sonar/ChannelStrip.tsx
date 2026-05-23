@@ -9,12 +9,14 @@ interface VerticalFaderProps {
   value: number
   onChange: (v: number) => void
   disabled?: boolean
+  channel?: string
 }
 
 function VerticalFaderComponent({
   value,
   onChange,
   disabled,
+  channel = 'unknown',
 }: VerticalFaderProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
@@ -52,7 +54,7 @@ function VerticalFaderComponent({
     if (disabled) return
     e.preventDefault()
     dragging.current = true
-    useSonarStore.getState().beginDrag()
+    useSonarStore.getState().beginDrag(channel)
     const newValue = valueFromClientY(e.clientY)
     dragValueRef.current = newValue
     setDragValue(newValue)
@@ -70,7 +72,7 @@ function VerticalFaderComponent({
       const finalValue = dragValueRef.current
       dragValueRef.current = null
       setDragValue(null)
-      useSonarStore.getState().endDrag()
+      useSonarStore.getState().endDrag(channel)
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
@@ -650,6 +652,7 @@ function ChannelStripComponent({
             <VerticalFader
               value={volume}
               onChange={handleVolume}
+              channel={channel}
             />
           </>
         )}

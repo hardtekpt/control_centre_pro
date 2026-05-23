@@ -63,8 +63,10 @@ function ChannelStripComponent({
     [channel],
   )
   const handleMute = useCallback(() => onMute(channel), [channel, onMute])
-  const beginDrag = useSonarStore((s) => s.beginDrag)
-  const endDrag   = useSonarStore((s) => s.endDrag)
+  const _beginDrag = useSonarStore((s) => s.beginDrag)
+  const _endDrag   = useSonarStore((s) => s.endDrag)
+  const beginDrag  = useCallback(() => _beginDrag(channel), [channel, _beginDrag])
+  const endDrag    = useCallback(() => _endDrag(channel), [channel, _endDrag])
 
   const activeSession = routedSessions.filter((s) => s.state === 'active')
   const appCount = activeSession.length
