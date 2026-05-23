@@ -28,7 +28,7 @@ function ChevronIcon({ open }: { open: boolean }): JSX.Element {
 }
 
 export function PresetSelector({ configs, activePresetId, channel, onSelect }: PresetSelectorProps): JSX.Element | null {
-  const channelConfigs = configs.filter((c) => c.virtualAudioDevice === channel)
+  const channelConfigs = configs.filter((c) => c.virtualAudioDevice === channel && c.isFavorite)
   if (channelConfigs.length === 0) return null
 
   const [open, setOpen] = useState(false)
