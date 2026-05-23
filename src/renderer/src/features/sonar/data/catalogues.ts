@@ -13,6 +13,16 @@ export const SONAR_API_PRESET_LABELS: Record<SonarApiPresetId, string> = {
   flat:   'Flat',
 }
 
+/** Map an API config name (e.g. "Music", "GAME") to the canonical SonarApiPresetId. */
+export function configNameToPresetId(name: string): SonarApiPresetId | undefined {
+  const lower = name.toLowerCase()
+  if (lower === 'music' || lower === 'game' || lower === 'studio' ||
+      lower === 'cinema' || lower === 'speech' || lower === 'flat') {
+    return lower as SonarApiPresetId
+  }
+  return undefined
+}
+
 export const SONAR_API_PRESET_DEFAULTS: Record<SonarApiPresetId, { label: string; sub: string }> = {
   music:  { label: 'Music',  sub: 'studio master'     },
   game:   { label: 'Game',   sub: 'wide · positional'  },

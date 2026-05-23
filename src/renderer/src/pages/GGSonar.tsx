@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSonarStore } from '../stores/sonarStore'
 import { useAppStore } from '../stores/appStore'
 import { MainPageHeader } from '../components/MainPageHeader'
 import { PresetChips } from '../features/sonar/components/PresetChips'
 import { ChannelMixer } from '../features/sonar/components/ChannelMixer'
 import { AutoPresetSection } from '../features/sonar/components/AutoPreset/AutoPresetSection'
+import { SONAR_API_PRESET_LABELS, configNameToPresetId } from '../features/sonar/data/catalogues'
+import type { SonarApiPresetId, UserPresetChip } from '../features/sonar/data/catalogues'
+import { notifySonarPresetChange } from '../lib/notifyFromEvent'
 
 // ─── Unavailable state ────────────────────────────────────────────────────────
 
@@ -87,13 +90,49 @@ function ExternalLinkIcon(): JSX.Element {
 export function GGSonar(): JSX.Element {
   const sonarState    = useSonarStore((s) => s.sonarState)
   const setSonarState = useSonarStore((s) => s.setSonarState)
+  const presetChips   = useSonarStore((s) => s.presetChips)
+  const setActivePreset = useSonarStore((s) => s.setActivePreset)
   const { setView, setSettingsTab } = useAppStore()
 
   const [search, setSearch] = useState('')
+  const [autoPilot, setAutoPilot] = useState(false)
+  const [autoPresetId, setAutoPresetId] = useState<SonarApiPresetId | undefined>(undefined)
 
   useEffect(() => {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
   }, [setSonarState])
+
+  // Derive the active chip uid from real API state (majority preset among selected configs)
+  const activeUid = useMemo((): string | undefined => {
+    const configs = sonarState?.configs ?? []
+    const selected = configs.filter((c) => c.isSelected && c.isPreset)
+    if (selected.length === 0) return undefined
+    const counts: Record<string, number> = {}
+    for (const c of selected) counts[c.name] = (counts[c.name] ?? 0) + 1
+    const topName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0]
+    if (!topName) return undefined
+    const presetId = configNameToPresetId(topName)
+    return presetId ? presetChips.find((c) => c.sonarPresetId === presetId)?.uid : undefined
+  }, [sonarState, presetChips])
+
+  // Callback from AutoPresetSection to keep green-dot in sync
+  const handleAutoPresetChange = useCallback((pid: SonarApiPresetId | undefined, pilot: boolean) => {
+    setAutoPilot(pilot)
+    setAutoPresetId(pid)
+  }, [])
+
+  // Apply a preset chip to all channels simultaneously
+  const handlePickChip = useCallback((chip: UserPresetChip): void => {
+    const targetName = SONAR_API_PRESET_LABELS[chip.sonarPresetId]
+    const matchingConfigs = (sonarState?.configs ?? []).filter(
+      (c) => c.name.toLowerCase() === targetName.toLowerCase()
+    )
+    for (const config of matchingConfigs) {
+      window.api.sonarSelectPreset(config.id).catch(console.error)
+      setActivePreset(config.virtualAudioDevice, config.id)
+    }
+    notifySonarPresetChange(targetName)
+  }, [sonarState, setActivePreset])
 
   function handleRetry(): void {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
@@ -170,7 +209,12 @@ export function GGSonar(): JSX.Element {
       />
 
       {/* Preset chips — sticky below header */}
-      <PresetChips />
+      <PresetChips
+        activeUid={activeUid}
+        autoPresetId={autoPresetId}
+        autoPilot={autoPilot}
+        onPick={handlePickChip}
+      />
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -184,7 +228,7 @@ export function GGSonar(): JSX.Element {
         )}
 
         {/* Auto preset section */}
-        <AutoPresetSection sonarState={sonarState} />
+        <AutoPresetSection sonarState={sonarState} onAutoPresetChange={handleAutoPresetChange} />
       </div>
     </div>
   )
