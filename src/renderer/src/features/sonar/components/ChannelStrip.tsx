@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react'
+import { useState, useCallback, useRef, memo } from 'react'
 import type { SonarChannel, SonarAudioSession, SonarAudioDevice, SonarConfig } from '@shared/types'
 import { VerticalFader } from './VerticalFader'
 import { LevelMeter } from './LevelMeter'
@@ -58,10 +58,26 @@ function ChannelStripComponent({
     (v: number) => onVolume(channel, v / 100),
     [channel, onVolume],
   )
-  const handleVolumeDrag = useCallback(
-    (v: number) => window.api.sonarSetVolume(channel, v / 100).catch(console.error),
-    [channel],
-  )
+  // Coalescing drag handler: one API call in-flight at a time.
+  // Saves the latest value and fires it when the previous call settles,
+  // so the queue never grows beyond depth 1.
+  const dragInFlightRef = useRef(false)
+  const dragPendingRef  = useRef<number | null>(null)
+  const fireDragCall    = useCallback((v: number): void => {
+    dragInFlightRef.current = true
+    dragPendingRef.current  = null
+    window.api.sonarSetVolume(channel, v / 100)
+      .catch(console.error)
+      .finally(() => {
+        dragInFlightRef.current = false
+        const next = dragPendingRef.current
+        if (next !== null) fireDragCall(next)
+      })
+  }, [channel])
+  const handleVolumeDrag = useCallback((v: number): void => {
+    dragPendingRef.current = v
+    if (!dragInFlightRef.current) fireDragCall(v)
+  }, [fireDragCall])
   const handleMute = useCallback(() => onMute(channel), [channel, onMute])
   const _beginDrag = useSonarStore((s) => s.beginDrag)
   const _endDrag   = useSonarStore((s) => s.endDrag)

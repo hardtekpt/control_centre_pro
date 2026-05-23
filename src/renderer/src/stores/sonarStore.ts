@@ -10,6 +10,9 @@ import { DEFAULT_PRESET_CHIPS, type UserPresetChip } from '../features/sonar/dat
 // Tracks which channels have an active fader drag; setSonarState preserves
 // their volumes from the previous state rather than overwriting with backend data.
 const _draggingChannels: Set<string> = new Set()
+// Per-channel timestamp (ms) until which the volume should still be preserved
+// after drag ends — gives queued API writes time to settle before polls apply.
+const _channelHoldUntil: Record<string, number> = {}
 
 // Pending selections — user choices held for 5 s to survive API refreshes
 let _pendingPresetSelections: Record<string, number> = {}
@@ -123,14 +126,19 @@ export const useSonarStore = create<SonarStoreState>()(
             }
           }
 
-          // Preserve classic volumes for channels currently being dragged so
-          // a background poll cannot overwrite the user's in-progress adjustment.
+          // Preserve classic volumes for channels that are being dragged or are
+          // within their post-drag hold window (letting queued writes settle).
           let classic = state.classic
-          if (classic && _draggingChannels.size > 0 && s.sonarState?.classic) {
+          const protectedChannels = new Set(_draggingChannels)
+          for (const [ch, until] of Object.entries(_channelHoldUntil)) {
+            if (now < until) protectedChannels.add(ch)
+            else delete _channelHoldUntil[ch]
+          }
+          if (classic && protectedChannels.size > 0 && s.sonarState?.classic) {
             const prev = s.sonarState.classic
             let newMasters = classic.masters
             const newDevices = { ...classic.devices }
-            for (const ch of _draggingChannels) {
+            for (const ch of protectedChannels) {
               if (ch === 'master') {
                 newMasters = { ...newMasters, classic: prev.masters.classic }
               } else {
@@ -243,7 +251,12 @@ export const useSonarStore = create<SonarStoreState>()(
       setPresetChips: (chips) => set({ presetChips: chips }),
 
       beginDrag: (channel) => { _draggingChannels.add(channel) },
-      endDrag: (channel) => { _draggingChannels.delete(channel) },
+      endDrag: (channel) => {
+        _draggingChannels.delete(channel)
+        // Hold off poll-driven updates for 500 ms so queued writes to the GG
+        // Sonar API drain before the next background poll can override the value.
+        _channelHoldUntil[channel] = Date.now() + 500
+      },
     }),
     {
       name: 'sonar-store',

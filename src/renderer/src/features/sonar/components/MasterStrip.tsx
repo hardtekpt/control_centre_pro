@@ -1,4 +1,4 @@
-import { useCallback, memo } from 'react'
+import { useCallback, useRef, memo } from 'react'
 import type { SonarChannel, SonarAudioDevice, SonarConfig } from '@shared/types'
 import { VerticalFader } from './VerticalFader'
 import { LevelMeter } from './LevelMeter'
@@ -52,10 +52,23 @@ function MasterStripComponent({
   const endDrag    = useCallback(() => _endDrag('master'), [_endDrag])
 
   const handleVolume = useCallback((v: number) => onVolume('master', v / 100), [onVolume])
-  const handleVolumeDrag = useCallback(
-    (v: number) => window.api.sonarSetVolume('master', v / 100).catch(console.error),
-    [],
-  )
+  const dragInFlightRef = useRef(false)
+  const dragPendingRef  = useRef<number | null>(null)
+  const fireDragCall    = useCallback((v: number): void => {
+    dragInFlightRef.current = true
+    dragPendingRef.current  = null
+    window.api.sonarSetVolume('master', v / 100)
+      .catch(console.error)
+      .finally(() => {
+        dragInFlightRef.current = false
+        const next = dragPendingRef.current
+        if (next !== null) fireDragCall(next)
+      })
+  }, [])
+  const handleVolumeDrag = useCallback((v: number): void => {
+    dragPendingRef.current = v
+    if (!dragInFlightRef.current) fireDragCall(v)
+  }, [fireDragCall])
   const handleMute   = useCallback(() => onMute('master'), [onMute])
 
   const level = Math.round(volume * 100)
