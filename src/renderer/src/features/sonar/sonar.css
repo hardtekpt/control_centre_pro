@@ -544,7 +544,7 @@
   transition: height 0.08s linear;
 }
 .sn-fader-track.dragging .sn-fader-fill,
-.sn-fader-track:focus .sn-fader-fill { background: var(--color-text-primary); }
+.sn-fader-track:focus .sn-fader-fill { background: var(--color-text-primary); transition: none; }
 .sn-fader-track.muted .sn-fader-fill { opacity: 0.4; }
 
 .sn-fader-thumb {
@@ -561,7 +561,7 @@
   transition: transform 0.08s ease-out;
 }
 [data-theme="light"] .sn-fader-thumb { background: #1a1a1a; }
-.sn-fader-track.dragging .sn-fader-thumb { transform: scale(1.04); }
+.sn-fader-track.dragging .sn-fader-thumb { transform: scale(1.04); transition: transform 0s; }
 .sn-fader-track.muted .sn-fader-thumb { opacity: 0.4; }
 
 .sn-fader-thumb-line {
