@@ -2,6 +2,7 @@ import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSonarStore } from '../../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { MasterStrip } from './MasterStrip'
+import { notifySonarPresetChange } from '../../../lib/notifyFromEvent'
 import type {
   SonarState,
   SonarChannel,
@@ -130,7 +131,9 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
   const handlePresetSelect = useCallback((channel: SonarChannel, configId: string): void => {
     setActivePreset(channel, configId)
     window.api.sonarSelectPreset(configId).catch(console.error)
-  }, [setActivePreset])
+    const preset = sonarState.configs.find((c) => c.id === configId)
+    notifySonarPresetChange(preset?.name ?? 'Preset')
+  }, [setActivePreset, sonarState.configs])
 
   // ── Solo ──────────────────────────────────────────────────────────────────
   const [soloChannels, setSoloChannels] = useState<Set<SonarChannel>>(new Set())

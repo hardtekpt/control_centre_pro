@@ -36,8 +36,10 @@ export function PresetSelector({ configs, activePresetId, channel, onSelect }: P
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ bottom: number; left: number; width: number } | null>(null)
 
+  const allChannelConfigs = configs.filter((c) => c.virtualAudioDevice === channel)
   const resolvedActiveId = activePresetId ?? channelConfigs.find((c) => c.isSelected)?.id
-  const activeConfig = channelConfigs.find((c) => c.id === resolvedActiveId)
+  // Look up active config from ALL configs (not just favorites) so the label always shows
+  const activeConfig = allChannelConfigs.find((c) => c.id === resolvedActiveId)
 
   function toggle(): void {
     if (!open && btnRef.current) {
