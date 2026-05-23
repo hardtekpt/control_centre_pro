@@ -31,6 +31,12 @@
   --color-ok:              #4a6d4c;
   --color-border-strong:   #C0C0C0;
 
+  /* Sonar mixer meter zone tokens */
+  --color-meter-norm: #c0c0c0;
+  --color-meter-hot:  #6b6b6b;
+  --color-meter-clip: #b67042;
+  --color-meter-dim:  rgba(20,20,20,0.06);
+
   /* Notification surface tokens */
   --notif-bg:     #F0F0F0;
   --notif-border: rgba(20, 20, 20, 0.10);
@@ -132,6 +138,12 @@
   /* Plugin status tokens */
   --color-ok:              #8baa7b;
   --color-border-strong:   #555555;
+
+  /* Sonar mixer meter zone tokens */
+  --color-meter-norm: #6e6e6e;
+  --color-meter-hot:  #cfcfcf;
+  --color-meter-clip: #d49a64;
+  --color-meter-dim:  rgba(255,255,255,0.05);
 
   /* Notification surface tokens */
   --notif-bg:     #282828;
