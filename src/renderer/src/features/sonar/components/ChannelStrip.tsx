@@ -100,7 +100,7 @@ function ChannelStripComponent({
       </div>
 
       {/* App zone */}
-      <div className={`sn-app-zone${isDragOver ? ' drop-over' : ''}${appCount === 0 && !isMic ? ' empty' : ''}`}>
+      <div className={`sn-app-zone${isMic ? ' mic-zone' : ''}${isDragOver ? ' drop-over' : ''}${appCount === 0 && !isMic ? ' empty' : ''}`}>
         {isMic ? (
           <span className="sn-mic-tag">ARCTIS · MIC IN</span>
         ) : appCount > 0 ? (

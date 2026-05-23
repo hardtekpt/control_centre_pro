@@ -10,7 +10,6 @@ export interface LevelMeterProps {
 
 function LevelMeterComponent({ peak, muted, segments = 18, height = 200 }: LevelMeterProps): JSX.Element {
   const active = muted ? 0 : Math.round(Math.sqrt(Math.max(0, peak) / 100) * segments)
-  const cellH = Math.floor((height - (segments - 1) * 1.5) / segments)
 
   const cells: JSX.Element[] = []
   for (let i = 0; i < segments; i++) {
@@ -23,7 +22,6 @@ function LevelMeterComponent({ peak, muted, segments = 18, height = 200 }: Level
       <div
         key={i}
         className={`sn-m-cell ${zone}${isActive ? ' on' : ''}`}
-        style={{ height: cellH }}
       />,
     )
   }

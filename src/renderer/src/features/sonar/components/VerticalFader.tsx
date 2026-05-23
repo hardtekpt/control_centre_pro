@@ -12,12 +12,12 @@ export interface VerticalFaderProps {
 }
 
 const TICKS = [
-  { pct: 0,   label: '0',   bold: true },
-  { pct: 15,  label: '-6'  },
-  { pct: 30,  label: '-12' },
-  { pct: 50,  label: '-20' },
-  { pct: 75,  label: '-40' },
-  { pct: 100, label: '-∞', bold: true },
+  { pct: 0,   label: '0',   bold: true  },
+  { pct: 15,  label: '-6',  bold: false },
+  { pct: 30,  label: '-12', bold: false },
+  { pct: 50,  label: '-20', bold: false },
+  { pct: 75,  label: '-40', bold: false },
+  { pct: 100, label: '-∞', bold: true  },
 ]
 
 function VerticalFaderComponent({
@@ -88,14 +88,16 @@ function VerticalFaderComponent({
 
   return (
     <div className="sn-fader-wrap" style={{ height }}>
-      {/* Tick marks */}
+      {/* Tick marks — each absolutely positioned at its dB percentage */}
       <div className="sn-fader-ticks">
         {TICKS.map((t) => (
-          <div key={t.pct} className="sn-tick">
+          <div
+            key={t.pct}
+            className={`sn-tick${t.bold ? ' bold' : ''}`}
+            style={{ top: `${t.pct}%` }}
+          >
             <span className="sn-tick-line" />
-            <span className="sn-tick-num" style={{ fontWeight: t.bold ? 500 : 400 }}>
-              {t.label}
-            </span>
+            <span className="sn-tick-num">{t.label}</span>
           </div>
         ))}
       </div>

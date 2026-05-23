@@ -59,7 +59,7 @@ function MasterStripComponent({
       </div>
 
       {/* App zone — static tag */}
-      <div className="sn-app-zone">
+      <div className="sn-app-zone master-zone">
         <span className="sn-master-tag">SUM OF ALL CHANNELS</span>
       </div>
 

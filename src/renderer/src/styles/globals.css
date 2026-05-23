@@ -29,7 +29,7 @@
 
   /* Plugin status tokens */
   --color-ok:              #4a6d4c;
-  --color-border-strong:   #C0C0C0;
+  --color-border-strong:   #C8C8C8;
 
   /* Sonar mixer meter zone tokens */
   --color-meter-norm: #c0c0c0;
@@ -137,7 +137,7 @@
 
   /* Plugin status tokens */
   --color-ok:              #8baa7b;
-  --color-border-strong:   #555555;
+  --color-border-strong:   #454545;
 
   /* Sonar mixer meter zone tokens */
   --color-meter-norm: #6e6e6e;
