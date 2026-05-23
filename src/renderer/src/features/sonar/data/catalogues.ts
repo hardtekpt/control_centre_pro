@@ -1,18 +1,48 @@
-export type StaticPresetId = 'music' | 'game' | 'studio' | 'cinema' | 'speech' | 'flat'
+export type SonarApiPresetId = 'music' | 'game' | 'studio' | 'cinema' | 'speech' | 'flat'
 
-export interface StaticPreset {
-  id: StaticPresetId
-  label: string
-  sub: string
+// Backward-compat alias — older code may import this name
+export type StaticPresetId = SonarApiPresetId
+
+// Human-readable labels for the 6 built-in GG Sonar API presets
+export const SONAR_API_PRESET_LABELS: Record<SonarApiPresetId, string> = {
+  music:  'Music',
+  game:   'Game',
+  studio: 'Studio',
+  cinema: 'Cinema',
+  speech: 'Speech',
+  flat:   'Flat',
 }
 
-export const STATIC_PRESETS: StaticPreset[] = [
-  { id: 'music',  label: 'Music',  sub: 'studio master' },
-  { id: 'game',   label: 'Game',   sub: 'wide · positional' },
-  { id: 'studio', label: 'Studio', sub: 'flat reference' },
-  { id: 'cinema', label: 'Cinema', sub: 'film · spatial' },
-  { id: 'speech', label: 'Speech', sub: 'voice clarity' },
-  { id: 'flat',   label: 'Flat',   sub: 'bypass' },
+export const SONAR_API_PRESET_DEFAULTS: Record<SonarApiPresetId, { label: string; sub: string }> = {
+  music:  { label: 'Music',  sub: 'studio master'     },
+  game:   { label: 'Game',   sub: 'wide · positional'  },
+  studio: { label: 'Studio', sub: 'flat reference'    },
+  cinema: { label: 'Cinema', sub: 'film · spatial'    },
+  speech: { label: 'Speech', sub: 'voice clarity'     },
+  flat:   { label: 'Flat',   sub: 'bypass'            },
+}
+
+/** A chip in the preset chips row — fully user-configured */
+export interface UserPresetChip {
+  /** Stable unique key */
+  uid: string
+  /** Which GG Sonar API preset this chip selects */
+  sonarPresetId: SonarApiPresetId
+  /** Display label shown on the chip */
+  label: string
+  /** Sub-label shown below the label */
+  sub: string
+  /** Which icon to display (can differ from sonarPresetId) */
+  iconKey: SonarApiPresetId
+}
+
+export const DEFAULT_PRESET_CHIPS: UserPresetChip[] = [
+  { uid: 'default-music',  sonarPresetId: 'music',  label: 'Music',  sub: 'studio master',     iconKey: 'music'  },
+  { uid: 'default-game',   sonarPresetId: 'game',   label: 'Game',   sub: 'wide · positional',  iconKey: 'game'   },
+  { uid: 'default-studio', sonarPresetId: 'studio', label: 'Studio', sub: 'flat reference',    iconKey: 'studio' },
+  { uid: 'default-cinema', sonarPresetId: 'cinema', label: 'Cinema', sub: 'film · spatial',    iconKey: 'cinema' },
+  { uid: 'default-speech', sonarPresetId: 'speech', label: 'Speech', sub: 'voice clarity',     iconKey: 'speech' },
+  { uid: 'default-flat',   sonarPresetId: 'flat',   label: 'Flat',   sub: 'bypass',            iconKey: 'flat'   },
 ]
 
 export const CHANNEL_LABELS: Record<string, string> = {

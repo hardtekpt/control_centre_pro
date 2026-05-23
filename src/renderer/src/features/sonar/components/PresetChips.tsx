@@ -1,8 +1,8 @@
 import { useSonarStore } from '../../../stores/sonarStore'
-import { STATIC_PRESETS, type StaticPresetId } from '../data/catalogues'
+import type { SonarApiPresetId, UserPresetChip } from '../data/catalogues'
 import '../sonar.css'
 
-// ── Preset icons (14 px, same glyphs as reference gg-sonar-icons.jsx) ───────
+// ── Preset icons (14 px) ──────────────────────────────────────────────────────
 
 function IconMusic(): JSX.Element {
   return (
@@ -62,7 +62,7 @@ function IconFlat(): JSX.Element {
   )
 }
 
-const PRESET_ICONS: Record<StaticPresetId, () => JSX.Element> = {
+export const PRESET_ICONS: Record<SonarApiPresetId, () => JSX.Element> = {
   music:  IconMusic,
   game:   IconGame,
   studio: IconStudio,
@@ -74,37 +74,35 @@ const PRESET_ICONS: Record<StaticPresetId, () => JSX.Element> = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 interface PresetChipsProps {
-  /** Highlighted chip */
-  active?: StaticPresetId
-  /** When autoPilot is true and a rule matched, this preset shows a green dot */
-  autoPreset?: StaticPresetId
+  /** uid of the currently active chip */
+  activeUid?: string
+  /** When autoPilot is true and a rule matched, the chip with this sonarPresetId shows a green dot */
+  autoPresetId?: SonarApiPresetId
   autoPilot?: boolean
-  onPick?: (id: StaticPresetId) => void
+  onPick?: (chip: UserPresetChip) => void
 }
 
-export function PresetChips({ active, autoPreset, autoPilot, onPick }: PresetChipsProps): JSX.Element {
-  const visiblePresets = useSonarStore((s) => s.visiblePresets)
-
-  const visibleList = STATIC_PRESETS.filter((p) => visiblePresets.has(p.id))
+export function PresetChips({ activeUid, autoPresetId, autoPilot, onPick }: PresetChipsProps): JSX.Element {
+  const presetChips = useSonarStore((s) => s.presetChips)
 
   return (
     <div className="sn-preset-row" role="tablist" aria-label="EQ presets">
-      {visibleList.map((p) => {
-        const isActive = p.id === active
-        const isAuto   = autoPilot === true && p.id === autoPreset
-        const Icon     = PRESET_ICONS[p.id]
+      {presetChips.map((chip) => {
+        const isActive = chip.uid === activeUid
+        const isAuto   = autoPilot === true && chip.sonarPresetId === autoPresetId
+        const Icon     = PRESET_ICONS[chip.iconKey]
         return (
           <button
-            key={p.id}
+            key={chip.uid}
             role="tab"
             aria-selected={isActive}
             className={`sn-preset-chip${isActive ? ' active' : ''}${isAuto ? ' auto' : ''}`}
-            onClick={() => onPick?.(p.id)}
-            title={isAuto ? 'Auto-selected by rule' : p.sub}
+            onClick={() => onPick?.(chip)}
+            title={isAuto ? 'Auto-selected by rule' : chip.sub}
           >
             <span className="pc-icon"><Icon /></span>
-            <span className="pc-label">{p.label}</span>
-            <span className="pc-sub">{p.sub}</span>
+            <span className="pc-label">{chip.label}</span>
+            <span className="pc-sub">{chip.sub}</span>
             {isAuto && <span className="pc-auto-dot" aria-hidden="true" />}
           </button>
         )

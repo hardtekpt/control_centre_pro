@@ -4,7 +4,7 @@ import type {
   SonarState, SonarChannel, SonarDeviceChannel, SonarChannelVolume,
   SonarAudioDevice, SonarRedirections, SonarDeviceRoute, SonarAudioSession,
 } from '@shared/types'
-import type { StaticPresetId } from '../features/sonar/data/catalogues'
+import { DEFAULT_PRESET_CHIPS, type UserPresetChip } from '../features/sonar/data/catalogues'
 
 // Module-level drag tracking — not Zustand state, so no re-renders
 let _activeDrags = 0
@@ -24,8 +24,8 @@ interface SonarStoreState {
   activePresetIds: Record<string, string>
   /** Tracks which channels are visible in the mixer */
   visibleChannels: Set<SonarChannel>
-  /** Tracks which presets are shown in the preset chips row */
-  visiblePresets: Set<StaticPresetId>
+  /** User-configured preset chips (ordered list, fully editable) */
+  presetChips: UserPresetChip[]
 
   setSonarState: (state: SonarState) => void
   /** Optimistic patch for a channel's classic volume/mute — avoids fader flicker during poll cycle */
@@ -36,14 +36,13 @@ interface SonarStoreState {
   patchRouting: (processId: number, toChannel: string) => void
   setActivePreset: (virtualAudioDevice: string, presetId: string) => void
   setChannelVisibility: (channel: SonarChannel, visible: boolean) => void
-  setPresetVisibility: (preset: StaticPresetId, visible: boolean) => void
+  setPresetChips: (chips: UserPresetChip[]) => void
   /** Called by VerticalFader on drag start/end to suppress poll updates during interaction */
   beginDrag: () => void
   endDrag: () => void
 }
 
 const DEFAULT_VISIBLE_CHANNELS: SonarChannel[] = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux']
-const DEFAULT_VISIBLE_PRESETS: StaticPresetId[] = ['music', 'game', 'studio', 'cinema', 'speech', 'flat']
 
 export const useSonarStore = create<SonarStoreState>()(
   persist(
@@ -51,7 +50,7 @@ export const useSonarStore = create<SonarStoreState>()(
       sonarState: null,
       activePresetIds: {},
       visibleChannels: new Set(DEFAULT_VISIBLE_CHANNELS),
-      visiblePresets: new Set(DEFAULT_VISIBLE_PRESETS),
+      presetChips: DEFAULT_PRESET_CHIPS,
 
       setSonarState: (state) =>
         set((s) => {
@@ -221,13 +220,7 @@ export const useSonarStore = create<SonarStoreState>()(
           return { visibleChannels: newSet }
         }),
 
-      setPresetVisibility: (preset, visible) =>
-        set((s) => {
-          const newSet = new Set(s.visiblePresets)
-          if (visible) newSet.add(preset)
-          else newSet.delete(preset)
-          return { visiblePresets: newSet }
-        }),
+      setPresetChips: (chips) => set({ presetChips: chips }),
 
       beginDrag: () => { _activeDrags++ },
       endDrag: () => {
@@ -244,13 +237,13 @@ export const useSonarStore = create<SonarStoreState>()(
       name: 'sonar-store',
       partialize: (state) => ({
         visibleChannels: Array.from(state.visibleChannels),
-        visiblePresets: Array.from(state.visiblePresets),
+        presetChips: state.presetChips,
         activePresetIds: state.activePresetIds,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
         visibleChannels: new Set((persistedState as any).visibleChannels || DEFAULT_VISIBLE_CHANNELS),
-        visiblePresets: new Set((persistedState as any).visiblePresets || DEFAULT_VISIBLE_PRESETS),
+        presetChips: (persistedState as any).presetChips ?? DEFAULT_PRESET_CHIPS,
         activePresetIds: (persistedState as any).activePresetIds ?? {},
       }),
     }
