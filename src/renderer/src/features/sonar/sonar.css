@@ -12,14 +12,14 @@
 .sn-preset-row::-webkit-scrollbar { display: none; }
 
 .sn-preset-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 6px 12px;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
   position: relative;
@@ -33,28 +33,38 @@
 .sn-preset-chip.active {
   background: var(--color-text-primary);
   border-color: var(--color-text-primary);
+  color: var(--color-bg);
+}
+.sn-preset-chip .pc-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: currentColor;
+  flex-shrink: 0;
 }
 .sn-preset-chip .pc-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
 }
-.sn-preset-chip.active .pc-label { color: var(--color-bg); }
 .sn-preset-chip .pc-sub {
   font-size: 10px;
   color: var(--color-text-secondary);
-  font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+  letter-spacing: 0.02em;
 }
 .sn-preset-chip.active .pc-sub { color: var(--color-bg); opacity: 0.7; }
 .sn-preset-chip .pc-auto-dot {
   position: absolute;
   top: 5px;
-  right: 6px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
   background: var(--color-ok);
+  box-shadow: 0 0 0 2px var(--color-surface-raised);
+}
+.sn-preset-chip.active .pc-auto-dot {
+  box-shadow: 0 0 0 2px var(--color-text-primary);
 }
 
 /* ── Mixer section ──────────────────────────────────────────────────────── */

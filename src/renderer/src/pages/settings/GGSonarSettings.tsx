@@ -4,6 +4,7 @@ import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { PageHeader, SettingSection, SettingRow, ToggleSetting, SettingsPageWrapper } from '../../components/SettingsComponents'
 import type { SonarChannel, SonarMode, SonarPollingConfig } from '@shared/types'
 import { SONAR_CHANNELS } from '@shared/types'
+import { STATIC_PRESETS, type StaticPresetId } from '../../features/sonar/data/catalogues'
 
 const CHANNEL_DEFS: { channel: SonarChannel; label: string }[] = [
   { channel: 'master', label: 'Master' },
@@ -21,7 +22,7 @@ function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
 }
 
 export function GGSonarSettings(): JSX.Element {
-  const { sonarState, visibleChannels, setChannelVisibility } = useSonarStore()
+  const { sonarState, visibleChannels, setChannelVisibility, visiblePresets, setPresetVisibility } = useSonarStore()
   const { setDirty, registerSave } = useSettingsForm()
 
   // ── Polling config ───────────────────────────────────────────────────────────
@@ -30,6 +31,9 @@ export function GGSonarSettings(): JSX.Element {
 
   // ── Visible channels ─────────────────────────────────────────────────────────
   const [draftVisibleChannels, setDraftVisibleChannels] = useState(() => new Set(visibleChannels))
+
+  // ── Visible presets ──────────────────────────────────────────────────────────
+  const [draftVisiblePresets, setDraftVisiblePresets] = useState(() => new Set(visiblePresets))
 
   // ── Preset switcher enabled ──────────────────────────────────────────────────
   // Start as null to avoid rendering with wrong value before fetch completes
@@ -40,10 +44,12 @@ export function GGSonarSettings(): JSX.Element {
   // state even if registered before the most recent state update's effect fired.
   const draftPollingIntervalRef = useRef(draftPollingInterval)
   const draftVisibleChannelsRef = useRef(draftVisibleChannels)
+  const draftVisiblePresetsRef  = useRef(draftVisiblePresets)
   const draftPresetSwitcherEnabledRef = useRef(draftPresetSwitcherEnabled)
 
   useEffect(() => { draftPollingIntervalRef.current = draftPollingInterval }, [draftPollingInterval])
   useEffect(() => { draftVisibleChannelsRef.current = draftVisibleChannels }, [draftVisibleChannels])
+  useEffect(() => { draftVisiblePresetsRef.current = draftVisiblePresets }, [draftVisiblePresets])
   useEffect(() => { draftPresetSwitcherEnabledRef.current = draftPresetSwitcherEnabled }, [draftPresetSwitcherEnabled])
 
   useEffect(() => {
@@ -67,11 +73,12 @@ export function GGSonarSettings(): JSX.Element {
     draftPollingInterval !== savedPollingConfig.pollingIntervalMs.toString()
   )
   const channelsDirty = !setsEqual(draftVisibleChannels, visibleChannels)
+  const presetsDirty  = !setsEqual(draftVisiblePresets, visiblePresets)
   const presetSwitcherDirty = savedPresetSwitcherEnabled !== null && draftPresetSwitcherEnabled !== savedPresetSwitcherEnabled
 
   useEffect(() => {
-    setDirty(pollingDirty || channelsDirty || presetSwitcherDirty)
-  }, [pollingDirty, channelsDirty, presetSwitcherDirty, setDirty])
+    setDirty(pollingDirty || channelsDirty || presetsDirty || presetSwitcherDirty)
+  }, [pollingDirty, channelsDirty, presetsDirty, presetSwitcherDirty, setDirty])
 
   // ── Register save handler (once — reads latest values via refs) ───────────────
   useEffect(() => {
@@ -96,15 +103,30 @@ export function GGSonarSettings(): JSX.Element {
       for (const ch of SONAR_CHANNELS) {
         setChannelVisibility(ch, channels.has(ch))
       }
+
+      // Visible presets (persisted via Zustand localStorage middleware)
+      const presets = draftVisiblePresetsRef.current
+      for (const p of STATIC_PRESETS) {
+        setPresetVisibility(p.id, presets.has(p.id))
+      }
     })
     return () => registerSave(null)
-  }, [registerSave, setChannelVisibility])
+  }, [registerSave, setChannelVisibility, setPresetVisibility])
 
   function handleToggleChannel(channel: SonarChannel): void {
     setDraftVisibleChannels((prev) => {
       const next = new Set(prev)
       if (next.has(channel)) next.delete(channel)
       else next.add(channel)
+      return next
+    })
+  }
+
+  function handleTogglePreset(preset: StaticPresetId): void {
+    setDraftVisiblePresets((prev) => {
+      const next = new Set(prev)
+      if (next.has(preset)) next.delete(preset)
+      else next.add(preset)
       return next
     })
   }
@@ -154,6 +176,24 @@ export function GGSonarSettings(): JSX.Element {
               <ToggleSetting
                 checked={draftVisibleChannels.has(channel)}
                 onChange={() => handleToggleChannel(channel)}
+              />
+            </SettingRow>
+          ))}
+        </div>
+      </SettingSection>
+
+      <SettingSection title="Preset Chips">
+        <div className="grid grid-cols-2 gap-0">
+          {STATIC_PRESETS.map((p, idx, arr) => (
+            <SettingRow
+              key={p.id}
+              label={p.label}
+              description={p.sub}
+              last={idx === arr.length - 1}
+            >
+              <ToggleSetting
+                checked={draftVisiblePresets.has(p.id)}
+                onChange={() => handleTogglePreset(p.id)}
               />
             </SettingRow>
           ))}
