@@ -368,6 +368,8 @@ function createNotifWindow(): void {
     },
   })
 
+  // 'screen-saver' level places the window above fullscreen apps on Windows
+  notifWindow.setAlwaysOnTop(true, 'screen-saver')
   notifWindow.setIgnoreMouseEvents(true, { forward: true })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -884,6 +886,7 @@ function registerIpcHandlers(): void {
         Math.round(workArea.x + (workArea.width - w) / 2),
         Math.round(workArea.y + workArea.height - h),
       )
+      notifWindow.setAlwaysOnTop(true, 'screen-saver')
       notifWindow.show()
     }
     notifWindow.webContents.send(IPC_CHANNELS.NOTIF_RECEIVE, spec)
