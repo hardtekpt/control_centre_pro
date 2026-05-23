@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSonarStore } from '../../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { MasterStrip } from './MasterStrip'
@@ -132,6 +132,58 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
     window.api.sonarSelectPreset(configId).catch(console.error)
   }, [setActivePreset])
 
+  // ── Solo ──────────────────────────────────────────────────────────────────
+  const [soloChannels, setSoloChannels] = useState<Set<SonarChannel>>(new Set())
+  // Saved mute states before the first solo was activated, keyed by channel
+  const preSoloMutesRef = useRef<Record<string, boolean>>({})
+
+  const handleSolo = useCallback((channel: SonarChannel): void => {
+    const isSoloed = soloChannels.has(channel)
+
+    if (isSoloed) {
+      const next = new Set(soloChannels)
+      next.delete(channel)
+      setSoloChannels(next)
+
+      if (next.size === 0) {
+        // Last solo cleared — restore all pre-solo mute states
+        for (const { channel: ch } of CHANNEL_DEFS) {
+          const wasMuted = preSoloMutesRef.current[ch] ?? false
+          patchClassicVolume(ch, { muted: wasMuted })
+          window.api.sonarSetMute(ch, wasMuted).catch(console.error)
+        }
+        preSoloMutesRef.current = {}
+      } else {
+        // Other channels still soloed — mute this now-unsoloed channel
+        patchClassicVolume(channel, { muted: true })
+        window.api.sonarSetMute(channel, true).catch(console.error)
+      }
+    } else {
+      if (soloChannels.size === 0) {
+        // First solo — save current mute states for later restoration
+        for (const { channel: ch } of CHANNEL_DEFS) {
+          preSoloMutesRef.current[ch] = volumes[ch]?.muted ?? false
+        }
+      }
+
+      const next = new Set(soloChannels)
+      next.add(channel)
+      setSoloChannels(next)
+
+      // Unmute the newly soloed channel
+      patchClassicVolume(channel, { muted: false })
+      window.api.sonarSetMute(channel, false).catch(console.error)
+
+      // Mute every other device channel not in the solo group
+      for (const { channel: ch } of CHANNEL_DEFS) {
+        if (!next.has(ch)) {
+          patchClassicVolume(ch, { muted: true })
+          window.api.sonarSetMute(ch, true).catch(console.error)
+        }
+      }
+    }
+  }, [soloChannels, volumes, patchClassicVolume])
+
   const dropHandlersRef = useRef<Record<string, (pid: number) => void>>({})
   useEffect(() => {
     for (const { channel } of CHANNEL_DEFS) {
@@ -164,11 +216,13 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
               currentDevice={sonarState.redirections[channel]}
               configs={sonarState.configs}
               activePresetId={activePresetIds[channel]}
+              isSoloed={soloChannels.has(channel)}
               onVolume={handleVolume}
               onMute={handleMute}
               onDeviceSelect={handleDeviceSelect}
               onProcessDrop={dropHandlersRef.current[channel] ?? (() => {})}
               onPresetSelect={handlePresetSelect}
+              onSolo={handleSolo}
             />
           )
         })}

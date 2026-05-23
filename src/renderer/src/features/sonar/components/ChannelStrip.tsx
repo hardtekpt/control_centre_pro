@@ -22,11 +22,13 @@ export interface ChannelStripProps {
   currentDevice?: SonarAudioDevice
   configs: SonarConfig[]
   activePresetId?: string
+  isSoloed: boolean
   onVolume: (channel: SonarChannel, v: number) => void
   onMute: (channel: SonarChannel) => void
   onDeviceSelect: (channel: SonarChannel, deviceId: string) => void
   onProcessDrop: (processId: number) => void
   onPresetSelect: (channel: SonarChannel, configId: string) => void
+  onSolo: (channel: SonarChannel) => void
 }
 
 function ChannelStripComponent({
@@ -41,11 +43,13 @@ function ChannelStripComponent({
   currentDevice,
   configs,
   activePresetId,
+  isSoloed,
   onVolume,
   onMute,
   onDeviceSelect,
   onProcessDrop,
   onPresetSelect,
+  onSolo,
 }: ChannelStripProps): JSX.Element {
   const isMic = channel === 'chatCapture'
   const [isDragOver, setIsDragOver] = useState(false)
@@ -160,18 +164,22 @@ function ChannelStripComponent({
         >
           M
         </button>
-        <button className="sn-solo-btn" title="Solo">S</button>
+        <button
+          className={`sn-solo-btn${isSoloed ? ' on' : ''}`}
+          onClick={() => onSolo(channel)}
+          title={isSoloed ? 'Unsolo' : 'Solo'}
+        >
+          S
+        </button>
       </div>
 
       {/* Preset selector */}
-      {!isMic && (
-        <PresetSelector
-          configs={configs}
-          activePresetId={activePresetId}
-          channel={channel}
-          onSelect={onPresetSelect}
-        />
-      )}
+      <PresetSelector
+        configs={configs}
+        activePresetId={activePresetId}
+        channel={channel}
+        onSelect={onPresetSelect}
+      />
 
       {/* Output */}
       <OutputDropdown
