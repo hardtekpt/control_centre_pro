@@ -45,7 +45,7 @@ function VerticalFaderComponent({
     if (!el) return display
     const rect = el.getBoundingClientRect()
     const pct = 1 - (clientY - rect.top) / rect.height
-    return Math.round(Math.max(0, Math.min(100, pct * 100)))
+    return Math.max(0, Math.min(100, pct * 100))
   }, [display])
 
   function onPointerDown(e: React.PointerEvent): void {
@@ -93,7 +93,7 @@ function VerticalFaderComponent({
     if (e.key === 'ArrowDown') { e.preventDefault(); delta = -1 }
     if (e.key === 'PageUp')    { e.preventDefault(); delta = 10 }
     if (e.key === 'PageDown')  { e.preventDefault(); delta = -10 }
-    if (delta !== 0) onChange(Math.max(0, Math.min(100, value + delta)))
+    if (delta !== 0) onChange(Math.max(0, Math.min(100, Math.round(value) + delta)))
   }
 
   // Thumb sits at the fill top: bottom = fillPct% relative to track height
