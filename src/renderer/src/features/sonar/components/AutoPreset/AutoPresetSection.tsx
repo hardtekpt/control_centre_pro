@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { PresetSwitcherRule, SonarState, OpenApp, ActiveWindowInfo } from '@shared/types'
-import type { SonarApiPresetId } from '../../data/catalogues'
-import { configNameToPresetId } from '../../data/catalogues'
 import { NowActiveCard } from './NowActiveCard'
 import { RuleRow } from './RuleRow'
 import { AddRuleForm } from './AddRuleForm'
@@ -22,7 +20,7 @@ function LightningIcon(): JSX.Element {
 
 interface AutoPresetSectionProps {
   sonarState: SonarState | null
-  onAutoPresetChange?: (presetId: SonarApiPresetId | undefined, autoPilot: boolean) => void
+  onAutoPresetChange?: (configId: string | undefined, autoPilot: boolean) => void
 }
 
 export function AutoPresetSection({ sonarState, onAutoPresetChange }: AutoPresetSectionProps): JSX.Element {
@@ -69,13 +67,11 @@ export function AutoPresetSection({ sonarState, onAutoPresetChange }: AutoPreset
   // Notify parent of autoPilot / matched-preset changes so PresetChips can show the green dot
   useEffect(() => {
     if (!onAutoPresetChange) return
-    if (!autoPilot || !matchedRule?.presetId) {
-      onAutoPresetChange(undefined, autoPilot)
-      return
-    }
-    const config = configs.find((c) => c.id === matchedRule.presetId)
-    onAutoPresetChange(config ? configNameToPresetId(config.name) : undefined, autoPilot)
-  }, [autoPilot, matchedRule, configs, onAutoPresetChange])
+    onAutoPresetChange(
+      autoPilot && matchedRule?.presetId ? matchedRule.presetId : undefined,
+      autoPilot,
+    )
+  }, [autoPilot, matchedRule, onAutoPresetChange])
 
   function saveRules(updated: PresetSwitcherRule[]): void {
     setRules(updated)

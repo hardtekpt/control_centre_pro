@@ -74,22 +74,24 @@ export const PRESET_ICONS: Record<SonarApiPresetId, () => JSX.Element> = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 interface PresetChipsProps {
-  /** uid of the currently active chip */
-  activeUid?: string
-  /** When autoPilot is true and a rule matched, the chip with this sonarPresetId shows a green dot */
-  autoPresetId?: SonarApiPresetId
+  /** uids of currently active chips (multiple can be active if chips target different channels) */
+  activeUids?: Set<string>
+  /** uids of chips that were auto-selected by a rule */
+  autoUids?: Set<string>
   autoPilot?: boolean
   onPick?: (chip: UserPresetChip) => void
 }
 
-export function PresetChips({ activeUid, autoPresetId, autoPilot, onPick }: PresetChipsProps): JSX.Element {
+export function PresetChips({ activeUids, autoUids, autoPilot, onPick }: PresetChipsProps): JSX.Element {
   const presetChips = useSonarStore((s) => s.presetChips)
+
+  if (presetChips.length === 0) return <></>
 
   return (
     <div className="sn-preset-row" role="tablist" aria-label="EQ presets">
       {presetChips.map((chip) => {
-        const isActive = chip.uid === activeUid
-        const isAuto   = autoPilot === true && chip.sonarPresetId === autoPresetId
+        const isActive = activeUids?.has(chip.uid) ?? false
+        const isAuto   = autoPilot === true && (autoUids?.has(chip.uid) ?? false)
         const Icon     = PRESET_ICONS[chip.iconKey]
         return (
           <button

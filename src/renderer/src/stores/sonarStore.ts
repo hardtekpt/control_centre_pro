@@ -243,7 +243,9 @@ export const useSonarStore = create<SonarStoreState>()(
       merge: (persistedState, currentState) => ({
         ...currentState,
         visibleChannels: new Set((persistedState as any).visibleChannels || DEFAULT_VISIBLE_CHANNELS),
-        presetChips: (persistedState as any).presetChips ?? DEFAULT_PRESET_CHIPS,
+        presetChips: ((persistedState as any).presetChips ?? DEFAULT_PRESET_CHIPS).filter(
+          (c: any) => c.uid && c.configName && c.virtualAudioDevice && c.label && c.iconKey
+        ),
         activePresetIds: (persistedState as any).activePresetIds ?? {},
       }),
     }

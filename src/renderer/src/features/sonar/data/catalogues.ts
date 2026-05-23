@@ -13,16 +13,6 @@ export const SONAR_API_PRESET_LABELS: Record<SonarApiPresetId, string> = {
   flat:   'Flat',
 }
 
-/** Map an API config name (e.g. "Music", "GAME") to the canonical SonarApiPresetId. */
-export function configNameToPresetId(name: string): SonarApiPresetId | undefined {
-  const lower = name.toLowerCase()
-  if (lower === 'music' || lower === 'game' || lower === 'studio' ||
-      lower === 'cinema' || lower === 'speech' || lower === 'flat') {
-    return lower as SonarApiPresetId
-  }
-  return undefined
-}
-
 export const SONAR_API_PRESET_DEFAULTS: Record<SonarApiPresetId, { label: string; sub: string }> = {
   music:  { label: 'Music',  sub: 'studio master'     },
   game:   { label: 'Game',   sub: 'wide · positional'  },
@@ -32,28 +22,24 @@ export const SONAR_API_PRESET_DEFAULTS: Record<SonarApiPresetId, { label: string
   flat:   { label: 'Flat',   sub: 'bypass'            },
 }
 
-/** A chip in the preset chips row — fully user-configured */
+/** A chip in the preset chips row — maps to a specific GG Sonar config on a specific channel */
 export interface UserPresetChip {
   /** Stable unique key */
   uid: string
-  /** Which GG Sonar API preset this chip selects */
-  sonarPresetId: SonarApiPresetId
+  /** Config name as stored in the GG Sonar API (e.g. "Music", custom preset name) */
+  configName: string
+  /** Which channel to apply this preset on (virtualAudioDevice) */
+  virtualAudioDevice: string
   /** Display label shown on the chip */
   label: string
   /** Sub-label shown below the label */
   sub: string
-  /** Which icon to display (can differ from sonarPresetId) */
+  /** Which icon to display */
   iconKey: SonarApiPresetId
 }
 
-export const DEFAULT_PRESET_CHIPS: UserPresetChip[] = [
-  { uid: 'default-music',  sonarPresetId: 'music',  label: 'Music',  sub: 'studio master',     iconKey: 'music'  },
-  { uid: 'default-game',   sonarPresetId: 'game',   label: 'Game',   sub: 'wide · positional',  iconKey: 'game'   },
-  { uid: 'default-studio', sonarPresetId: 'studio', label: 'Studio', sub: 'flat reference',    iconKey: 'studio' },
-  { uid: 'default-cinema', sonarPresetId: 'cinema', label: 'Cinema', sub: 'film · spatial',    iconKey: 'cinema' },
-  { uid: 'default-speech', sonarPresetId: 'speech', label: 'Speech', sub: 'voice clarity',     iconKey: 'speech' },
-  { uid: 'default-flat',   sonarPresetId: 'flat',   label: 'Flat',   sub: 'bypass',            iconKey: 'flat'   },
-]
+/** Chips start empty — users build their list in settings */
+export const DEFAULT_PRESET_CHIPS: UserPresetChip[] = []
 
 export const CHANNEL_LABELS: Record<string, string> = {
   master:      'Master',

@@ -1,9 +1,7 @@
 import { useState } from 'react'
+import type { SonarConfig } from '@shared/types'
 import type { SonarApiPresetId, UserPresetChip } from '../../features/sonar/data/catalogues'
-import {
-  SONAR_API_PRESET_LABELS,
-  SONAR_API_PRESET_DEFAULTS,
-} from '../../features/sonar/data/catalogues'
+import { SONAR_API_PRESET_LABELS, CHANNEL_LABELS } from '../../features/sonar/data/catalogues'
 import { PRESET_ICONS } from '../../features/sonar/components/PresetChips'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -51,6 +49,9 @@ function IconPlus(): JSX.Element {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const CHIP_CHANNELS = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux'] as const
+type ChipChannel = typeof CHIP_CHANNELS[number]
+
 const API_PRESET_IDS: SonarApiPresetId[] = ['music', 'game', 'studio', 'cinema', 'speech', 'flat']
 
 function generateUid(): string {
@@ -65,22 +66,33 @@ interface EditFormProps {
   onCancel: () => void
   onApply: () => void
   applyLabel: string
+  configs: SonarConfig[]
 }
 
-function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel }: EditFormProps): JSX.Element {
-  const labelTrimmed = draft.label?.trim() ?? ''
+function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel, configs }: EditFormProps): JSX.Element {
+  const channel = draft.virtualAudioDevice ?? ''
+  const presetsForChannel = configs.filter((c) => c.virtualAudioDevice === channel)
 
-  function handlePresetChange(id: SonarApiPresetId): void {
-    const defaults = SONAR_API_PRESET_DEFAULTS[id]
+  // Resolve selected config id from stored configName so the <select> stays in sync
+  const selectedConfigId = presetsForChannel.find((c) => c.name === draft.configName)?.id ?? ''
+
+  function handleChannelChange(ch: string): void {
+    onChange({ ...draft, virtualAudioDevice: ch, configName: '' })
+  }
+
+  function handleConfigChange(configId: string): void {
+    const config = configs.find((c) => c.id === configId)
+    if (!config) return
     onChange({
       ...draft,
-      sonarPresetId: id,
-      // Auto-fill label/sub only if they haven't been customised yet
-      label: draft.label === '' || draft.label === undefined ? defaults.label : draft.label,
-      sub:   draft.sub   === '' || draft.sub   === undefined ? defaults.sub   : draft.sub,
-      iconKey: id,
+      configName: config.name,
+      label: draft.label?.trim() ? draft.label : config.name,
+      sub: draft.sub?.trim() ? draft.sub : (CHANNEL_LABELS[config.virtualAudioDevice] ?? config.virtualAudioDevice),
     })
   }
+
+  const labelTrimmed = draft.label?.trim() ?? ''
+  const canApply = labelTrimmed !== '' && !!draft.configName && !!draft.virtualAudioDevice
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
@@ -97,7 +109,14 @@ function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel }: EditFo
   const selectStyle: React.CSSProperties = {
     ...inputStyle,
     cursor: 'pointer',
-    width: 'auto',
+    width: '100%',
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 500,
+    color: 'var(--color-text-secondary)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
   }
 
   return (
@@ -111,11 +130,46 @@ function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel }: EditFo
       flexDirection: 'column',
       gap: 8,
     }}>
+      {/* Channel + Preset selectors */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <label style={labelStyle}>Channel</label>
+          <select
+            style={selectStyle}
+            value={channel}
+            onChange={(e) => handleChannelChange(e.target.value)}
+          >
+            <option value="">Select channel…</option>
+            {CHIP_CHANNELS.map((ch) => (
+              <option key={ch} value={ch}>{CHANNEL_LABELS[ch] ?? ch}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <label style={labelStyle}>Preset</label>
+          <select
+            style={{ ...selectStyle, opacity: !channel ? 0.5 : 1 }}
+            value={selectedConfigId}
+            disabled={!channel}
+            onChange={(e) => handleConfigChange(e.target.value)}
+          >
+            <option value="">
+              {!channel
+                ? 'Select a channel first'
+                : presetsForChannel.length === 0
+                  ? 'No presets available'
+                  : 'Select preset…'}
+            </option>
+            {presetsForChannel.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Icon picker */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--color-text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', minWidth: 40 }}>
-          Icon
-        </span>
+        <span style={{ ...labelStyle, minWidth: 40 }}>Icon</span>
         <div style={{ display: 'flex', gap: 4 }}>
           {API_PRESET_IDS.map((id) => {
             const Icon = PRESET_ICONS[id]
@@ -148,9 +202,7 @@ function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel }: EditFo
       {/* Label + Sub row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <label style={{ fontSize: 10, fontWeight: 500, color: 'var(--color-text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Label
-          </label>
+          <label style={labelStyle}>Label</label>
           <input
             style={inputStyle}
             value={draft.label ?? ''}
@@ -161,13 +213,11 @@ function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel }: EditFo
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <label style={{ fontSize: 10, fontWeight: 500, color: 'var(--color-text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Sub-label
-          </label>
+          <label style={labelStyle}>Sub-label</label>
           <input
             style={inputStyle}
             value={draft.sub ?? ''}
-            placeholder="e.g. studio master"
+            placeholder="e.g. game channel"
             onChange={(e) => onChange({ ...draft, sub: e.target.value })}
             onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--color-border-strong)')}
             onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
@@ -175,55 +225,40 @@ function ChipEditForm({ draft, onChange, onCancel, onApply, applyLabel }: EditFo
         </div>
       </div>
 
-      {/* Preset selector + actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--color-text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', minWidth: 40 }}>
-          Preset
-        </span>
-        <select
-          style={selectStyle}
-          value={draft.sonarPresetId ?? 'game'}
-          onChange={(e) => handlePresetChange(e.target.value as SonarApiPresetId)}
+      {/* Actions */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+        <button
+          onClick={onCancel}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 6,
+            border: '1px solid var(--color-border)',
+            background: 'transparent',
+            color: 'var(--color-text-secondary)',
+            fontSize: 12,
+            cursor: 'pointer',
+            transition: 'background 0.1s',
+          }}
         >
-          {API_PRESET_IDS.map((id) => (
-            <option key={id} value={id}>{SONAR_API_PRESET_LABELS[id]}</option>
-          ))}
-        </select>
-
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 6,
-              border: '1px solid var(--color-border)',
-              background: 'transparent',
-              color: 'var(--color-text-secondary)',
-              fontSize: 12,
-              cursor: 'pointer',
-              transition: 'background 0.1s',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onApply}
-            disabled={labelTrimmed === ''}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 6,
-              border: 'none',
-              background: labelTrimmed ? 'var(--color-text-primary)' : 'var(--color-border)',
-              color: labelTrimmed ? 'var(--color-bg)' : 'var(--color-text-tertiary)',
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: labelTrimmed ? 'pointer' : 'not-allowed',
-              transition: 'background 0.1s',
-            }}
-          >
-            {applyLabel}
-          </button>
-        </div>
+          Cancel
+        </button>
+        <button
+          onClick={onApply}
+          disabled={!canApply}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 6,
+            border: 'none',
+            background: canApply ? 'var(--color-text-primary)' : 'var(--color-border)',
+            color: canApply ? 'var(--color-bg)' : 'var(--color-text-tertiary)',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: canApply ? 'pointer' : 'not-allowed',
+            transition: 'background 0.1s',
+          }}
+        >
+          {applyLabel}
+        </button>
       </div>
     </div>
   )
@@ -244,6 +279,7 @@ interface ChipRowProps {
 
 function ChipRow({ chip, canMoveUp, canMoveDown, isEditing, onMoveUp, onMoveDown, onEdit, onDelete }: ChipRowProps): JSX.Element {
   const Icon = PRESET_ICONS[chip.iconKey]
+  const channelLabel = CHANNEL_LABELS[chip.virtualAudioDevice] ?? chip.virtualAudioDevice
 
   const btnBase: React.CSSProperties = {
     width: 24, height: 24,
@@ -259,16 +295,17 @@ function ChipRow({ chip, canMoveUp, canMoveDown, isEditing, onMoveUp, onMoveDown
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '6px 10px',
-      borderRadius: 7,
-      background: isEditing ? 'var(--color-surface-raised)' : 'transparent',
-      transition: 'background 0.1s',
-      marginBottom: 1,
-    }}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 10px',
+        borderRadius: 7,
+        background: isEditing ? 'var(--color-surface-raised)' : 'transparent',
+        transition: 'background 0.1s',
+        marginBottom: 1,
+      }}
       onMouseEnter={(e) => {
         if (!isEditing) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-row-hover)'
       }}
@@ -309,7 +346,7 @@ function ChipRow({ chip, canMoveUp, canMoveDown, isEditing, onMoveUp, onMoveDown
         </div>
       </div>
 
-      {/* Preset badge */}
+      {/* Channel · Preset badge */}
       <span style={{
         fontSize: 10,
         fontFamily: "'JetBrains Mono', monospace",
@@ -319,8 +356,9 @@ function ChipRow({ chip, canMoveUp, canMoveDown, isEditing, onMoveUp, onMoveDown
         padding: '1px 6px',
         flexShrink: 0,
         letterSpacing: '0.04em',
+        whiteSpace: 'nowrap',
       }}>
-        {SONAR_API_PRESET_LABELS[chip.sonarPresetId]}
+        {channelLabel} · {chip.configName}
       </span>
 
       {/* Actions */}
@@ -377,9 +415,10 @@ function ChipRow({ chip, canMoveUp, canMoveDown, isEditing, onMoveUp, onMoveDown
 export interface PresetChipsListProps {
   chips: UserPresetChip[]
   onChange: (chips: UserPresetChip[]) => void
+  configs: SonarConfig[]
 }
 
-export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.Element {
+export function PresetChipsList({ chips, onChange, configs }: PresetChipsListProps): JSX.Element {
   const [editingUid, setEditingUid] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<Partial<UserPresetChip>>({})
   const [addingNew, setAddingNew] = useState(false)
@@ -419,10 +458,10 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
   }
 
   function applyEdit(): void {
-    if (!editDraft.uid || !editDraft.label?.trim()) return
+    if (!editDraft.uid || !editDraft.label?.trim() || !editDraft.configName || !editDraft.virtualAudioDevice) return
     onChange(chips.map((c) =>
       c.uid === editDraft.uid
-        ? { ...c, ...editDraft, label: editDraft.label!.trim() }
+        ? { ...c, ...editDraft, label: editDraft.label!.trim() } as UserPresetChip
         : c,
     ))
     setEditingUid(null)
@@ -440,8 +479,7 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
 
   function startAdd(): void {
     cancelEdit()
-    const defaults = SONAR_API_PRESET_DEFAULTS['game']
-    setNewDraft({ sonarPresetId: 'game', label: '', sub: defaults.sub, iconKey: 'game' })
+    setNewDraft({ iconKey: 'music', label: '', sub: '' })
     setAddingNew(true)
   }
 
@@ -452,13 +490,14 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
 
   function applyAdd(): void {
     const label = newDraft.label?.trim() ?? ''
-    if (!label) return
+    if (!label || !newDraft.configName || !newDraft.virtualAudioDevice) return
     const chip: UserPresetChip = {
-      uid:           generateUid(),
-      sonarPresetId: newDraft.sonarPresetId ?? 'game',
+      uid:               generateUid(),
+      configName:        newDraft.configName,
+      virtualAudioDevice: newDraft.virtualAudioDevice,
       label,
-      sub:           newDraft.sub ?? '',
-      iconKey:       newDraft.iconKey ?? newDraft.sonarPresetId ?? 'game',
+      sub:               newDraft.sub ?? '',
+      iconKey:           newDraft.iconKey ?? 'music',
     }
     onChange([...chips, chip])
     setAddingNew(false)
@@ -471,8 +510,7 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Empty state */}
-      {isEmpty && (
+      {isEmpty && !addingNew && (
         <div style={{
           padding: '16px 12px',
           textAlign: 'center',
@@ -485,7 +523,6 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
         </div>
       )}
 
-      {/* Chip rows */}
       {chips.map((chip, idx) => (
         <div key={chip.uid}>
           <ChipRow
@@ -505,12 +542,12 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
               onCancel={cancelEdit}
               onApply={applyEdit}
               applyLabel="Apply"
+              configs={configs}
             />
           )}
         </div>
       ))}
 
-      {/* Add form */}
       {addingNew && (
         <ChipEditForm
           draft={newDraft}
@@ -518,10 +555,10 @@ export function PresetChipsList({ chips, onChange }: PresetChipsListProps): JSX.
           onCancel={cancelAdd}
           onApply={applyAdd}
           applyLabel="Add"
+          configs={configs}
         />
       )}
 
-      {/* Add button */}
       {!addingNew && (
         <button
           onClick={startAdd}

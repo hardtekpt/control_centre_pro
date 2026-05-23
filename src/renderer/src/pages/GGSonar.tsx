@@ -5,8 +5,7 @@ import { MainPageHeader } from '../components/MainPageHeader'
 import { PresetChips } from '../features/sonar/components/PresetChips'
 import { ChannelMixer } from '../features/sonar/components/ChannelMixer'
 import { AutoPresetSection } from '../features/sonar/components/AutoPreset/AutoPresetSection'
-import { SONAR_API_PRESET_LABELS, configNameToPresetId } from '../features/sonar/data/catalogues'
-import type { SonarApiPresetId, UserPresetChip } from '../features/sonar/data/catalogues'
+import type { UserPresetChip } from '../features/sonar/data/catalogues'
 import { notifySonarPresetChange } from '../lib/notifyFromEvent'
 
 // ─── Unavailable state ────────────────────────────────────────────────────────
@@ -96,42 +95,54 @@ export function GGSonar(): JSX.Element {
 
   const [search, setSearch] = useState('')
   const [autoPilot, setAutoPilot] = useState(false)
-  const [autoPresetId, setAutoPresetId] = useState<SonarApiPresetId | undefined>(undefined)
+  const [autoConfigId, setAutoConfigId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
   }, [setSonarState])
 
-  // Derive the active chip uid from real API state (majority preset among selected configs)
-  const activeUid = useMemo((): string | undefined => {
+  // Chips whose specific (channel, configName) config is currently selected in the API
+  const activeUids = useMemo((): Set<string> => {
     const configs = sonarState?.configs ?? []
-    const selected = configs.filter((c) => c.isSelected && c.isPreset)
-    if (selected.length === 0) return undefined
-    const counts: Record<string, number> = {}
-    for (const c of selected) counts[c.name] = (counts[c.name] ?? 0) + 1
-    const topName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0]
-    if (!topName) return undefined
-    const presetId = configNameToPresetId(topName)
-    return presetId ? presetChips.find((c) => c.sonarPresetId === presetId)?.uid : undefined
+    const result = new Set<string>()
+    for (const chip of presetChips) {
+      const config = configs.find(
+        (c) => c.virtualAudioDevice === chip.virtualAudioDevice && c.name === chip.configName
+      )
+      if (config?.isSelected) result.add(chip.uid)
+    }
+    return result
   }, [sonarState, presetChips])
 
+  // Chips that match the auto-preset monitor's current matched config
+  const autoUids = useMemo((): Set<string> => {
+    if (!autoPilot || !autoConfigId) return new Set()
+    const config = (sonarState?.configs ?? []).find((c) => c.id === autoConfigId)
+    if (!config) return new Set()
+    const result = new Set<string>()
+    for (const chip of presetChips) {
+      if (chip.virtualAudioDevice === config.virtualAudioDevice && chip.configName === config.name) {
+        result.add(chip.uid)
+      }
+    }
+    return result
+  }, [autoPilot, autoConfigId, sonarState, presetChips])
+
   // Callback from AutoPresetSection to keep green-dot in sync
-  const handleAutoPresetChange = useCallback((pid: SonarApiPresetId | undefined, pilot: boolean) => {
+  const handleAutoPresetChange = useCallback((configId: string | undefined, pilot: boolean) => {
     setAutoPilot(pilot)
-    setAutoPresetId(pid)
+    setAutoConfigId(configId)
   }, [])
 
-  // Apply a preset chip to all channels simultaneously
+  // Apply the chip's specific config on its specific channel
   const handlePickChip = useCallback((chip: UserPresetChip): void => {
-    const targetName = SONAR_API_PRESET_LABELS[chip.sonarPresetId]
-    const matchingConfigs = (sonarState?.configs ?? []).filter(
-      (c) => c.name.toLowerCase() === targetName.toLowerCase()
+    const config = (sonarState?.configs ?? []).find(
+      (c) => c.virtualAudioDevice === chip.virtualAudioDevice && c.name === chip.configName
     )
-    for (const config of matchingConfigs) {
-      window.api.sonarSelectPreset(config.id).catch(console.error)
-      setActivePreset(config.virtualAudioDevice, config.id)
-    }
-    notifySonarPresetChange(targetName)
+    if (!config) return
+    window.api.sonarSelectPreset(config.id).catch(console.error)
+    setActivePreset(config.virtualAudioDevice, config.id)
+    notifySonarPresetChange(chip.label)
   }, [sonarState, setActivePreset])
 
   function handleRetry(): void {
@@ -210,8 +221,8 @@ export function GGSonar(): JSX.Element {
 
       {/* Preset chips — sticky below header */}
       <PresetChips
-        activeUid={activeUid}
-        autoPresetId={autoPresetId}
+        activeUids={activeUids}
+        autoUids={autoUids}
         autoPilot={autoPilot}
         onPick={handlePickChip}
       />

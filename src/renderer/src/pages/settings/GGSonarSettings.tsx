@@ -172,7 +172,7 @@ export function GGSonarSettings(): JSX.Element {
       </SettingSection>
 
       <SettingSection title="Preset Chips">
-        <PresetChipsList chips={draftChips} onChange={setDraftChips} />
+        <PresetChipsList chips={draftChips} onChange={setDraftChips} configs={sonarState?.configs ?? []} />
       </SettingSection>
 
       {savedPresetSwitcherEnabled !== null && draftPresetSwitcherEnabled !== null && (
