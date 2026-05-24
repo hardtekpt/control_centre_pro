@@ -24,9 +24,9 @@ import type { ArctisState, AppView } from '@shared/types'
  */
 export default function App(): JSX.Element {
   const {
-    currentView, previousView, currentSettingsTab, theme, sidebarWidth, sidebarCollapsed,
+    currentView, previousView, currentSettingsTab, theme, accentColor, sidebarWidth, sidebarCollapsed,
     setMaximized, setView, setSettingsTab, toggleSidebar,
-    setTheme, setSidebarWidth, setSidebarCollapsed,
+    setTheme, setAccentColor, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
   const { setServices, setLogs, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings, services } =
     useServiceStore()
@@ -44,12 +44,13 @@ export default function App(): JSX.Element {
   useEffect(() => {
     window.api.getSettings().then((settings) => {
       setTheme(settings.theme)
+      setAccentColor(settings.accentColor ?? '')
       setSidebarWidth(settings.sidebarWidth)
       setSidebarCollapsed(settings.sidebarCollapsed)
       setStoreSettings(settings)
       settingsLoadedRef.current = true
     }).catch(console.error)
-  }, [setTheme, setSidebarWidth, setSidebarCollapsed, setStoreSettings])
+  }, [setTheme, setAccentColor, setSidebarWidth, setSidebarCollapsed, setStoreSettings])
 
   // Auto-save sidebar width and collapsed state (debounced)
   useEffect(() => {
@@ -63,6 +64,16 @@ export default function App(): JSX.Element {
     }, 500)
     return () => clearTimeout(timer)
   }, [sidebarWidth, sidebarCollapsed, setStoreSettings])
+
+  // Apply custom accent color override (or remove it to fall back to theme default)
+  useEffect(() => {
+    const root = document.documentElement
+    if (accentColor) {
+      root.style.setProperty('--color-accent', accentColor)
+    } else {
+      root.style.removeProperty('--color-accent')
+    }
+  }, [accentColor])
 
   // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {

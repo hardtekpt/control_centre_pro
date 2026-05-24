@@ -7,12 +7,20 @@ import type { ServiceInfo } from '@shared/types'
 
 type Theme = 'light' | 'dark' | 'system'
 
+const THEME_DEFAULT_ACCENT: Record<Theme, string> = {
+  dark: '#B0B0B0',
+  light: '#525252',
+  system: '#B0B0B0',
+}
+
 export function GeneralSettings(): JSX.Element {
-  const { theme, setTheme } = useAppStore()
+  const { theme, setTheme, setAccentColor } = useAppStore()
   const { services } = useServiceStore()
   const { setDirty, registerSave } = useSettingsForm()
 
   const [draftTheme, setDraftTheme] = useState<Theme>(theme)
+  const [draftAccentColor, setDraftAccentColor] = useState('')
+  const [savedAccentColor, setSavedAccentColor] = useState('')
   const [draftMinimizeToTray, setDraftMinimizeToTray] = useState(true)
   const [savedMinimizeToTray, setSavedMinimizeToTray] = useState(true)
   const [draftOpenOnActiveDisplay, setDraftOpenOnActiveDisplay] = useState(false)
@@ -35,11 +43,14 @@ export function GeneralSettings(): JSX.Element {
       setSavedOpenOnActiveDisplay(s.openOnActiveDisplay ?? false)
       setDraftRunAtStartup(s.runAtStartup ?? false)
       setSavedRunAtStartup(s.runAtStartup ?? false)
+      setDraftAccentColor(s.accentColor ?? '')
+      setSavedAccentColor(s.accentColor ?? '')
     })
   }, [])
 
   const isDirtyLocal =
     draftTheme !== theme ||
+    draftAccentColor !== savedAccentColor ||
     draftPythonPath !== savedPythonPath ||
     draftMinimizeToTray !== savedMinimizeToTray ||
     draftOpenOnActiveDisplay !== savedOpenOnActiveDisplay ||
@@ -54,11 +65,14 @@ export function GeneralSettings(): JSX.Element {
       await window.api.setSettings({
         ...currentSettings,
         theme: draftTheme,
+        accentColor: draftAccentColor,
         minimizeToTray: draftMinimizeToTray,
         openOnActiveDisplay: draftOpenOnActiveDisplay,
         runAtStartup: draftRunAtStartup,
       })
       setTheme(draftTheme)
+      setAccentColor(draftAccentColor)
+      setSavedAccentColor(draftAccentColor)
       setSavedMinimizeToTray(draftMinimizeToTray)
       setSavedOpenOnActiveDisplay(draftOpenOnActiveDisplay)
       setSavedRunAtStartup(draftRunAtStartup)
@@ -70,7 +84,7 @@ export function GeneralSettings(): JSX.Element {
       }
     })
     return () => registerSave(null)
-  }, [draftTheme, draftMinimizeToTray, draftOpenOnActiveDisplay, draftRunAtStartup, draftPythonPath, registerSave, setTheme])
+  }, [draftTheme, draftAccentColor, draftMinimizeToTray, draftOpenOnActiveDisplay, draftRunAtStartup, draftPythonPath, registerSave, setTheme, setAccentColor])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
@@ -103,6 +117,42 @@ export function GeneralSettings(): JSX.Element {
             <option value="light">Light</option>
             <option value="system">System</option>
           </select>
+        </SettingRow>
+        <SettingRow
+          label="Accent color"
+          description="Override the theme's default accent color for interactive elements"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="color"
+              value={draftAccentColor || THEME_DEFAULT_ACCENT[draftTheme]}
+              onChange={(e) => setDraftAccentColor(e.target.value)}
+              style={{
+                width: 36,
+                height: 28,
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                cursor: 'pointer',
+                padding: 2,
+                background: 'var(--color-surface-raised)',
+              }}
+            />
+            {draftAccentColor && (
+              <button
+                onClick={() => setDraftAccentColor('')}
+                style={{
+                  fontSize: 11,
+                  color: 'var(--color-text-secondary)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </SettingRow>
         <SettingRow
           label="Minimize to tray"

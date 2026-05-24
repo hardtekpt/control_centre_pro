@@ -14,8 +14,8 @@
   --color-text-primary:    #141414;
   --color-text-secondary:  #8C8C8C;
   --color-accent:          #525252;
-  --color-accent-hover:    #333333;
-  --color-accent-subtle:   rgba(82, 82, 82, 0.10);
+  --color-accent-hover:    color-mix(in srgb, var(--color-accent), black 25%);
+  --color-accent-subtle:   color-mix(in srgb, var(--color-accent), transparent 90%);
   --color-hover-overlay:   rgba(0, 0, 0, 0.05);
   --color-nav-active:      #D0D0D0;
   --color-nav-text:        #686868;
@@ -23,9 +23,11 @@
 
   /* Shortcuts page tokens */
   --color-text-tertiary:   #B0B0B0;
-  --color-kbd-bg:          #E3E3E3;
   --color-row-hover:       rgba(20,20,20,0.035);
   --color-warn:            #9a6a2c;
+
+  /* Text on bright app-accent backgrounds (always dark for contrast) */
+  --color-text-on-accent:  #1a1a1a;
 
   /* Plugin status tokens */
   --color-ok:              #4a6d4c;
@@ -122,8 +124,8 @@
   --color-text-primary:    #EBEBEB;
   --color-text-secondary:  #888888;
   --color-accent:          #B0B0B0;
-  --color-accent-hover:    #CACACA;
-  --color-accent-subtle:   rgba(176, 176, 176, 0.12);
+  --color-accent-hover:    color-mix(in srgb, var(--color-accent), white 25%);
+  --color-accent-subtle:   color-mix(in srgb, var(--color-accent), transparent 88%);
   --color-hover-overlay:   rgba(255, 255, 255, 0.06);
   --color-nav-active:      #141414;
   --color-nav-text:        #ABABAB;
@@ -131,7 +133,6 @@
 
   /* Shortcuts page tokens */
   --color-text-tertiary:   #5a5a5a;
-  --color-kbd-bg:          #2c2c2c;
   --color-row-hover:       rgba(255,255,255,0.035);
   --color-warn:            #c4a36a;
 

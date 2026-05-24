@@ -284,6 +284,8 @@ export interface AppSettings {
   remoteTokenDurationMs: number
   /** User-defined groups of monitors for batch brightness shortcuts */
   monitorGroups: MonitorGroup[]
+  /** Custom accent color hex (e.g. "#d97706"). Empty string = use theme default. */
+  accentColor: string
 }
 
 /** Defaults applied when no saved settings exist */
@@ -319,6 +321,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   remoteTokenExpiresAt: 0,
   remoteTokenDurationMs: 24 * 60 * 60 * 1000,  // 24 hours
   monitorGroups: [],
+  accentColor: '',
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
