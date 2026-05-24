@@ -34,9 +34,9 @@ export const DEFAULT_PLUGINS: Plugin[] = [
     author: 'mission-control.resource',
     version: '1.0.0',
     blurb: 'Live CPU, RAM, GPU, storage, and network usage statistics.',
-    status: 'disabled',
-    enabled: false,
-    statusLine: 'Not running',
+    status: 'installed',
+    enabled: true,
+    statusLine: 'Starting…',
     category: 'peripheral',
     sections: [
       {
