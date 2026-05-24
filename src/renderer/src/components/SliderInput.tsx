@@ -22,7 +22,7 @@ function SliderInputComponent({
   showMuted?: boolean
   muted?: boolean
   onDragStart?: () => void
-  onDragEnd?: () => void
+  onDragEnd?: (finalValue: number) => void
   orientation?: 'horizontal' | 'vertical'
   disableWheel?: boolean
 }): JSX.Element {
@@ -103,12 +103,14 @@ function SliderInputComponent({
       const finalValue = dragValueRef.current
       dragValueRef.current = null
       setDragValue(null)
-      onDragEnd?.()
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
       }
-      if (finalValue !== null) onChange(finalValue)
+      if (finalValue !== null) {
+        onChange(finalValue)
+        onDragEnd?.(finalValue)
+      }
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }

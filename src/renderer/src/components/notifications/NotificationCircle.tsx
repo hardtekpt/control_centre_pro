@@ -28,12 +28,13 @@ export function NotificationCircle({
 interface NotificationCircleRingProps {
   icon: ReactNode
   value: number   // 0–100
+  label?: string
   className?: string
   onClick?: () => void
 }
 
 export function NotificationCircleRing({
-  icon, value, className = '', onClick,
+  icon, value, label, className = '', onClick,
 }: NotificationCircleRingProps): JSX.Element {
   const R = 25
   const C = 2 * Math.PI * R
@@ -62,6 +63,23 @@ export function NotificationCircleRing({
         />
       </svg>
       <span className="ring-content">{icon}</span>
+      {label && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: '-18px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '10px',
+            fontWeight: 500,
+            color: 'var(--color-text-secondary)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   )
 }

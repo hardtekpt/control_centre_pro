@@ -161,7 +161,7 @@ function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayC
                   })
                 }
               }}
-              onDragEnd={() => notifyDisplayBrightness(monitor.monitor_id, monitor.name, displayBrightness)}
+              onDragEnd={(v) => notifyDisplayBrightness(monitor.monitor_id, monitor.name, Math.round(v * 100))}
             />
             <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', width: 28 }}>
               {displayBrightness}%

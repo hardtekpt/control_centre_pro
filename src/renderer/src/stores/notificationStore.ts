@@ -36,6 +36,7 @@ export interface RingNotification extends BaseNotification {
   kind: 'ring'
   icon: ReactNode
   value: number   // 0–100
+  label?: string
 }
 
 export interface GlyphNotification extends BaseNotification {

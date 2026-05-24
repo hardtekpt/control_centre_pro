@@ -55,7 +55,7 @@ function deserialize(spec: SerializedNotification): NotificationInput | null {
       return { kind: 'circle', key: spec.key, icon, dot: spec.dot, ttl: spec.ttl }
     case 'ring':
       if (!icon) return null
-      return { kind: 'ring', key: spec.key, icon, value: spec.value ?? 0, ttl: spec.ttl }
+      return { kind: 'ring', key: spec.key, icon, value: spec.value ?? 0, label: spec.label, ttl: spec.ttl }
     case 'glyph':
       if (!spec.glyph) return null
       return { kind: 'glyph', key: spec.key, glyph: spec.glyph, sub: spec.sub, ttl: spec.ttl }

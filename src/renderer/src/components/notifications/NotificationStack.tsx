@@ -57,6 +57,7 @@ function NotifItem({ item, onDismiss }: NotifItemProps): JSX.Element {
       <NotificationCircleRing
         icon={item.icon}
         value={item.value}
+        label={item.label}
         className={phaseClass}
         onClick={handleClick}
       />

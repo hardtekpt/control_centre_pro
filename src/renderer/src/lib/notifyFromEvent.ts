@@ -344,7 +344,7 @@ export function notifyDisplayBrightness(monitorId: number, monitorName: string, 
     if (cfg.brightness.shape === 'volume') {
       push({ kind: 'volume', key: `display-brightness-${monitorId}`, iconId: 'monitor', label: `Monitor ${monitorId}`, value: brightness, ttl })
     } else {
-      push({ kind: 'ring', key: `display-brightness-${monitorId}`, iconId: 'monitor', value: brightness, ttl })
+      push({ kind: 'ring', key: `display-brightness-${monitorId}`, iconId: 'monitor', label: `Monitor ${monitorId}`, value: brightness, ttl })
     }
   }
 }
