@@ -1,7 +1,7 @@
 import { exec } from 'child_process'
 import type { BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../../shared/types'
-import type { AppSettings, DdcMonitor } from '../../shared/types'
+import type { AppSettings, DdcMonitor, SerializedNotification } from '../../shared/types'
 import type { ServiceManager } from '../services/serviceManager'
 import type { SonarService } from '../services/sonarService'
 import type { DdcService } from '../services/apis/ddc/service'
@@ -12,6 +12,7 @@ let _sonarService: SonarService | null = null
 let _ddcService: DdcService | null = null
 let _showMainWindow: (() => void) | null = null
 let _getSettings: (() => AppSettings) | null = null
+let _pushNotif: ((spec: SerializedNotification) => void) | null = null
 
 export function initDispatcher(
   mainWindow: BrowserWindow,
@@ -20,6 +21,7 @@ export function initDispatcher(
   ddcService: DdcService,
   showMainWindow: () => void,
   getSettings: () => AppSettings,
+  pushNotif: (spec: SerializedNotification) => void,
 ): void {
   _mainWindow = mainWindow
   _serviceManager = serviceManager
@@ -27,6 +29,21 @@ export function initDispatcher(
   _ddcService = ddcService
   _showMainWindow = showMainWindow
   _getSettings = getSettings
+  _pushNotif = pushNotif
+}
+
+function notifyBrightness(monitors: DdcMonitor[], brightnessMap: Map<number, number>): void {
+  const cfg = _getSettings?.().notifications?.display?.brightness
+  if (!cfg?.enabled) return
+  const ttl = _getSettings?.().notifications?.durationMs ?? 2400
+  for (const m of monitors) {
+    const value = brightnessMap.get(m.monitor_id) ?? m.brightness
+    if (cfg.shape === 'volume') {
+      _pushNotif?.({ kind: 'volume', key: `display-brightness-${m.monitor_id}`, iconId: 'monitor', label: `Monitor ${m.monitor_id}`, value, ttl })
+    } else {
+      _pushNotif?.({ kind: 'ring', key: `display-brightness-${m.monitor_id}`, iconId: 'monitor', value, ttl })
+    }
+  }
 }
 
 /**
@@ -169,25 +186,39 @@ async function _dispatch(actionId: string, value?: unknown): Promise<void> {
     case 'disp.brightness-up': {
       const all = _ddcService?.getCachedMonitors() ?? []
       const { target, num: step } = parseTargetNumber(value, 10)
-      for (const m of resolveTarget(target, all)) {
-        _ddcService?.setBrightness(m.monitor_id, Math.min(100, m.brightness + step))
+      const targets = resolveTarget(target, all)
+      const map = new Map<number, number>()
+      for (const m of targets) {
+        const newVal = Math.min(100, m.brightness + step)
+        _ddcService?.setBrightness(m.monitor_id, newVal)
+        map.set(m.monitor_id, newVal)
       }
+      notifyBrightness(targets, map)
       break
     }
     case 'disp.brightness-down': {
       const all = _ddcService?.getCachedMonitors() ?? []
       const { target, num: step } = parseTargetNumber(value, 10)
-      for (const m of resolveTarget(target, all)) {
-        _ddcService?.setBrightness(m.monitor_id, Math.max(0, m.brightness - step))
+      const targets = resolveTarget(target, all)
+      const map = new Map<number, number>()
+      for (const m of targets) {
+        const newVal = Math.max(0, m.brightness - step)
+        _ddcService?.setBrightness(m.monitor_id, newVal)
+        map.set(m.monitor_id, newVal)
       }
+      notifyBrightness(targets, map)
       break
     }
     case 'disp.brightness-set': {
       const all = _ddcService?.getCachedMonitors() ?? []
       const { target, num: level } = parseTargetNumber(value, 80)
-      for (const m of resolveTarget(target, all)) {
+      const targets = resolveTarget(target, all)
+      const map = new Map<number, number>()
+      for (const m of targets) {
         _ddcService?.setBrightness(m.monitor_id, level)
+        map.set(m.monitor_id, level)
       }
+      notifyBrightness(targets, map)
       break
     }
     case 'disp.activate': {

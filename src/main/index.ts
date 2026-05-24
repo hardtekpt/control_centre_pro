@@ -379,6 +379,22 @@ function createNotifWindow(): void {
   }
 }
 
+function pushNotifFromMain(spec: SerializedNotification): void {
+  if (!notificationsEnabled) return
+  if (!notifWindow || notifWindow.isDestroyed()) return
+  if (!notifWindow.isVisible()) {
+    const { workArea } = getTargetDisplay()
+    const [w, h] = notifWindow.getSize()
+    notifWindow.setPosition(
+      Math.round(workArea.x + (workArea.width - w) / 2),
+      Math.round(workArea.y + workArea.height - h),
+    )
+    notifWindow.setAlwaysOnTop(true, 'screen-saver')
+    notifWindow.show()
+  }
+  notifWindow.webContents.send(IPC_CHANNELS.NOTIF_RECEIVE, spec)
+}
+
 // ─── DDC Helper Functions ─────────────────────────────────────────────────────
 
 async function refreshDdcMonitors(full = false): Promise<DdcMonitor[]> {
@@ -1115,7 +1131,7 @@ app.whenReady().then(() => {
   createWindow()
   kvmDetector.start(bootSettings)
   serviceManager.setWindow(mainWindow!)
-  initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow, loadAppSettings)
+  initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow, loadAppSettings, pushNotifFromMain)
   sonarService.setWindow(mainWindow!)
   discordService.setWindow(mainWindow!)
   haService.setWindow(mainWindow!)

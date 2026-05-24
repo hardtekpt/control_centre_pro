@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, memo } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import { SliderInput } from '../SliderInput'
-import { notifyDisplayInputChange } from '../../lib/notifyFromEvent'
+import { notifyDisplayInputChange, notifyDisplayBrightness } from '../../lib/notifyFromEvent'
 import type { DdcMonitor } from '@shared/types'
 
 interface DisplayCardProps {
@@ -161,6 +161,7 @@ function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayC
                   })
                 }
               }}
+              onDragEnd={() => notifyDisplayBrightness(monitor.monitor_id, monitor.name, displayBrightness)}
             />
             <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', width: 28 }}>
               {displayBrightness}%

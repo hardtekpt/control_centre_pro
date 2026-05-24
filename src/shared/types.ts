@@ -210,6 +210,7 @@ export interface SonarNotificationSettings {
 
 export interface DisplayNotificationSettings {
   inputSourceChange: NotifSimple
+  brightness: NotifValue
 }
 
 export interface NotificationSettings {
@@ -239,6 +240,7 @@ const DEFAULT_SONAR_NOTIFICATIONS: SonarNotificationSettings = {
 
 const DEFAULT_DISPLAY_NOTIFICATIONS: DisplayNotificationSettings = {
   inputSourceChange: { enabled: true, shape: 'rect' },
+  brightness: { enabled: true, shape: 'volume' },
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────

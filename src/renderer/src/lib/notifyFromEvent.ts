@@ -337,6 +337,18 @@ export function notifySonarPresetChange(presetName: string): void {
 
 // ── Display notifications ─────────────────────────────────────────────────────
 
+export function notifyDisplayBrightness(monitorId: number, monitorName: string, brightness: number): void {
+  const cfg = getDisplaySettings()
+  const ttl = getDurationMs()
+  if (cfg.brightness.enabled) {
+    if (cfg.brightness.shape === 'volume') {
+      push({ kind: 'volume', key: `display-brightness-${monitorId}`, iconId: 'monitor', label: `Monitor ${monitorId}`, value: brightness, ttl })
+    } else {
+      push({ kind: 'ring', key: `display-brightness-${monitorId}`, iconId: 'monitor', value: brightness, ttl })
+    }
+  }
+}
+
 export function notifyDisplayInputChange(displayName: string, inputName: string): void {
   const cfg = getDisplaySettings()
   const ttl = getDurationMs()

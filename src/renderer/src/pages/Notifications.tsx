@@ -337,7 +337,9 @@ export function Notifications(): JSX.Element {
     settings.notifications?.sonar ?? DEFAULT_SETTINGS.notifications.sonar
   )
   const [display, setDisplayRaw] = useState<DisplayNotificationSettings>(
-    settings.notifications?.display ?? DEFAULT_SETTINGS.notifications.display
+    settings.notifications?.display
+      ? { ...DEFAULT_SETTINGS.notifications.display, ...settings.notifications.display }
+      : DEFAULT_SETTINGS.notifications.display
   )
 
   const [filter, setFilter] = useState<string>('all')
@@ -359,7 +361,7 @@ export function Notifications(): JSX.Element {
 
   useEffect(() => {
     if (settings.notifications?.display) {
-      setDisplayRaw(settings.notifications.display)
+      setDisplayRaw({ ...DEFAULT_SETTINGS.notifications.display, ...settings.notifications.display })
     }
   }, [settings.notifications?.display])
 
@@ -520,6 +522,15 @@ export function Notifications(): JSX.Element {
     }
   }
 
+  const previewDisplayBrightness = (): void => {
+    const cfg = display.brightness
+    if (cfg.shape === 'volume') {
+      window.api.notifPush({ kind: 'volume', key: 'preview-display-brightness', iconId: 'monitor', label: 'Monitor 1', value: 75, ttl: 2400 })
+    } else {
+      window.api.notifPush({ kind: 'ring', key: 'preview-display-brightness', iconId: 'monitor', value: 75, ttl: 2400 })
+    }
+  }
+
   // Count enabled notifications per device
   const countEnabled = (section: 'headset' | 'sonar' | 'display'): number => {
     let count = 0
@@ -539,6 +550,7 @@ export function Notifications(): JSX.Element {
       count += sonar.presetChange.enabled ? 1 : 0
     } else if (section === 'display') {
       count += display.inputSourceChange.enabled ? 1 : 0
+      count += display.brightness.enabled ? 1 : 0
     }
     return count
   }
@@ -746,6 +758,16 @@ export function Notifications(): JSX.Element {
               value={display.inputSourceChange}
               onChange={(v) => setDisplay({ ...display, inputSourceChange: v })}
               onPreview={previewDisplayInputChange}
+            />
+          </Section>
+          {/* Brightness */}
+          <Section title="Brightness">
+            <ValueRow
+              label="Brightness changed"
+              description="Monitor brightness adjusted via slider or keyboard shortcut"
+              value={display.brightness}
+              onChange={(v) => setDisplay({ ...display, brightness: v })}
+              onPreview={previewDisplayBrightness}
             />
           </Section>
         </div>
