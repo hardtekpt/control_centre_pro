@@ -8,12 +8,14 @@ import { URL } from 'url'
 import type { ServiceManager } from './services/serviceManager'
 import type { SonarService } from './services/sonarService'
 import type { DdcService } from './services/apis/ddc/service'
+import type { DiscordService } from './services/discordService'
 import type { SonarChannel, SonarMode } from '../shared/types'
 
 interface ServerDeps {
   serviceManager: ServiceManager
   sonarService: SonarService
   ddcService: DdcService
+  discordService: DiscordService
 }
 
 function getLanIp(): string {
@@ -109,7 +111,8 @@ export class HttpApiServer {
       const arctis = this.deps.serviceManager.getArctisState()
       const sonar = this.deps.sonarService.getState()
       const ddc = this.deps.ddcService.getCachedMonitors()
-      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc } }))
+      const discord = this.deps.discordService.getState()
+      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord } }))
       ws.on('close', () => this.clients.delete(ws))
       ws.on('error', () => this.clients.delete(ws))
     })
@@ -343,6 +346,70 @@ export class HttpApiServer {
       try {
         const body = await readBody(req)
         this.deps.ddcService.setInputSource(body.monitorId as number, body.input as string)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/discord/state' && method === 'GET') {
+      return jsonResponse(res, 200, this.deps.discordService.getState())
+    }
+
+    if (path === '/api/discord/selfmute' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.discordService.setSelfMute(body.muted as boolean)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/discord/selfdeaf' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.discordService.setSelfDeaf(body.deafened as boolean)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/discord/inputvolume' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.discordService.setInputVolume(body.volume as number)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/discord/outputvolume' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.discordService.setOutputVolume(body.volume as number)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/discord/localvolume' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.discordService.setLocalVolume(body.userId as string, body.volume as number)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/discord/localmute' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.discordService.setLocalMute(body.userId as string, body.muted as boolean)
         return jsonResponse(res, 200, { ok: true })
       } catch {
         return jsonResponse(res, 400, { error: 'Bad request' })

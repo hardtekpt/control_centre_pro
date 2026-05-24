@@ -1,7 +1,8 @@
 import { useServiceStore } from '../stores/serviceStore'
 import { useSonarStore, sonarSetVolume, sonarSetMute, sonarSelectPreset } from '../stores/sonarStore'
+import { useDiscordStore } from '../stores/discordStore'
 import { post } from '../api/http'
-import type { ArctisState, SonarChannel, SonarConfig, DdcMonitor } from '@shared/types'
+import type { ArctisState, SonarChannel, SonarConfig, DdcMonitor, DiscordParticipant } from '@shared/types'
 import { DDC_INPUT_NAMES } from '@shared/types'
 
 const CHANNEL_ORDER: SonarChannel[] = ['master', 'game', 'media', 'chatRender', 'chatCapture']
@@ -29,6 +30,7 @@ export function Home(): JSX.Element {
   const sonarState = useSonarStore((s) => s.sonarState)
   const activePresetIds = useSonarStore((s) => s.activePresetIds)
   const { beginDrag, endDrag } = useSonarStore()
+  const discordState = useDiscordStore((s) => s.discordState)
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -59,6 +61,11 @@ export function Home(): JSX.Element {
         )}
       </Card>
 
+      {/* ── Discord card ── */}
+      <Card title="Discord">
+        <DiscordCard discordState={discordState} />
+      </Card>
+
       {/* ── Display cards ── */}
       {ddcMonitors.length > 0 && (
         <>
@@ -71,6 +78,246 @@ export function Home(): JSX.Element {
             ))}
         </>
       )}
+    </div>
+  )
+}
+
+// ── Discord card internals ────────────────────────────────────────────────────
+
+function DiscordCard({ discordState }: { discordState: ReturnType<typeof useDiscordStore.getState>['discordState'] }): JSX.Element {
+  const { patchParticipantVolume, patchParticipantMute } = useDiscordStore()
+  const connected = !!(discordState?.available && discordState?.authenticated)
+
+  if (!connected) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <StatusDot color="var(--color-text-secondary)" title="Not connected" />
+        <span style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
+          {discordState?.error ?? 'Not connected'}
+        </span>
+      </div>
+    )
+  }
+
+  const selfMuted = discordState?.selfMuted ?? false
+  const selfDeafened = discordState?.selfDeafened ?? false
+  const participants = discordState?.participants ?? []
+  const channelName = discordState?.voiceChannel
+    ? `${discordState.voiceChannel.guildName} · ${discordState.voiceChannel.name}`
+    : null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Status row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <StatusDot color="var(--color-ok)" title="Connected" />
+        {channelName && (
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{channelName}</span>
+        )}
+      </div>
+
+      {/* Self voice controls */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+          Voice
+        </span>
+
+        {/* Mute / Deafen */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>Controls</span>
+          <button
+            onClick={() => void post('/api/discord/selfmute', { muted: !selfMuted })}
+            title={selfMuted ? 'Unmute mic' : 'Mute mic'}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 4,
+              border: '1px solid var(--color-border)',
+              background: selfMuted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+              color: selfMuted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              fontSize: 10,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 150ms ease',
+            }}
+          >
+            {selfMuted ? '🎙' : 'M'}
+          </button>
+          <button
+            onClick={() => void post('/api/discord/selfdeaf', { deafened: !selfDeafened })}
+            title={selfDeafened ? 'Undeafen' : 'Deafen'}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 4,
+              border: '1px solid var(--color-border)',
+              background: selfDeafened ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+              color: selfDeafened ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              fontSize: 10,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 150ms ease',
+            }}
+          >
+            {selfDeafened ? '🔇' : 'D'}
+          </button>
+        </div>
+
+        {/* Mic input volume */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>Mic</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={discordState?.inputVolume ?? 100}
+            onChange={(e) => void post('/api/discord/inputvolume', { volume: Number(e.target.value) })}
+            style={{
+              flex: 1,
+              accentColor: selfMuted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
+              cursor: 'pointer',
+              opacity: selfMuted ? 0.5 : 1,
+            }}
+          />
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 32, textAlign: 'right' }}>
+            {discordState?.inputVolume ?? 100}%
+          </span>
+        </div>
+
+        {/* Output volume */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>Output</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={discordState?.outputVolume ?? 100}
+            onChange={(e) => void post('/api/discord/outputvolume', { volume: Number(e.target.value) })}
+            style={{
+              flex: 1,
+              accentColor: selfDeafened ? 'var(--color-text-secondary)' : 'var(--color-accent)',
+              cursor: 'pointer',
+              opacity: selfDeafened ? 0.5 : 1,
+            }}
+          />
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 32, textAlign: 'right' }}>
+            {discordState?.outputVolume ?? 100}%
+          </span>
+        </div>
+      </div>
+
+      {/* Participants */}
+      {participants.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+            Voice Channel
+          </span>
+          {participants.map((p) => (
+            <ParticipantRow
+              key={p.userId}
+              participant={p}
+              onVolumeChange={(userId, volume) => {
+                patchParticipantVolume(userId, volume)
+                void post('/api/discord/localvolume', { userId, volume })
+              }}
+              onMuteToggle={(userId, muted) => {
+                patchParticipantMute(userId, muted)
+                void post('/api/discord/localmute', { userId, muted })
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ParticipantRow({
+  participant,
+  onVolumeChange,
+  onMuteToggle,
+}: {
+  participant: DiscordParticipant
+  onVolumeChange: (userId: string, volume: number) => void
+  onMuteToggle: (userId: string, muted: boolean) => void
+}): JSX.Element {
+  const displayName = participant.nick || participant.username
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {/* Speaking dot */}
+      <div
+        title={participant.speaking ? 'Speaking' : ''}
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: participant.speaking ? 'var(--color-ok)' : 'var(--color-border)',
+          flexShrink: 0,
+          transition: 'background 150ms ease',
+        }}
+      />
+      <span
+        style={{
+          fontSize: 12,
+          color: participant.muted || participant.deafened
+            ? 'var(--color-text-secondary)'
+            : 'var(--color-text-primary)',
+          minWidth: 72,
+          maxWidth: 72,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}
+        title={displayName}
+      >
+        {displayName}
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={200}
+        value={participant.localVolume}
+        onChange={(e) => onVolumeChange(participant.userId, Number(e.target.value))}
+        style={{
+          flex: 1,
+          accentColor: participant.localMuted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
+          cursor: 'pointer',
+          opacity: participant.localMuted ? 0.5 : 1,
+        }}
+      />
+      <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 32, textAlign: 'right' }}>
+        {participant.localVolume}%
+      </span>
+      <button
+        onClick={() => onMuteToggle(participant.userId, !participant.localMuted)}
+        title={participant.localMuted ? 'Unmute' : 'Mute'}
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 4,
+          border: '1px solid var(--color-border)',
+          background: participant.localMuted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+          color: participant.localMuted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+          fontSize: 10,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        M
+      </button>
     </div>
   )
 }

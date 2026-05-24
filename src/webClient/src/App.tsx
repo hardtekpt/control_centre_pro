@@ -2,12 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useWebSocket } from './api/websocket'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
+import { useDiscordStore } from './stores/discordStore'
 import { Home } from './pages/Home'
 import { Arctis } from './pages/Arctis'
 import { Sonar } from './pages/Sonar'
 import { getAuthToken, onAuthFailed } from './api/auth'
 import { get } from './api/http'
-import type { ArctisState, SonarState, DdcMonitor } from '@shared/types'
+import type { ArctisState, SonarState, DdcMonitor, DiscordState } from '@shared/types'
 
 type Tab = 'home' | 'arctis' | 'sonar'
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
@@ -37,9 +38,15 @@ export function App(): JSX.Element {
   }, [])
 
   const { setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } = useServiceStore()
+  const setDiscordState = useDiscordStore((s) => s.setDiscordState)
 
   const handleInit = useCallback((payload: unknown) => {
-    const { arctis, sonar, ddc } = payload as { arctis: ArctisState | null; sonar: SonarState | null; ddc?: DdcMonitor[] }
+    const { arctis, sonar, ddc, discord } = payload as {
+      arctis: ArctisState | null
+      sonar: SonarState | null
+      ddc?: DdcMonitor[]
+      discord?: DiscordState
+    }
     if (arctis) {
       setArctisConnected(arctis)
     } else {
@@ -51,7 +58,14 @@ export function App(): JSX.Element {
     if (ddc) {
       setDdcMonitors(ddc)
     }
-  }, [setArctisConnected, setArctisDisconnected, setDdcMonitors])
+    if (discord) {
+      setDiscordState(discord)
+    }
+  }, [setArctisConnected, setArctisDisconnected, setDdcMonitors, setDiscordState])
+
+  const handleDiscordStateChange = useCallback((payload: unknown) => {
+    setDiscordState(payload as DiscordState)
+  }, [setDiscordState])
 
   const handleArctisConnected = useCallback((payload: unknown) => {
     setArctisConnected(payload as ArctisState)
@@ -82,6 +96,7 @@ export function App(): JSX.Element {
       'arctis:event': handleArctisEvent,
       'sonar:stateChange': handleSonarStateChange,
       'ddc:update': handleDdcUpdate,
+      'discord:stateChange': handleDiscordStateChange,
     },
     onStatusChange: setWsStatus,
   })

@@ -495,7 +495,7 @@ function registerIpcHandlers(): void {
       if (settings.remoteEnabled) {
         const ready = ensureValidRemoteToken(settings)
         settings = ready
-        httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService })
+        httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService })
         httpApiServer.setAuthToken(ready.remoteAuthToken, ready.remoteTokenExpiresAt)
         httpApiServer.start(ready.remotePort ?? 8080)
         const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
@@ -1012,6 +1012,7 @@ app.whenReady().then(() => {
   })
   discordService.setStateChangeNotifier(() => {
     serviceManager.broadcastServiceState()
+    httpApiServer?.broadcast('discord:stateChange', discordService.getState())
   })
   serviceManager.registerNativeService({
     id: 'discord',
@@ -1101,7 +1102,7 @@ app.whenReady().then(() => {
   let bootSettings = loadAppSettings()
   if (bootSettings.remoteEnabled) {
     bootSettings = ensureValidRemoteToken(bootSettings)
-    httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService })
+    httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService })
     httpApiServer.setAuthToken(bootSettings.remoteAuthToken, bootSettings.remoteTokenExpiresAt)
     httpApiServer.start(bootSettings.remotePort ?? 8080)
     const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
