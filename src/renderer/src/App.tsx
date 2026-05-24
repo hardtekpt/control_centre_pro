@@ -24,9 +24,9 @@ import type { ArctisState, AppView } from '@shared/types'
  */
 export default function App(): JSX.Element {
   const {
-    currentView, previousView, currentSettingsTab, theme, accentColor, sidebarWidth, sidebarCollapsed,
+    currentView, previousView, currentSettingsTab, theme, accentColor, highlightColor, sidebarWidth, sidebarCollapsed,
     setMaximized, setView, setSettingsTab, toggleSidebar,
-    setTheme, setAccentColor, setSidebarWidth, setSidebarCollapsed,
+    setTheme, setAccentColor, setHighlightColor, setSidebarWidth, setSidebarCollapsed,
   } = useAppStore()
   const { setServices, setLogs, addLog, setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors, setSettings: setStoreSettings, services } =
     useServiceStore()
@@ -45,12 +45,13 @@ export default function App(): JSX.Element {
     window.api.getSettings().then((settings) => {
       setTheme(settings.theme)
       setAccentColor(settings.accentColor ?? '')
+      setHighlightColor(settings.highlightColor ?? '')
       setSidebarWidth(settings.sidebarWidth)
       setSidebarCollapsed(settings.sidebarCollapsed)
       setStoreSettings(settings)
       settingsLoadedRef.current = true
     }).catch(console.error)
-  }, [setTheme, setAccentColor, setSidebarWidth, setSidebarCollapsed, setStoreSettings])
+  }, [setTheme, setAccentColor, setHighlightColor, setSidebarWidth, setSidebarCollapsed, setStoreSettings])
 
   // Auto-save sidebar width and collapsed state (debounced)
   useEffect(() => {
@@ -74,6 +75,24 @@ export default function App(): JSX.Element {
       root.style.removeProperty('--color-accent')
     }
   }, [accentColor])
+
+  // Apply custom highlight color (toggles, slider thumbs, active chips)
+  // Also derives --color-on-highlight based on luminance so text stays legible
+  useEffect(() => {
+    const root = document.documentElement
+    if (highlightColor) {
+      root.style.setProperty('--color-highlight', highlightColor)
+      // Pick black or white text based on relative luminance of the chosen color
+      const r = parseInt(highlightColor.slice(1, 3), 16)
+      const g = parseInt(highlightColor.slice(3, 5), 16)
+      const b = parseInt(highlightColor.slice(5, 7), 16)
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      root.style.setProperty('--color-on-highlight', lum > 0.5 ? '#141414' : '#EBEBEB')
+    } else {
+      root.style.removeProperty('--color-highlight')
+      root.style.removeProperty('--color-on-highlight')
+    }
+  }, [highlightColor])
 
   // Apply / remove data-theme on <html> so CSS custom properties switch
   useEffect(() => {

@@ -84,9 +84,13 @@
   --shadow-dialog:            0 20px 25px -5px rgba(0, 0, 0, 0.10);
   --shadow-dropdown:          0 10px 28px rgba(0, 0, 0, 0.10), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 
+  /* Interactive highlight (toggle on, slider thumb, active chip, segment active) */
+  --color-highlight:    var(--color-text-primary);
+  --color-on-highlight: var(--color-bg);
+
   /* ── Segment / selector tokens ─────────────────────────────────────────── */
-  --segment-active-bg:          var(--color-text-primary);
-  --segment-active-color:       var(--color-bg);
+  --segment-active-bg:          var(--color-highlight);
+  --segment-active-color:       var(--color-on-highlight);
   --segment-inactive-bg:        var(--color-surface-raised);
   --segment-inactive-color:     var(--color-text-secondary);
 

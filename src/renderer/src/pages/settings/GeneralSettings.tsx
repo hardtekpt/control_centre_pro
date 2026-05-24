@@ -13,14 +13,22 @@ const THEME_DEFAULT_ACCENT: Record<Theme, string> = {
   system: '#B0B0B0',
 }
 
+const THEME_DEFAULT_HIGHLIGHT: Record<Theme, string> = {
+  dark: '#EBEBEB',
+  light: '#141414',
+  system: '#EBEBEB',
+}
+
 export function GeneralSettings(): JSX.Element {
-  const { theme, setTheme, setAccentColor } = useAppStore()
+  const { theme, setTheme, setAccentColor, setHighlightColor } = useAppStore()
   const { services } = useServiceStore()
   const { setDirty, registerSave } = useSettingsForm()
 
   const [draftTheme, setDraftTheme] = useState<Theme>(theme)
   const [draftAccentColor, setDraftAccentColor] = useState('')
   const [savedAccentColor, setSavedAccentColor] = useState('')
+  const [draftHighlightColor, setDraftHighlightColor] = useState('')
+  const [savedHighlightColor, setSavedHighlightColor] = useState('')
   const [draftMinimizeToTray, setDraftMinimizeToTray] = useState(true)
   const [savedMinimizeToTray, setSavedMinimizeToTray] = useState(true)
   const [draftOpenOnActiveDisplay, setDraftOpenOnActiveDisplay] = useState(false)
@@ -45,12 +53,15 @@ export function GeneralSettings(): JSX.Element {
       setSavedRunAtStartup(s.runAtStartup ?? false)
       setDraftAccentColor(s.accentColor ?? '')
       setSavedAccentColor(s.accentColor ?? '')
+      setDraftHighlightColor(s.highlightColor ?? '')
+      setSavedHighlightColor(s.highlightColor ?? '')
     })
   }, [])
 
   const isDirtyLocal =
     draftTheme !== theme ||
     draftAccentColor !== savedAccentColor ||
+    draftHighlightColor !== savedHighlightColor ||
     draftPythonPath !== savedPythonPath ||
     draftMinimizeToTray !== savedMinimizeToTray ||
     draftOpenOnActiveDisplay !== savedOpenOnActiveDisplay ||
@@ -66,6 +77,7 @@ export function GeneralSettings(): JSX.Element {
         ...currentSettings,
         theme: draftTheme,
         accentColor: draftAccentColor,
+        highlightColor: draftHighlightColor,
         minimizeToTray: draftMinimizeToTray,
         openOnActiveDisplay: draftOpenOnActiveDisplay,
         runAtStartup: draftRunAtStartup,
@@ -73,6 +85,8 @@ export function GeneralSettings(): JSX.Element {
       setTheme(draftTheme)
       setAccentColor(draftAccentColor)
       setSavedAccentColor(draftAccentColor)
+      setHighlightColor(draftHighlightColor)
+      setSavedHighlightColor(draftHighlightColor)
       setSavedMinimizeToTray(draftMinimizeToTray)
       setSavedOpenOnActiveDisplay(draftOpenOnActiveDisplay)
       setSavedRunAtStartup(draftRunAtStartup)
@@ -84,7 +98,7 @@ export function GeneralSettings(): JSX.Element {
       }
     })
     return () => registerSave(null)
-  }, [draftTheme, draftAccentColor, draftMinimizeToTray, draftOpenOnActiveDisplay, draftRunAtStartup, draftPythonPath, registerSave, setTheme, setAccentColor])
+  }, [draftTheme, draftAccentColor, draftHighlightColor, draftMinimizeToTray, draftOpenOnActiveDisplay, draftRunAtStartup, draftPythonPath, registerSave, setTheme, setAccentColor, setHighlightColor])
 
   function handleToggleService(svc: ServiceInfo): void {
     window.api.setServiceEnabled(svc.id, !svc.enabled)
@@ -140,6 +154,42 @@ export function GeneralSettings(): JSX.Element {
             {draftAccentColor && (
               <button
                 onClick={() => setDraftAccentColor('')}
+                style={{
+                  fontSize: 11,
+                  color: 'var(--color-text-secondary)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </SettingRow>
+        <SettingRow
+          label="Highlight color"
+          description="Color for toggles, slider handles, and active selections"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="color"
+              value={draftHighlightColor || THEME_DEFAULT_HIGHLIGHT[draftTheme]}
+              onChange={(e) => setDraftHighlightColor(e.target.value)}
+              style={{
+                width: 36,
+                height: 28,
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                cursor: 'pointer',
+                padding: 2,
+                background: 'var(--color-surface-raised)',
+              }}
+            />
+            {draftHighlightColor && (
+              <button
+                onClick={() => setDraftHighlightColor('')}
                 style={{
                   fontSize: 11,
                   color: 'var(--color-text-secondary)',

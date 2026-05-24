@@ -771,7 +771,7 @@ function GroupEditor({
               type="checkbox"
               checked={monitorIds.includes(m.monitor_id)}
               onChange={() => onToggleMonitor(m.monitor_id)}
-              style={{ accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+              style={{ accentColor: 'var(--color-highlight)', cursor: 'pointer' }}
             />
             <span className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
               {m.name}

@@ -286,6 +286,8 @@ export interface AppSettings {
   monitorGroups: MonitorGroup[]
   /** Custom accent color hex (e.g. "#d97706"). Empty string = use theme default. */
   accentColor: string
+  /** Custom highlight color hex for toggles, slider thumbs, and active chips. Empty string = use theme default. */
+  highlightColor: string
 }
 
 /** Defaults applied when no saved settings exist */
@@ -322,6 +324,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   remoteTokenDurationMs: 24 * 60 * 60 * 1000,  // 24 hours
   monitorGroups: [],
   accentColor: '',
+  highlightColor: '',
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────

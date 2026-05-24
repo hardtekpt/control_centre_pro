@@ -172,7 +172,7 @@ function SliderInputComponent({
               bottom: `calc(6px + ${displayValue} * (100% - 12px) - 9px)`,
               width: 18,
               height: 10,
-              background: 'var(--color-text-primary)',
+              background: 'var(--color-highlight)',
               boxShadow: 'var(--shadow-thumb)',
             }}
           />
@@ -215,7 +215,7 @@ function SliderInputComponent({
               left: thumbLeft,
               width: 10,
               height: 18,
-              background: 'var(--color-text-primary)',
+              background: 'var(--color-highlight)',
               boxShadow: 'var(--shadow-thumb)',
             }}
           />

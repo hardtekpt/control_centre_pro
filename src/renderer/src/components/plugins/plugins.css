@@ -70,9 +70,9 @@
 }
 
 .pl-chip.active {
-  background: var(--color-text-primary);
-  color: var(--color-bg);
-  border-color: var(--color-text-primary);
+  background: var(--color-highlight);
+  color: var(--color-on-highlight);
+  border-color: var(--color-highlight);
 }
 
 /* Plugin grid */
@@ -510,9 +510,9 @@
 }
 
 .ms-chip.on {
-  background: var(--color-text-primary);
-  color: var(--color-bg);
-  border-color: var(--color-text-primary);
+  background: var(--color-highlight);
+  color: var(--color-on-highlight);
+  border-color: var(--color-highlight);
 }
 
 /* OAuth field */

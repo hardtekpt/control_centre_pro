@@ -20,7 +20,7 @@ export function Toggle({ checked, onChange, size = 'sm' }: ToggleProps): JSX.Ele
         height,
         borderRadius: '999px',
         border: 'none',
-        background: checked ? 'var(--color-text-primary)' : 'var(--color-border)',
+        background: checked ? 'var(--color-highlight)' : 'var(--color-border)',
         cursor: 'pointer',
         padding: '2px',
         display: 'flex',
@@ -34,7 +34,7 @@ export function Toggle({ checked, onChange, size = 'sm' }: ToggleProps): JSX.Ele
           width: dotSize,
           height: dotSize,
           borderRadius: '999px',
-          background: checked ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+          background: checked ? 'var(--color-on-highlight)' : 'var(--color-text-secondary)',
           transition: 'transform 0.15s, background 0.15s',
           transform: checked ? `translateX(${isSm ? '14px' : '18px'})` : 'translateX(0)',
         }}

@@ -46,6 +46,7 @@ interface AppState {
   /* ── Appearance ──────────────────────────────────────────────────────────── */
   theme: Theme
   accentColor: string
+  highlightColor: string
 
   /* ── Actions ─────────────────────────────────────────────────────────────── */
   setView: (view: AppView) => void
@@ -57,6 +58,7 @@ interface AppState {
   setMaximized: (isMaximized: boolean) => void
   setTheme: (theme: Theme) => void
   setAccentColor: (color: string) => void
+  setHighlightColor: (color: string) => void
 
   /**
    * Show the floating peek panel anchored at the given screen position.
@@ -86,6 +88,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isMaximized: false,
   theme: 'dark',
   accentColor: '',
+  highlightColor: '',
 
   setView: (view) => set((s) => ({
     previousView: s.currentView !== 'settings' ? s.currentView : s.previousView,
@@ -112,6 +115,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMaximized: (isMaximized) => set({ isMaximized }),
   setTheme: (theme) => set({ theme }),
   setAccentColor: (color) => set({ accentColor: color }),
+  setHighlightColor: (color) => set({ highlightColor: color }),
 
   showPeek: (anchor) => {
     if (!get().sidebarCollapsed) return // no-op when already expanded
