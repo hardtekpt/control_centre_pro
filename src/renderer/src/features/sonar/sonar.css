@@ -537,12 +537,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-highlight);
+  background: var(--color-accent);
   border-radius: 10px;
   transition: height 0.08s linear;
 }
 .sn-fader-track.dragging .sn-fader-fill,
-.sn-fader-track:focus .sn-fader-fill { background: var(--color-highlight); transition: none; }
+.sn-fader-track:focus .sn-fader-fill { background: var(--color-accent); transition: none; }
 .sn-fader-track.muted .sn-fader-fill { opacity: 0.4; }
 
 .sn-fader-thumb {

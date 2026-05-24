@@ -116,7 +116,7 @@ function VerticalFaderComponent({
           bottom: 8,
           width: 6,
           height: `calc(${displayValue} * (100% - 16px))`,
-          background: disabled ? 'var(--color-text-secondary)' : 'var(--color-highlight)',
+          background: disabled ? 'var(--color-text-secondary)' : 'var(--color-accent)',
         }}
       />
       {/* Thumb */}
