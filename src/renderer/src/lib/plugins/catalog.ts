@@ -28,6 +28,60 @@ export const DEFAULT_PLUGINS: Plugin[] = [
     sections: [],
   },
   {
+    id: 'resource-monitor',
+    name: 'Resource Monitor',
+    glyph: 'R',
+    author: 'mission-control.resource',
+    version: '1.0.0',
+    blurb: 'Live CPU, RAM, GPU, storage, and network usage statistics.',
+    status: 'disabled',
+    enabled: false,
+    statusLine: 'Not running',
+    category: 'peripheral',
+    sections: [
+      {
+        id: 'cpu',
+        title: 'CPU',
+        fields: [
+          { kind: 'readonly', id: 'cpuUsage', label: 'Usage', value: '—' },
+          { kind: 'readonly', id: 'cpuTemp', label: 'Temperature', value: '—' },
+        ],
+      },
+      {
+        id: 'ram',
+        title: 'Memory',
+        fields: [
+          { kind: 'readonly', id: 'ramUsage', label: 'Used', value: '—' },
+          { kind: 'readonly', id: 'ramSwap', label: 'Swap', value: '—' },
+        ],
+      },
+      {
+        id: 'gpu',
+        title: 'GPU',
+        fields: [
+          { kind: 'readonly', id: 'gpuName', label: 'Adapter', value: '—' },
+          { kind: 'readonly', id: 'gpuUsage', label: 'Usage', value: '—' },
+          { kind: 'readonly', id: 'gpuVram', label: 'VRAM', value: '—' },
+          { kind: 'readonly', id: 'gpuTemp', label: 'Temperature', value: '—' },
+        ],
+      },
+      {
+        id: 'storage',
+        title: 'Storage',
+        fields: [
+          { kind: 'readonly', id: 'diskSummary', label: 'Drives', value: '—' },
+        ],
+      },
+      {
+        id: 'network',
+        title: 'Network',
+        fields: [
+          { kind: 'readonly', id: 'netSummary', label: 'Throughput', value: '—' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'discord',
     name: 'Discord',
     glyph: 'D',

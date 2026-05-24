@@ -125,6 +125,11 @@ export const IPC_CHANNELS = {
   // Remote Web Client
   REMOTE_GET_INFO: 'remote:getInfo',                  // renderer → main invoke
   REMOTE_REGENERATE_TOKEN: 'remote:regenerateToken',  // renderer → main invoke
+
+  // Resource Monitor plugin
+  RESOURCE_GET_STATE:    'resource:getState',    // renderer → main invoke
+  RESOURCE_STATE_CHANGE: 'resource:stateChange', // main → renderer push
+  RESOURCE_SET_CONFIG:   'resource:setConfig',   // renderer → main invoke
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -243,6 +248,55 @@ const DEFAULT_DISPLAY_NOTIFICATIONS: DisplayNotificationSettings = {
   brightness: { enabled: true, shape: 'volume' },
 }
 
+// ─── Resource Monitor ─────────────────────────────────────────────────────────
+
+export interface ResourceCpuInfo {
+  usagePercent: number
+  coreUsage: number[]
+  temperatureCelsius: number | null
+}
+
+export interface ResourceRamInfo {
+  usedPercent: number
+  usedGb: number
+  totalGb: number
+  swapUsedPercent: number
+}
+
+export interface ResourceGpuInfo {
+  name: string
+  usagePercent: number | null
+  vramUsedGb: number | null
+  vramTotalGb: number | null
+  temperatureCelsius: number | null
+}
+
+export interface ResourceDiskInfo {
+  mountpoint: string
+  label: string
+  usedPercent: number
+  usedGb: number
+  totalGb: number
+  readMbps: number
+  writeMbps: number
+}
+
+export interface ResourceNetInfo {
+  adapter: string
+  sentMbps: number
+  recvMbps: number
+}
+
+export interface ResourceSnapshot {
+  cpu: ResourceCpuInfo
+  ram: ResourceRamInfo
+  gpu: ResourceGpuInfo | null
+  disks: ResourceDiskInfo[]
+  network: ResourceNetInfo[]
+  gpuAvailable: boolean
+  temperatureAvailable: boolean
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 /** A named group of monitors for batch brightness shortcuts */
@@ -288,6 +342,9 @@ export interface AppSettings {
   accentColor: string
   /** Custom highlight color hex for toggles, slider thumbs, and active chips. Empty string = use theme default. */
   highlightColor: string
+  resourceMonitorEnabled: boolean
+  /** Poll interval in seconds for the resource monitor service (default 2) */
+  resourceMonitorInterval: number
 }
 
 /** Defaults applied when no saved settings exist */
@@ -325,6 +382,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   monitorGroups: [],
   accentColor: '',
   highlightColor: '',
+  resourceMonitorEnabled: true,
+  resourceMonitorInterval: 2,
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────

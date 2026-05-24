@@ -3,7 +3,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall,
+  HaState, HaServiceCall, ResourceSnapshot,
 } from '../../../shared/types'
 
 /**
@@ -142,6 +142,11 @@ declare global {
     // Remote Web Client
     remoteGetInfo: () => Promise<RemoteInfo>
     remoteRegenerateToken: () => Promise<RemoteInfo>
+
+    // Resource Monitor
+    resourceGetState: () => Promise<ResourceSnapshot | null>
+    resourceSetConfig: (config: { interval: number }) => Promise<void>
+    onResourceStateChange: (callback: (snapshot: ResourceSnapshot) => void) => () => void
     }
   }
 

@@ -8,6 +8,7 @@ import { useShortcutStore } from './stores/shortcutStore'
 import { usePluginStore } from './stores/pluginStore'
 import { useKvmStore } from './stores/kvmStore'
 import { useHaStore } from './stores/haStore'
+import { useResourceStore } from './stores/resourceStore'
 import { combinationFromEvent } from './lib/shortcuts/keys'
 import { MainLayout } from './components/layout/MainLayout'
 import { SettingsLayout } from './components/settings/SettingsLayout'
@@ -33,9 +34,10 @@ export default function App(): JSX.Element {
   const { setSonarState } = useSonarStore()
   const { setDiscordState } = useDiscordStore()
   const { items: shortcutItems, load: loadShortcuts } = useShortcutStore()
-  const { syncDiscordServiceState, syncKvmState, syncHaState } = usePluginStore()
+  const { syncDiscordServiceState, syncKvmState, syncHaState, syncResourceMonitorState } = usePluginStore()
   const { setKvmState } = useKvmStore()
   const { setHaState } = useHaStore()
+  const { setSnapshot: setResourceSnapshot } = useResourceStore()
 
   // Track whether initial settings have been loaded so we don't auto-save before loading
   const settingsLoadedRef = useRef(false)
@@ -397,6 +399,25 @@ export default function App(): JSX.Element {
       syncHaState(state)
     })
   }, [setHaState, syncHaState])
+
+  // Load initial resource monitor snapshot and subscribe to push events
+  useEffect(() => {
+    window.api.getSettings().then((s) => {
+      const enabled = s.resourceMonitorEnabled ?? true
+      window.api.resourceGetState().then((snapshot) => {
+        if (snapshot) {
+          setResourceSnapshot(snapshot)
+          syncResourceMonitorState(snapshot, enabled)
+        } else {
+          syncResourceMonitorState(null, enabled)
+        }
+      }).catch(console.error)
+    }).catch(console.error)
+    return window.api.onResourceStateChange((snapshot) => {
+      setResourceSnapshot(snapshot)
+      syncResourceMonitorState(snapshot, true)
+    })
+  }, [setResourceSnapshot, syncResourceMonitorState])
 
   // Load initial DDC monitor list and subscribe to updates
   useEffect(() => {

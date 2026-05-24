@@ -582,6 +582,13 @@ function registerIpcHandlers(): void {
     }
   })
 
+  // ── Resource Monitor ───────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.RESOURCE_GET_STATE, () => serviceManager?.getResourceSnapshot() ?? null)
+
+  ipcMain.handle(IPC_CHANNELS.RESOURCE_SET_CONFIG, (_event, config: { interval: number }) => {
+    serviceManager?.sendResourceCmd('set-interval', config.interval)
+  })
+
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, () => {

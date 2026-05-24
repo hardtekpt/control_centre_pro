@@ -5,7 +5,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall,
+  HaState, HaServiceCall, ResourceSnapshot,
 } from '../shared/types'
 
 /**
@@ -379,6 +379,20 @@ const api = {
 
   remoteRegenerateToken: (): Promise<RemoteInfo> =>
     ipcRenderer.invoke(IPC_CHANNELS.REMOTE_REGENERATE_TOKEN),
+
+  // ── Resource Monitor ────────────────────────────────────────────────────────
+
+  resourceGetState: (): Promise<ResourceSnapshot | null> =>
+    ipcRenderer.invoke(IPC_CHANNELS.RESOURCE_GET_STATE),
+
+  resourceSetConfig: (config: { interval: number }): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.RESOURCE_SET_CONFIG, config),
+
+  onResourceStateChange: (cb: (snapshot: ResourceSnapshot) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, snapshot: ResourceSnapshot): void => cb(snapshot)
+    ipcRenderer.on(IPC_CHANNELS.RESOURCE_STATE_CHANGE, handler)
+    return () => ipcRenderer.off(IPC_CHANNELS.RESOURCE_STATE_CHANGE, handler)
+  },
 }
 
 interface RemoteInfo {

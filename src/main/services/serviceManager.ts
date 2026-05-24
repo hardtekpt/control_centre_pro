@@ -35,6 +35,12 @@ const SERVICE_DEFS: ServiceDef[] = [
     description: 'Direct USB HID control for the SteelSeries Arctis Nova Pro Wireless headset',
     script: 'arctis_hid_service.py',
   },
+  {
+    id: 'resource-monitor',
+    name: 'Resource Monitor',
+    description: 'Live CPU, RAM, GPU, storage, and network usage statistics.',
+    script: 'resource_monitor_service.py',
+  },
 ]
 
 // ─── Persisted config shape ───────────────────────────────────────────────────
@@ -54,6 +60,7 @@ export class ServiceManager {
   private logFilePath: string
   private window: BrowserWindow | null = null
   private lastArctisState: ArctisState | null = null
+  private lastResourceSnapshot: unknown = null
   private nativeServices: NativeServiceRegistration[] = []
   private logCache: LogEntry[] = []
   private readonly MAX_CACHED_LOGS = 500
@@ -202,6 +209,16 @@ export class ServiceManager {
     child.stdin.write(JSON.stringify({ cmd, value }) + '\n')
   }
 
+  getResourceSnapshot(): unknown {
+    return this.lastResourceSnapshot
+  }
+
+  sendResourceCmd(cmd: string, value: unknown): void {
+    const child = this.processes.get('resource-monitor')
+    if (!child?.stdin?.writable) return
+    child.stdin.write(JSON.stringify({ cmd, value }) + '\n')
+  }
+
   setEnabled(id: string, enabled: boolean): void {
     this.enabled[id] = enabled
     this.saveConfig()
@@ -224,6 +241,9 @@ export class ServiceManager {
         this.lastArctisState = null
         this.push(IPC_CHANNELS.ARCTIS_DISCONNECTED)
         this.wsBroadcast?.('arctis:disconnected', null)
+      }
+      if (id === 'resource-monitor') {
+        this.lastResourceSnapshot = null
       }
     }
     this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
@@ -314,14 +334,29 @@ export class ServiceManager {
   }
 
   private handleMessage(id: string, name: string, msg: Record<string, unknown>): void {
+    // Log-level messages are always handled the same way
+    if (msg.type === 'log') {
+      this.emitLog(id, name, msg.level as 'info' | 'warn' | 'error', msg.message as string)
+      return
+    }
+    if (msg.type === 'fatal') {
+      this.emitLog(id, name, 'error', msg.message as string)
+      return
+    }
+
+    if (id === 'arctis-hid') {
+      this.handleArctisMessage(name, msg)
+    } else if (id === 'resource-monitor') {
+      this.handleResourceMessage(msg)
+    }
+  }
+
+  private handleArctisMessage(name: string, msg: Record<string, unknown>): void {
     switch (msg.type as string) {
-      case 'log':
-        this.emitLog(id, name, msg.level as 'info' | 'warn' | 'error', msg.message as string)
-        break
       case 'connected': {
         const state = msg.data as ArctisState
         this.lastArctisState = state
-        this.emitLog(id, name, 'info', 'Device connected')
+        this.emitLog('arctis-hid', name, 'info', 'Device connected')
         this.push(IPC_CHANNELS.ARCTIS_CONNECTED, state)
         this.wsBroadcast?.('arctis:connected', state)
         break
@@ -335,15 +370,26 @@ export class ServiceManager {
         const eventName = msg.event as string
         const eventData = msg.data as Record<string, unknown>
         if (this.lastArctisState) {
-          // Update state for all events that carry state — not just ConnectivityEvent
           this.lastArctisState = { ...this.lastArctisState, ...eventData }
         }
         this.push(IPC_CHANNELS.ARCTIS_EVENT, eventName, eventData)
         this.wsBroadcast?.('arctis:event', { eventName, data: eventData })
         break
       }
-      case 'fatal':
-        this.emitLog(id, name, 'error', msg.message as string)
+    }
+  }
+
+  private handleResourceMessage(msg: Record<string, unknown>): void {
+    switch (msg.type as string) {
+      case 'connected':
+        this.lastResourceSnapshot = msg.data
+        this.push(IPC_CHANNELS.RESOURCE_STATE_CHANGE, msg.data)
+        break
+      case 'event':
+        if (msg.event === 'ResourceUpdate') {
+          this.lastResourceSnapshot = msg.data
+          this.push(IPC_CHANNELS.RESOURCE_STATE_CHANGE, msg.data)
+        }
         break
     }
   }
