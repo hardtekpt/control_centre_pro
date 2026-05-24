@@ -6,6 +6,7 @@ import { useDiscordStore } from '../../stores/discordStore'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { KvmConfigSection } from './KvmConfigSection'
 import { HomeAssistantConfigSection } from './HomeAssistantConfigSection'
+import { ResourceMonitorConfigSection } from './ResourceMonitorConfigSection'
 import { SliderInput } from '../SliderInput'
 
 function BackIcon() {
@@ -177,40 +178,8 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
         {/* Home Assistant configuration */}
         {plugin.id === 'home-assistant' && <HomeAssistantConfigSection plugin={plugin} />}
 
-        {/* Generic section renderer for plugins that use the sections data model */}
-        {plugin.id !== 'discord' && plugin.id !== 'kvm-detector' && plugin.id !== 'home-assistant' && plugin.sections.length > 0 && (
-          <>
-            {plugin.sections.map((section) => (
-              <div key={section.id} className="cfg-section">
-                <div className="cfg-section-h">
-                  <h3>{section.title}</h3>
-                  {section.desc && <span className="desc">{section.desc}</span>}
-                </div>
-                {section.fields.map((field) => (
-                  <div key={field.id} className="ff">
-                    <div className="ff-label">
-                      <div className="ff-label-title">{field.label}</div>
-                      {field.sub && <div className="ff-label-desc">{field.sub}</div>}
-                    </div>
-                    {field.kind === 'readonly' && (
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: '12px',
-                          color: 'var(--color-text-secondary)',
-                          textAlign: 'right',
-                          minWidth: '120px',
-                        }}
-                      >
-                        {String(field.value ?? '—')}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </>
-        )}
+        {/* Resource Monitor live stats grid */}
+        {plugin.id === 'resource-monitor' && <ResourceMonitorConfigSection />}
 
         {/* Discord-specific configuration */}
         {plugin.id === 'discord' && (

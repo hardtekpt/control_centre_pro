@@ -118,14 +118,14 @@ def _get_gpu_vram_used() -> float | None:
     if not _IS_WINDOWS:
         return None
     out = _run_ps(
-        "try { $s = (Get-Counter '\\GPU Local Adapter Memory(*)\\Local Adapter Memory Used' "
+        "try { $s = (Get-Counter '\\GPU Local Adapter Memory(*)\\Local Adapter Memory' "
         "-ErrorAction Stop).CounterSamples | Measure-Object -Property CookedValue -Sum; "
-        "Write-Output ($s.Sum / 1MB) } catch { Write-Output '' }"
+        "Write-Output ($s.Sum / 1GB) } catch { Write-Output '' }"
     )
     if not out:
         return None
     try:
-        return round(float(out) / 1024.0, 2)  # counter returns KB, convert to GB
+        return round(float(out), 2)
     except Exception:
         return None
 
@@ -143,14 +143,76 @@ def _get_gpu_temp_nvidia() -> float | None:
     return None
 
 
-def _get_gpu_temp_amd() -> float | None:
+def _get_gpu_temp_amd_ctypes() -> float | None:
+    """AMD GPU temperature via ADL ctypes — works with AMD drivers, no extra packages needed."""
     try:
-        import pyadl  # type: ignore
-        devices = pyadl.ADLManager.getInstance().getDevices()
-        if devices:
-            temp = devices[0].getCurrentTemperature()
-            if temp is not None:
-                return float(temp)
+        import ctypes
+
+        try:
+            adl = ctypes.WinDLL("atiadlxx.dll")  # 64-bit AMD ADL
+        except OSError:
+            try:
+                adl = ctypes.WinDLL("atiadlxy.dll")  # 32-bit fallback
+            except OSError:
+                return None
+
+        ADL_MAIN_MALLOC = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_int)
+        _bufs: list = []
+
+        def _malloc(size: int) -> int:
+            buf = ctypes.create_string_buffer(size)
+            _bufs.append(buf)
+            return ctypes.cast(buf, ctypes.c_void_p).value or 0
+
+        malloc_fn = ADL_MAIN_MALLOC(_malloc)
+        context = ctypes.c_void_p()
+
+        if adl.ADL2_Main_Control_Create(malloc_fn, 1, ctypes.byref(context)) != 0:
+            return None
+
+        try:
+            num = ctypes.c_int()
+            if adl.ADL2_Adapter_NumberOfAdapters_Get(context, ctypes.byref(num)) != 0:
+                return None
+
+            for i in range(num.value):
+                active = ctypes.c_int()
+                adl.ADL2_Adapter_Active_Get(context, i, ctypes.byref(active))
+                if not active.value:
+                    continue
+
+                # Try OverdriveN (Navi / RX 5000+, RX 6000+, RX 7000+)
+                temp_raw = ctypes.c_int()
+                try:
+                    if adl.ADL2_OverdriveN_Temperature_Get(context, i, 1, ctypes.byref(temp_raw)) == 0:
+                        t = temp_raw.value
+                        # API returns millidegrees on some drivers, direct °C on others
+                        celsius = t / 1000.0 if t > 200 else float(t)
+                        if 0 < celsius < 150:
+                            return round(celsius, 1)
+                except Exception:
+                    pass
+
+                # Fallback: Overdrive5 (older architecture)
+                class ADLTemperature(ctypes.Structure):
+                    _fields_ = [("iSize", ctypes.c_int), ("iTemperature", ctypes.c_int)]
+
+                t5 = ADLTemperature()
+                t5.iSize = ctypes.sizeof(ADLTemperature)
+                try:
+                    if adl.ADL2_Overdrive5_Temperature_Get(context, i, 0, ctypes.byref(t5)) == 0:
+                        raw = t5.iTemperature
+                        celsius = raw / 1000.0 if raw > 200 else float(raw)
+                        if 0 < celsius < 150:
+                            return round(celsius, 1)
+                except Exception:
+                    pass
+
+        finally:
+            try:
+                adl.ADL2_Main_Control_Destroy(context)
+            except Exception:
+                pass
     except Exception:
         pass
     return None
@@ -160,7 +222,19 @@ def _get_gpu_temp() -> float | None:
     if _gpu_vendor == "nvidia":
         return _get_gpu_temp_nvidia()
     if _gpu_vendor == "amd":
-        return _get_gpu_temp_amd()
+        # Try ctypes ADL first (no extra packages), pyadl as fallback if installed
+        temp = _get_gpu_temp_amd_ctypes()
+        if temp is not None:
+            return temp
+        try:
+            import pyadl  # type: ignore
+            devices = pyadl.ADLManager.getInstance().getDevices()
+            if devices:
+                t = devices[0].getCurrentTemperature()
+                if t is not None:
+                    return float(t)
+        except Exception:
+            pass
     return None
 
 
@@ -177,19 +251,39 @@ def _get_cpu_temp() -> float | None:
                     return round(entries[0].current, 1)
     except Exception:
         pass
-    # Windows WMI fallback
-    if _IS_WINDOWS:
-        out = _run_ps(
-            "try { $t = (Get-WmiObject -Namespace root\\wmi "
-            "-Class MSAcpi_ThermalZoneTemperature -ErrorAction Stop).CurrentTemperature; "
-            "Write-Output (($t | Measure-Object -Minimum).Minimum / 10 - 273.15) } "
-            "catch { Write-Output '' }"
-        )
-        if out:
-            try:
-                return round(float(out), 1)
-            except Exception:
-                pass
+    if not _IS_WINDOWS:
+        return None
+
+    # Windows: try thermal zone performance counter first (more reliable on Ryzen)
+    out = _run_ps(
+        "try { $s = (Get-Counter '\\Thermal Zone Information(*)\\Temperature' "
+        "-ErrorAction Stop).CounterSamples | Measure-Object -Property CookedValue -Maximum; "
+        # Counter returns Kelvin; subtract 273.15 for Celsius
+        "Write-Output ($s.Maximum - 273.15) } catch { Write-Output '' }"
+    )
+    if out:
+        try:
+            t = round(float(out), 1)
+            if 0 < t < 120:
+                return t
+        except Exception:
+            pass
+
+    # Windows: ACPI WMI fallback (tenths of Kelvin)
+    out = _run_ps(
+        "try { $t = (Get-WmiObject -Namespace root\\wmi "
+        "-Class MSAcpi_ThermalZoneTemperature -ErrorAction Stop).CurrentTemperature; "
+        "Write-Output (($t | Measure-Object -Minimum).Minimum / 10 - 273.15) } "
+        "catch { Write-Output '' }"
+    )
+    if out:
+        try:
+            t = round(float(out), 1)
+            if 0 < t < 120:
+                return t
+        except Exception:
+            pass
+
     return None
 
 
