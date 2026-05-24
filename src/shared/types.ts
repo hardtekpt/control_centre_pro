@@ -255,6 +255,7 @@ export interface AppSettings {
   notifications: NotificationSettings
   discordClientId: string
   discordClientSecret: string
+  discordShowHomeCard: boolean
   kvmEnabled: boolean
   kvmDeviceInstanceId: string
   kvmDeviceName: string
@@ -291,6 +292,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   discordClientId: '',
   discordClientSecret: '',
+  discordShowHomeCard: true,
   kvmEnabled: false,
   kvmDeviceInstanceId: '',
   kvmDeviceName: '',

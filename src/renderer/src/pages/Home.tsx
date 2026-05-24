@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
 import { useSonarStore } from '../stores/sonarStore'
+import { useDiscordStore } from '../stores/discordStore'
 import { CompactHeadsetCard } from '../components/home/CompactHeadsetCard'
 import { CompactSonarCard } from '../components/home/CompactSonarCard'
+import { DiscordCard } from '../components/home/DiscordCard'
 import { DisplayCard } from '../components/home/DisplayCard'
 import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
 
@@ -31,10 +33,12 @@ function HomeSection({ title, children }: { title: string; children: React.React
 // ─── Home page ────────────────────────────────────────────────────────────────
 
 export function Home(): JSX.Element {
-  const arctisState    = useServiceStore(s => s.arctisState)
-  const ddcMonitors    = useServiceStore(s => s.ddcMonitors)
-  const syncBrightness = useServiceStore(s => s.settings.ddcSyncBrightness)
-  const sonarAvailable = useSonarStore(s => s.sonarState?.available ?? false)
+  const arctisState        = useServiceStore(s => s.arctisState)
+  const ddcMonitors        = useServiceStore(s => s.ddcMonitors)
+  const syncBrightness     = useServiceStore(s => s.settings.ddcSyncBrightness)
+  const discordShowHomeCard = useServiceStore(s => s.settings.discordShowHomeCard)
+  const sonarAvailable     = useSonarStore(s => s.sonarState?.available ?? false)
+  const discordState       = useDiscordStore(s => s.discordState)
   const [activeChip, setActiveChip] = useState('all')
   const [search, setSearch] = useState('')
 
@@ -43,12 +47,13 @@ export function Home(): JSX.Element {
     [ddcMonitors],
   )
 
-  const showAudio = arctisState || sonarAvailable
+  const showDiscord = discordShowHomeCard && discordState !== null
+  const showAudio   = arctisState || sonarAvailable || showDiscord
 
   const homeSubtitle = useMemo(() => {
-    const count = (arctisState ? 1 : 0) + (sonarAvailable ? 1 : 0) + ddcMonitors.length
+    const count = (arctisState ? 1 : 0) + (sonarAvailable ? 1 : 0) + (showDiscord ? 1 : 0) + ddcMonitors.length
     return count === 0 ? 'No devices detected' : `${count} device${count !== 1 ? 's' : ''} connected`
-  }, [arctisState, sonarAvailable, ddcMonitors.length])
+  }, [arctisState, sonarAvailable, showDiscord, ddcMonitors.length])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -74,6 +79,7 @@ export function Home(): JSX.Element {
             >
               {arctisState && <CompactHeadsetCard state={arctisState} />}
               {sonarAvailable && <CompactSonarCard />}
+              {showDiscord && <DiscordCard />}
             </div>
           </HomeSection>
         )}

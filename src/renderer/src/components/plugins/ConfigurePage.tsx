@@ -57,6 +57,8 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
   const [draftClientSecret, setDraftClientSecret] = useState('')
   const draftClientSecretRef = useRef(draftClientSecret)
 
+  const [showHomeCard, setShowHomeCard] = useState(true)
+
   const [labelInputVolume, setLabelInputVolume] = useState(100)
   const [labelOutputVolume, setLabelOutputVolume] = useState(100)
 
@@ -84,6 +86,7 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
         setDraftClientId(s.discordClientId ?? '')
         setSavedClientSecret(s.discordClientSecret ?? '')
         setDraftClientSecret(s.discordClientSecret ?? '')
+        setShowHomeCard(s.discordShowHomeCard ?? true)
       })
       .catch(console.error)
   }, [])
@@ -112,6 +115,12 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
     })
     return () => registerSave(null)
   }, [plugin.id, registerSave])
+
+  async function handleShowHomeCardToggle(next: boolean): Promise<void> {
+    setShowHomeCard(next)
+    const current = await window.api.getSettings()
+    await window.api.setSettings({ ...current, discordShowHomeCard: next })
+  }
 
   const connected = discordState?.available && discordState?.authenticated
 
@@ -180,6 +189,24 @@ export function ConfigurePage({ plugin, onBack, onTogglePlugin }: ConfigurePageP
                 </div>
               </div>
             )}
+
+            {/* Home card section */}
+            <div className="cfg-section">
+              <div className="cfg-section-h">
+                <h3>Home Page</h3>
+                <span className="desc">Widget visibility</span>
+              </div>
+              <div className="ff">
+                <div className="ff-label">
+                  <div className="ff-label-title">Show card on Home</div>
+                  <div className="ff-label-desc">Display Discord controls on the Home page</div>
+                </div>
+                <Toggle
+                  checked={showHomeCard}
+                  onChange={(v) => handleShowHomeCardToggle(v).catch(console.error)}
+                />
+              </div>
+            </div>
 
             {/* Credentials section */}
             <div className="cfg-section">
