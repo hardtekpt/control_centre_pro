@@ -116,7 +116,7 @@ function VerticalFaderComponent({
           bottom: 8,
           width: 6,
           height: `calc(${displayValue} * (100% - 16px))`,
-          background: disabled ? 'var(--color-text-secondary)' : 'var(--color-accent)',
+          background: disabled ? 'var(--color-text-secondary)' : 'var(--color-highlight)',
         }}
       />
       {/* Thumb */}
@@ -127,7 +127,7 @@ function VerticalFaderComponent({
           bottom: thumbOffset,
           width: 20,
           height: 10,
-          background: disabled ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
+          background: disabled ? 'var(--color-text-secondary)' : 'var(--color-highlight)',
           boxShadow: 'var(--shadow-thumb)',
         }}
       />
@@ -665,9 +665,9 @@ function ChannelStripComponent({
           className="w-full py-1.5 rounded transition-colors flex items-center justify-center"
           title={muted ? 'Unmute' : 'Mute'}
           style={{
-            background: muted ? 'var(--color-accent)' : 'transparent',
-            color: muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-            border: `1px solid ${muted ? 'var(--color-accent)' : 'var(--color-border)'}`,
+            background: muted ? 'var(--color-highlight)' : 'transparent',
+            color: muted ? 'var(--color-on-highlight)' : 'var(--color-text-secondary)',
+            border: `1px solid ${muted ? 'var(--color-highlight)' : 'var(--color-border)'}`,
             cursor: 'pointer',
           }}
         >

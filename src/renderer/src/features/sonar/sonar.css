@@ -138,9 +138,9 @@
   flex-shrink: 0;
 }
 .sn-strip.master-strip .sn-strip-ic {
-  background: var(--color-text-primary);
-  color: var(--color-bg);
-  border-color: var(--color-text-primary);
+  background: var(--color-highlight);
+  color: var(--color-on-highlight);
+  border-color: var(--color-highlight);
 }
 
 .sn-strip-meta { min-width: 0; }
@@ -322,9 +322,9 @@
   border-color: var(--color-border-strong);
 }
 .sn-mute-btn.on {
-  background: var(--color-warn);
-  border-color: var(--color-warn);
-  color: var(--color-bg);
+  background: var(--color-highlight);
+  border-color: var(--color-highlight);
+  color: var(--color-on-highlight);
 }
 .sn-solo-btn.on {
   background: var(--color-ok);
@@ -537,12 +537,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-border-strong);
+  background: var(--color-highlight);
   border-radius: 10px;
   transition: height 0.08s linear;
 }
 .sn-fader-track.dragging .sn-fader-fill,
-.sn-fader-track:focus .sn-fader-fill { background: var(--color-text-primary); transition: none; }
+.sn-fader-track:focus .sn-fader-fill { background: var(--color-highlight); transition: none; }
 .sn-fader-track.muted .sn-fader-fill { opacity: 0.4; }
 
 .sn-fader-thumb {
@@ -550,7 +550,7 @@
   left: -5px;
   right: -5px;
   height: 14px;
-  background: var(--color-text-primary);
+  background: var(--color-highlight);
   border-radius: 5px;
   box-shadow: 0 1px 0 rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.18);
   pointer-events: none;
@@ -558,7 +558,6 @@
   place-items: center;
   transition: transform 0.08s ease-out;
 }
-[data-theme="light"] .sn-fader-thumb { background: var(--color-text-on-accent); }
 .sn-fader-track.dragging .sn-fader-thumb { transform: scale(1.04); transition: transform 0s; }
 .sn-fader-track.muted .sn-fader-thumb { opacity: 0.4; }
 
@@ -950,8 +949,8 @@
   padding: 5px 8px;
   border-radius: 6px;
   border: none;
-  background: var(--color-text-primary);
-  color: var(--color-bg);
+  background: var(--color-highlight);
+  color: var(--color-on-highlight);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
