@@ -1115,7 +1115,7 @@ app.whenReady().then(() => {
   createWindow()
   kvmDetector.start(bootSettings)
   serviceManager.setWindow(mainWindow!)
-  initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow)
+  initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow, loadAppSettings)
   sonarService.setWindow(mainWindow!)
   discordService.setWindow(mainWindow!)
   haService.setWindow(mainWindow!)

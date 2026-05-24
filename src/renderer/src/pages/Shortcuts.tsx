@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useShortcutStore } from '../stores/shortcutStore'
+import { useServiceStore } from '../stores/serviceStore'
 import { CATEGORIES, ACTIONS, actionById, formatActionValue } from '../lib/shortcuts/catalog'
 import { formatCombo } from '../lib/shortcuts/keys'
 import { ShortcutRow } from '../components/shortcuts/ShortcutRow'
@@ -10,6 +11,7 @@ import '../components/shortcuts/shortcuts.css'
 
 export function Shortcuts(): JSX.Element {
   const { items, load, findConflict } = useShortcutStore()
+  const monitorGroups = useServiceStore((s) => s.settings.monitorGroups ?? [])
   const [filter, setFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [showNew, setShowNew] = useState(false)
@@ -50,7 +52,7 @@ export function Shortcuts(): JSX.Element {
       const q = search.toLowerCase()
       const act = actionById(s.actionId)
       const catLabel = act ? CATEGORIES.find((c) => c.id === act.cat)?.label?.toLowerCase() ?? '' : ''
-      const valueStr = act ? (formatActionValue(act, s.value) ?? '').toLowerCase() : ''
+      const valueStr = act ? (formatActionValue(act, s.value, monitorGroups) ?? '').toLowerCase() : ''
       const comboStr = formatCombo(s.keys).toLowerCase()
       const label = (act?.label ?? s.actionId).toLowerCase()
       if (!label.includes(q) && !catLabel.includes(q) && !valueStr.includes(q) && !comboStr.includes(q)) {

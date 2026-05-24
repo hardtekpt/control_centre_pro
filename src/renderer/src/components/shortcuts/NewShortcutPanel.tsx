@@ -7,6 +7,7 @@ import { KbdPills } from './KbdPills'
 import { IconWarn } from './icons'
 import { combinationFromEvent, formatCombo } from '../../lib/shortcuts/keys'
 import { useShortcutStore } from '../../stores/shortcutStore'
+import { useServiceStore } from '../../stores/serviceStore'
 import type { ShortcutScope } from '../../stores/shortcutStore'
 
 interface NewShortcutPanelProps {
@@ -15,6 +16,7 @@ interface NewShortcutPanelProps {
 
 export function NewShortcutPanel({ onClose }: NewShortcutPanelProps): JSX.Element {
   const { create, findConflict } = useShortcutStore()
+  const monitorGroups = useServiceStore((s) => s.settings.monitorGroups ?? [])
 
   const [catId, setCatId] = useState<string>('')
   const [actionId, setActionId] = useState<string>('')
@@ -88,7 +90,7 @@ export function NewShortcutPanel({ onClose }: NewShortcutPanelProps): JSX.Elemen
   const conflictAction = conflictShortcut ? actionById(conflictShortcut.actionId) : undefined
   const conflictLabel = conflictAction
     ? conflictAction.label + (conflictShortcut?.value != null
-        ? ' · ' + formatActionValue(conflictAction, conflictShortcut.value)
+        ? ' · ' + formatActionValue(conflictAction, conflictShortcut.value, monitorGroups)
         : '')
     : ''
 

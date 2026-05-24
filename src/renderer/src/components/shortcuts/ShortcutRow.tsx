@@ -4,6 +4,7 @@ import { IconX } from './icons'
 import { combinationFromEvent, formatCombo } from '../../lib/shortcuts/keys'
 import { actionById, formatActionValue, CATEGORIES } from '../../lib/shortcuts/catalog'
 import { useShortcutStore } from '../../stores/shortcutStore'
+import { useServiceStore } from '../../stores/serviceStore'
 import type { Shortcut } from '../../stores/shortcutStore'
 
 interface ShortcutRowProps {
@@ -12,12 +13,13 @@ interface ShortcutRowProps {
 
 export function ShortcutRow({ shortcut }: ShortcutRowProps): JSX.Element {
   const { update, toggle, remove, findConflict } = useShortcutStore()
+  const monitorGroups = useServiceStore((s) => s.settings.monitorGroups ?? [])
   const [capturing, setCapturing] = useState(false)
   const [conflict, setConflict] = useState<Shortcut | undefined>(undefined)
 
   const action = actionById(shortcut.actionId)
   const category = action ? CATEGORIES.find((c) => c.id === action.cat) : undefined
-  const valueLabel = action ? formatActionValue(action, shortcut.value) : null
+  const valueLabel = action ? formatActionValue(action, shortcut.value, monitorGroups) : null
 
   const Icon = action?.icon
   const CatIcon = category?.icon
@@ -75,7 +77,7 @@ export function ShortcutRow({ shortcut }: ShortcutRowProps): JSX.Element {
   const conflictAction = conflict ? actionById(conflict.actionId) : undefined
   const conflictLabel = conflictAction
     ? conflictAction.label + (conflict && conflict.value != null
-        ? ' · ' + formatActionValue(conflictAction, conflict.value)
+        ? ' · ' + formatActionValue(conflictAction, conflict.value, monitorGroups)
         : '')
     : ''
 

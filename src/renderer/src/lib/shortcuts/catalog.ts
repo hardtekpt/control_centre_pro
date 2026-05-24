@@ -33,6 +33,18 @@ export type ParamSchema =
         options: Array<{ id: string; label: string }>
       }>
     }
+  | {
+      // Dynamic target selector (all monitors / individual / group) + a number input.
+      // Stored value format: "TARGET:NUMBER" e.g. "all:10", "1:10", "g_abc123:80"
+      kind: 'monitor-target-number'
+      label: string      // label for the number part
+      min: number
+      max: number
+      step: number
+      default: number
+      unit?: string
+      signed?: '+' | '−'
+    }
 
 // ─── Action ───────────────────────────────────────────────────────────────────
 
@@ -128,11 +140,11 @@ export const ACTIONS: Action[] = [
 
   // ── Displays ────────────────────────────────────────────────────────────────
   { id: 'disp.brightness-up',   cat: 'displays', label: 'Brightness up',    icon: IconBrightUp,
-    param: { kind: 'number', label: 'Step', min: 5, max: 25, step: 5, default: 10, unit: '%', signed: '+' }},
+    param: { kind: 'monitor-target-number', label: 'Step', min: 5, max: 25, step: 5, default: 10, unit: '%', signed: '+' }},
   { id: 'disp.brightness-down', cat: 'displays', label: 'Brightness down',  icon: IconBrightDown,
-    param: { kind: 'number', label: 'Step', min: 5, max: 25, step: 5, default: 10, unit: '%', signed: '−' }},
+    param: { kind: 'monitor-target-number', label: 'Step', min: 5, max: 25, step: 5, default: 10, unit: '%', signed: '−' }},
   { id: 'disp.brightness-set',  cat: 'displays', label: 'Set brightness',   icon: IconBrightUp,
-    param: { kind: 'number', label: 'Brightness', min: 0, max: 100, step: 10, default: 80, unit: '%' }},
+    param: { kind: 'monitor-target-number', label: 'Brightness', min: 0, max: 100, step: 10, default: 80, unit: '%' }},
   { id: 'disp.activate',        cat: 'displays', label: 'Activate display', icon: IconMonitor,
     param: { kind: 'enum', label: 'Display',
       options: [
@@ -204,7 +216,11 @@ export function actionById(id: string): Action | undefined {
   return ACTIONS.find((a) => a.id === id)
 }
 
-export function formatActionValue(action: Action, value: unknown): string | null {
+export function formatActionValue(
+  action: Action,
+  value: unknown,
+  groups?: Array<{ id: string; name: string }>,
+): string | null {
   if (!action.param || value == null) return null
   const p = action.param
   if (p.kind === 'enum') {
@@ -220,6 +236,19 @@ export function formatActionValue(action: Action, value: unknown): string | null
     )
     return labels.join(' → ')
   }
+  if (p.kind === 'monitor-target-number') {
+    const str = String(value)
+    const sep = str.lastIndexOf(':')
+    if (sep === -1) return `${p.signed ?? ''}${str}${p.unit ?? ''}`
+    const target = str.slice(0, sep)
+    const num = str.slice(sep + 1)
+    const targetLabel = target === 'all'
+      ? 'All monitors'
+      : target.startsWith('g_')
+        ? (groups?.find((g) => g.id === target.slice(2))?.name ?? target)
+        : `Display ${target}`
+    return `${targetLabel} · ${p.signed ?? ''}${num}${p.unit ?? ''}`
+  }
   return String(value)
 }
 
@@ -228,5 +257,7 @@ export function defaultValueFor(action: Action): string | number | undefined {
   if (action.param.kind === 'enum') return action.param.options[0]?.id
   if (action.param.kind === 'compound')
     return action.param.parts.map((part) => part.options[0]?.id ?? '').join(action.param.separator)
+  if (action.param.kind === 'monitor-target-number')
+    return `all:${action.param.default}`
   return action.param.default
 }

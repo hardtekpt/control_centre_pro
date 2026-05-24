@@ -1,6 +1,7 @@
 import { exec } from 'child_process'
 import type { BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../../shared/types'
+import type { AppSettings, DdcMonitor } from '../../shared/types'
 import type { ServiceManager } from '../services/serviceManager'
 import type { SonarService } from '../services/sonarService'
 import type { DdcService } from '../services/apis/ddc/service'
@@ -10,6 +11,7 @@ let _serviceManager: ServiceManager | null = null
 let _sonarService: SonarService | null = null
 let _ddcService: DdcService | null = null
 let _showMainWindow: (() => void) | null = null
+let _getSettings: (() => AppSettings) | null = null
 
 export function initDispatcher(
   mainWindow: BrowserWindow,
@@ -17,12 +19,49 @@ export function initDispatcher(
   sonarService: SonarService,
   ddcService: DdcService,
   showMainWindow: () => void,
+  getSettings: () => AppSettings,
 ): void {
   _mainWindow = mainWindow
   _serviceManager = serviceManager
   _sonarService = sonarService
   _ddcService = ddcService
   _showMainWindow = showMainWindow
+  _getSettings = getSettings
+}
+
+/**
+ * Resolve a monitor-target string to an array of DdcMonitor objects.
+ * target = "all" → all monitors
+ * target = "1" | "2" | … → single monitor by ID
+ * target = "g_<groupId>" → monitors in that group
+ * Fallback (legacy plain number value): all monitors
+ */
+function resolveTarget(target: string, monitors: DdcMonitor[]): DdcMonitor[] {
+  if (target === 'all') return monitors
+  if (target.startsWith('g_')) {
+    const groupId = target.slice(2)
+    const groups = _getSettings?.().monitorGroups ?? []
+    const group = groups.find((g) => g.id === groupId)
+    if (!group) return []
+    return monitors.filter((m) => group.monitorIds.includes(m.monitor_id))
+  }
+  const id = Number(target)
+  if (Number.isNaN(id)) return monitors
+  return monitors.filter((m) => m.monitor_id === id)
+}
+
+/**
+ * Parse a "TARGET:NUMBER" compound value from brightness shortcuts.
+ * Backwards-compatible: a plain number string (no colon) → target = "all".
+ */
+function parseTargetNumber(value: unknown, fallback: number): { target: string; num: number } {
+  const str = String(value ?? '')
+  const sep = str.lastIndexOf(':')
+  if (sep === -1) {
+    // Legacy plain-number value
+    return { target: 'all', num: Number(str) || fallback }
+  }
+  return { target: str.slice(0, sep), num: Number(str.slice(sep + 1)) || fallback }
 }
 
 export async function dispatch(actionId: string, value?: unknown): Promise<void> {
@@ -128,25 +167,25 @@ async function _dispatch(actionId: string, value?: unknown): Promise<void> {
 
     // ── Displays ──────────────────────────────────────────────────────────────
     case 'disp.brightness-up': {
-      const monitors = _ddcService?.getCachedMonitors() ?? []
-      const step = Number(value) || 10
-      for (const m of monitors) {
+      const all = _ddcService?.getCachedMonitors() ?? []
+      const { target, num: step } = parseTargetNumber(value, 10)
+      for (const m of resolveTarget(target, all)) {
         _ddcService?.setBrightness(m.monitor_id, Math.min(100, m.brightness + step))
       }
       break
     }
     case 'disp.brightness-down': {
-      const monitors = _ddcService?.getCachedMonitors() ?? []
-      const step = Number(value) || 10
-      for (const m of monitors) {
+      const all = _ddcService?.getCachedMonitors() ?? []
+      const { target, num: step } = parseTargetNumber(value, 10)
+      for (const m of resolveTarget(target, all)) {
         _ddcService?.setBrightness(m.monitor_id, Math.max(0, m.brightness - step))
       }
       break
     }
     case 'disp.brightness-set': {
-      const monitors = _ddcService?.getCachedMonitors() ?? []
-      const level = Number(value) ?? 80
-      for (const m of monitors) {
+      const all = _ddcService?.getCachedMonitors() ?? []
+      const { target, num: level } = parseTargetNumber(value, 80)
+      for (const m of resolveTarget(target, all)) {
         _ddcService?.setBrightness(m.monitor_id, level)
       }
       break

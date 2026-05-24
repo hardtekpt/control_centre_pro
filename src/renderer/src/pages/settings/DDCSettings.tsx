@@ -10,7 +10,7 @@ import {
 } from '../../components/SettingsComponents'
 import { SliderInput } from '../../components/SliderInput'
 import { DDC_INPUT_NAMES } from '@shared/types'
-import type { DdcMonitor } from '@shared/types'
+import type { DdcMonitor, MonitorGroup } from '@shared/types'
 
 // ─── Color preset constants (VCP 0x14) ──────────────────────────────────────
 const COLOR_PRESETS = [
@@ -52,6 +52,8 @@ export function DDCSettings(): JSX.Element {
   const [draftInterval, setDraftInterval] = useState('')
   const [savedSyncBrightness, setSavedSyncBrightness] = useState(false)
   const [draftSyncBrightness, setDraftSyncBrightness] = useState(false)
+  const [savedGroups, setSavedGroups] = useState<MonitorGroup[]>([])
+  const [draftGroups, setDraftGroups] = useState<MonitorGroup[]>([])
 
   useEffect(() => {
     setMonitors(ddcMonitors)
@@ -64,16 +66,20 @@ export function DDCSettings(): JSX.Element {
         setDraftInterval(sec.toString())
         setSavedSyncBrightness(settings.ddcSyncBrightness)
         setDraftSyncBrightness(settings.ddcSyncBrightness)
+        const groups = settings.monitorGroups ?? []
+        setSavedGroups(groups)
+        setDraftGroups(groups)
       })
       .catch(console.error)
   }, [])
 
   const intervalDirty = savedInterval !== null && draftInterval !== savedInterval.toString()
   const syncBrightnessDirty = draftSyncBrightness !== savedSyncBrightness
+  const groupsDirty = JSON.stringify(draftGroups) !== JSON.stringify(savedGroups)
 
   useEffect(() => {
-    setDirty(intervalDirty || syncBrightnessDirty)
-  }, [intervalDirty, syncBrightnessDirty, setDirty])
+    setDirty(intervalDirty || syncBrightnessDirty || groupsDirty)
+  }, [intervalDirty, syncBrightnessDirty, groupsDirty, setDirty])
 
   useEffect(() => {
     registerSave(async () => {
@@ -83,16 +89,17 @@ export function DDCSettings(): JSX.Element {
         setSavedInterval(parsed)
       }
 
-      if (draftSyncBrightness !== savedSyncBrightness) {
+      if (draftSyncBrightness !== savedSyncBrightness || groupsDirty) {
         const current = await window.api.getSettings()
-        const updated = { ...current, ddcSyncBrightness: draftSyncBrightness }
+        const updated = { ...current, ddcSyncBrightness: draftSyncBrightness, monitorGroups: draftGroups }
         await window.api.setSettings(updated)
         setStoreSettings(updated)
         setSavedSyncBrightness(draftSyncBrightness)
+        setSavedGroups(draftGroups)
       }
     })
     return () => registerSave(null)
-  }, [draftInterval, draftSyncBrightness, savedSyncBrightness, registerSave, setStoreSettings])
+  }, [draftInterval, draftSyncBrightness, savedSyncBrightness, draftGroups, groupsDirty, registerSave, setStoreSettings])
 
   const handleRefresh = async (): Promise<void> => {
     setIsRefreshing(true)
@@ -204,6 +211,12 @@ export function DDCSettings(): JSX.Element {
               />
             </SettingRow>
           </SettingSection>
+
+          <MonitorGroupsSection
+            monitors={monitors}
+            groups={draftGroups}
+            onChange={setDraftGroups}
+          />
         </SettingsPageWrapper>
       </div>
     </div>
@@ -547,6 +560,259 @@ function MonitorCard({ monitor: initial }: { monitor: DdcMonitor }): JSX.Element
   )
 }
 
+
+// ─── Monitor Groups ───────────────────────────────────────────────────────────
+
+function newGroupId(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
+
+function MonitorGroupsSection({
+  monitors,
+  groups,
+  onChange,
+}: {
+  monitors: DdcMonitor[]
+  groups: MonitorGroup[]
+  onChange: (groups: MonitorGroup[]) => void
+}): JSX.Element {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [newName, setNewName] = useState('')
+  const [newMonitorIds, setNewMonitorIds] = useState<number[]>([])
+  const [isAdding, setIsAdding] = useState(false)
+
+  const startAdd = (): void => {
+    setIsAdding(true)
+    setNewName('')
+    setNewMonitorIds(monitors.map((m) => m.monitor_id))
+  }
+
+  const confirmAdd = (): void => {
+    if (!newName.trim()) return
+    onChange([...groups, { id: newGroupId(), name: newName.trim(), monitorIds: newMonitorIds }])
+    setIsAdding(false)
+  }
+
+  const startEdit = (g: MonitorGroup): void => {
+    setEditingId(g.id)
+    setNewName(g.name)
+    setNewMonitorIds([...g.monitorIds])
+  }
+
+  const confirmEdit = (): void => {
+    if (!newName.trim()) return
+    onChange(groups.map((g) => g.id === editingId ? { ...g, name: newName.trim(), monitorIds: newMonitorIds } : g))
+    setEditingId(null)
+  }
+
+  const deleteGroup = (id: string): void => {
+    onChange(groups.filter((g) => g.id !== id))
+  }
+
+  const toggleMonitor = (id: number): void => {
+    setNewMonitorIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  const isEditing = isAdding || editingId !== null
+
+  return (
+    <SettingSection title="Monitor Groups">
+      <div className="px-5 pb-4" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p className="text-xs" style={{ color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+          Groups let you target multiple monitors together in brightness shortcuts.
+        </p>
+
+        {groups.length === 0 && !isAdding && (
+          <p className="text-xs" style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+            No groups yet.
+          </p>
+        )}
+
+        {groups.map((g) =>
+          editingId === g.id ? (
+            <GroupEditor
+              key={g.id}
+              name={newName}
+              monitorIds={newMonitorIds}
+              monitors={monitors}
+              onNameChange={setNewName}
+              onToggleMonitor={toggleMonitor}
+              onConfirm={confirmEdit}
+              onCancel={() => setEditingId(null)}
+            />
+          ) : (
+            <div
+              key={g.id}
+              className="flex items-center gap-2 px-3 py-2 rounded"
+              style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}
+            >
+              <span className="flex-1 text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                {g.name}
+              </span>
+              <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                {g.monitorIds.length === 0
+                  ? 'no monitors'
+                  : g.monitorIds.map((id) => {
+                      const m = monitors.find((mon) => mon.monitor_id === id)
+                      return m ? (m.is_primary ? `${m.name} ★` : m.name) : `Display ${id}`
+                    }).join(', ')}
+              </span>
+              <button
+                onClick={() => startEdit(g)}
+                disabled={isEditing}
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                  cursor: isEditing ? 'default' : 'pointer',
+                  opacity: isEditing ? 0.4 : 1,
+                }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => deleteGroup(g.id)}
+                disabled={isEditing}
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                  cursor: isEditing ? 'default' : 'pointer',
+                  opacity: isEditing ? 0.4 : 1,
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )
+        )}
+
+        {isAdding && (
+          <GroupEditor
+            name={newName}
+            monitorIds={newMonitorIds}
+            monitors={monitors}
+            onNameChange={setNewName}
+            onToggleMonitor={toggleMonitor}
+            onConfirm={confirmAdd}
+            onCancel={() => setIsAdding(false)}
+          />
+        )}
+
+        {!isEditing && (
+          <button
+            onClick={startAdd}
+            className="text-xs px-3 py-2 rounded self-start"
+            style={{
+              background: 'var(--color-surface-raised)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+            }}
+          >
+            + Add group
+          </button>
+        )}
+      </div>
+    </SettingSection>
+  )
+}
+
+function GroupEditor({
+  name,
+  monitorIds,
+  monitors,
+  onNameChange,
+  onToggleMonitor,
+  onConfirm,
+  onCancel,
+}: {
+  name: string
+  monitorIds: number[]
+  monitors: DdcMonitor[]
+  onNameChange: (v: string) => void
+  onToggleMonitor: (id: number) => void
+  onConfirm: () => void
+  onCancel: () => void
+}): JSX.Element {
+  return (
+    <div
+      className="flex flex-col gap-3 px-3 py-3 rounded"
+      style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-accent)' }}
+    >
+      <input
+        autoFocus
+        type="text"
+        placeholder="Group name…"
+        value={name}
+        onChange={(e) => onNameChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onConfirm(); if (e.key === 'Escape') onCancel() }}
+        className="text-sm px-2 py-1.5 rounded"
+        style={{
+          background: 'var(--color-surface)',
+          color: 'var(--color-text-primary)',
+          border: '1px solid var(--color-border)',
+          outline: 'none',
+        }}
+      />
+      <div className="flex flex-col gap-1.5">
+        {monitors.length === 0 && (
+          <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            No monitors detected
+          </span>
+        )}
+        {monitors.map((m) => (
+          <label key={m.monitor_id} className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={monitorIds.includes(m.monitor_id)}
+              onChange={() => onToggleMonitor(m.monitor_id)}
+              style={{ accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+            />
+            <span className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
+              {m.name}
+              {m.is_primary && (
+                <span style={{ color: 'var(--color-text-secondary)', marginLeft: 4 }}>(primary)</span>
+              )}
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onConfirm}
+          disabled={!name.trim()}
+          className="text-xs px-3 py-1.5 rounded"
+          style={{
+            background: 'var(--color-accent)',
+            color: 'var(--color-bg)',
+            border: 'none',
+            cursor: name.trim() ? 'pointer' : 'default',
+            opacity: name.trim() ? 1 : 0.4,
+          }}
+        >
+          Save
+        </button>
+        <button
+          onClick={onCancel}
+          className="text-xs px-3 py-1.5 rounded"
+          style={{
+            background: 'var(--color-surface)',
+            color: 'var(--color-text-secondary)',
+            border: '1px solid var(--color-border)',
+            cursor: 'pointer',
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ─── Slider row ──────────────────────────────────────────────────────────────
 

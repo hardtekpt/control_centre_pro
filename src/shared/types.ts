@@ -243,6 +243,13 @@ const DEFAULT_DISPLAY_NOTIFICATIONS: DisplayNotificationSettings = {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
+/** A named group of monitors for batch brightness shortcuts */
+export interface MonitorGroup {
+  id: string
+  name: string
+  monitorIds: number[]
+}
+
 /** App-wide settings persisted to disk */
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system'
@@ -273,6 +280,8 @@ export interface AppSettings {
   remoteTokenExpiresAt: number
   /** Configured token lifetime in ms (0 = never expires). Applied when a new token is issued. */
   remoteTokenDurationMs: number
+  /** User-defined groups of monitors for batch brightness shortcuts */
+  monitorGroups: MonitorGroup[]
 }
 
 /** Defaults applied when no saved settings exist */
@@ -307,6 +316,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   remoteAuthToken: '',
   remoteTokenExpiresAt: 0,
   remoteTokenDurationMs: 24 * 60 * 60 * 1000,  // 24 hours
+  monitorGroups: [],
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
