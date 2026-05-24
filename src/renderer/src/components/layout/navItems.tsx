@@ -88,3 +88,12 @@ export function ChevronDownIcon(): JSX.Element {
     </svg>
   )
 }
+
+export function PluginsIcon(): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.5 1.5h3V4H12v3H5.5M8.5 12.5v-3H2v-3h6.5" />
+      <path d="M5.5 4v4.5M8.5 8.5v-4" />
+    </svg>
+  )
+}

@@ -1,13 +1,14 @@
 import { useRef, useCallback, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAppStore } from '../../stores/appStore'
-import type { AppView } from '@shared/types'
+import type { AppView, SettingsTab } from '@shared/types'
 import {
   MAIN_NAV,
   type NavItemDef,
   MissionControlIcon,
   CogIcon,
   ChevronDownIcon,
+  PluginsIcon,
 } from './navItems'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ const SIDEBAR_RADIUS = 10
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar(): JSX.Element {
-  const { sidebarWidth, currentView, setSidebarWidth, setView } = useAppStore()
+  const { sidebarWidth, currentView, setSidebarWidth, setView, setSettingsTab } = useAppStore()
 
   const isResizing = useRef(false)
   const dragStartX = useRef(0)
@@ -92,6 +93,8 @@ export function Sidebar(): JSX.Element {
           <MissionControlChip
             isSettingsActive={currentView === 'settings'}
             onNavigateSettings={() => setView('settings')}
+            setView={setView}
+            setSettingsTab={setSettingsTab}
           />
         </div>
       </div>
@@ -119,9 +122,11 @@ export function Sidebar(): JSX.Element {
 interface MissionControlChipProps {
   isSettingsActive: boolean
   onNavigateSettings: () => void
+  setView: (view: AppView) => void
+  setSettingsTab: (tab: SettingsTab) => void
 }
 
-function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionControlChipProps): JSX.Element {
+function MissionControlChip({ isSettingsActive, onNavigateSettings, setView, setSettingsTab }: MissionControlChipProps): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const chipRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -252,6 +257,38 @@ function MissionControlChip({ isSettingsActive, onNavigateSettings }: MissionCon
 
             {/* Menu items */}
             <div style={{ padding: 4 }}>
+              <button
+                onClick={() => {
+                  setView('settings')
+                  setSettingsTab('plugins')
+                  setMenuOpen(false)
+                }}
+                className="flex items-center gap-2.5 w-full rounded-md"
+                style={{
+                  padding: '7px 10px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-primary)',
+                  textAlign: 'left',
+                  fontSize: 13,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--color-hover-overlay)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                <span
+                  className="shrink-0 flex items-center justify-center"
+                  style={{ color: 'var(--color-text-secondary)', width: 16, height: 16 }}
+                >
+                  <PluginsIcon />
+                </span>
+                <span className="flex-1">Plugins</span>
+              </button>
+
               <button
                 onClick={() => {
                   onNavigateSettings()
