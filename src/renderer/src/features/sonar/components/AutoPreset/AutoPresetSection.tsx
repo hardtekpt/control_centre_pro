@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { PresetSwitcherRule, SonarState, OpenApp, ActiveWindowInfo } from '@shared/types'
+import { Toggle } from '../../../../components/plugins/Toggle'
 import { NowActiveCard } from './NowActiveCard'
 import { RuleRow } from './RuleRow'
 import { AddRuleForm } from './AddRuleForm'
@@ -126,21 +127,7 @@ export function AutoPresetSection({ sonarState, onAutoPresetChange }: AutoPreset
         </span>
 
         {/* Toggle switch */}
-        <button
-          className="toggle-track"
-          style={{ background: autoPilot ? 'var(--color-text-primary)' : 'var(--color-border)' }}
-          onClick={handleToggleAuto}
-          title={autoPilot ? 'Disable auto preset' : 'Enable auto preset'}
-          aria-pressed={autoPilot}
-        >
-          <span
-            className="toggle-thumb"
-            style={{
-              transform: autoPilot ? 'translateX(14px)' : 'translateX(0)',
-              background: autoPilot ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-            }}
-          />
-        </button>
+        <Toggle checked={autoPilot} onChange={handleToggleAuto} size="sm" />
       </div>
 
       {/* Body: now-active | rules grid */}
