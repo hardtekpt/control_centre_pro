@@ -5,6 +5,7 @@ import { combinationFromEvent, formatCombo } from '../../lib/shortcuts/keys'
 import { actionById, formatActionValue, CATEGORIES } from '../../lib/shortcuts/catalog'
 import { useShortcutStore } from '../../stores/shortcutStore'
 import { useServiceStore } from '../../stores/serviceStore'
+import { Toggle } from '../plugins/Toggle'
 import type { Shortcut } from '../../stores/shortcutStore'
 
 interface ShortcutRowProps {
@@ -132,23 +133,7 @@ export function ShortcutRow({ shortcut }: ShortcutRowProps): JSX.Element {
       </div>
 
       {/* Toggle */}
-      <button
-        type="button"
-        className="toggle-track"
-        onClick={() => toggle(shortcut.id)}
-        aria-label={enabled ? 'Disable shortcut' : 'Enable shortcut'}
-        style={{
-          background: enabled ? 'var(--color-text-primary)' : 'var(--color-border)',
-        }}
-      >
-        <span
-          className="toggle-thumb"
-          style={{
-            transform: enabled ? 'translateX(14px)' : 'translateX(0)',
-            background: enabled ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-          }}
-        />
-      </button>
+      <Toggle checked={enabled} onChange={() => toggle(shortcut.id)} size="sm" />
 
       {/* Delete */}
       <button
