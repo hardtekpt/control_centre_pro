@@ -11,7 +11,7 @@ export function Plugins(): JSX.Element {
   const selectedPlugin = selectedPluginId ? plugins.find((p) => p.id === selectedPluginId) : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {selectedPlugin ? (
         <ConfigurePage
           plugin={selectedPlugin}
