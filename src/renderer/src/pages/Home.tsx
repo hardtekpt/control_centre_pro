@@ -6,12 +6,14 @@ import { CompactHeadsetCard } from '../components/home/CompactHeadsetCard'
 import { CompactSonarCard } from '../components/home/CompactSonarCard'
 import { DiscordCard } from '../components/home/DiscordCard'
 import { DisplayCard } from '../components/home/DisplayCard'
+import { HaHomeCard } from '../components/home/HaHomeCard'
 import { MainPageHeader, type FilterChipDef } from '../components/MainPageHeader'
 
 const HOME_CHIPS: FilterChipDef[] = [
-  { id: 'all',     label: 'All' },
-  { id: 'audio',   label: 'Audio' },
-  { id: 'display', label: 'Display' },
+  { id: 'all',        label: 'All' },
+  { id: 'audio',      label: 'Audio' },
+  { id: 'display',    label: 'Display' },
+  { id: 'smart-home', label: 'Smart Home' },
 ]
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -37,6 +39,8 @@ export function Home(): JSX.Element {
   const ddcMonitors        = useServiceStore(s => s.ddcMonitors)
   const syncBrightness     = useServiceStore(s => s.settings.ddcSyncBrightness)
   const discordShowHomeCard = useServiceStore(s => s.settings.discordShowHomeCard)
+  const haHomeCardEnabled  = useServiceStore(s => s.settings.haHomeCardEnabled)
+  const haHomeCardEntities = useServiceStore(s => s.settings.haHomeCardEntities)
   const sonarAvailable     = useSonarStore(s => s.sonarState?.available ?? false)
   const discordState       = useDiscordStore(s => s.discordState)
   const [activeChip, setActiveChip] = useState('all')
@@ -49,11 +53,12 @@ export function Home(): JSX.Element {
 
   const showDiscord = discordShowHomeCard && discordState !== null
   const showAudio   = arctisState || sonarAvailable || showDiscord
+  const showHa      = haHomeCardEnabled && haHomeCardEntities.length > 0
 
   const homeSubtitle = useMemo(() => {
-    const count = (arctisState ? 1 : 0) + (sonarAvailable ? 1 : 0) + (showDiscord ? 1 : 0) + ddcMonitors.length
+    const count = (arctisState ? 1 : 0) + (sonarAvailable ? 1 : 0) + (showDiscord ? 1 : 0) + ddcMonitors.length + (showHa ? 1 : 0)
     return count === 0 ? 'No devices detected' : `${count} device${count !== 1 ? 's' : ''} connected`
-  }, [arctisState, sonarAvailable, showDiscord, ddcMonitors.length])
+  }, [arctisState, sonarAvailable, showDiscord, ddcMonitors.length, showHa])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -83,7 +88,7 @@ export function Home(): JSX.Element {
             </div>
           </HomeSection>
         )}
-        {ddcMonitors.length > 0 && (
+        {ddcMonitors.length > 0 && (activeChip === 'all' || activeChip === 'display') && (
           <HomeSection title="Display">
             <div
               style={{
@@ -100,6 +105,20 @@ export function Home(): JSX.Element {
                   allMonitors={ddcMonitors}
                 />
               ))}
+            </div>
+          </HomeSection>
+        )}
+        {showHa && (activeChip === 'all' || activeChip === 'smart-home') && (
+          <HomeSection title="Smart Home">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '12px',
+                alignItems: 'start',
+              }}
+            >
+              <HaHomeCard />
             </div>
           </HomeSection>
         )}

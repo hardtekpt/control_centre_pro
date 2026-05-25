@@ -345,6 +345,8 @@ export interface AppSettings {
   resourceMonitorEnabled: boolean
   /** Poll interval in seconds for the resource monitor service (default 2) */
   resourceMonitorInterval: number
+  haHomeCardEnabled: boolean
+  haHomeCardEntities: HaHomeCardEntity[]
 }
 
 /** Defaults applied when no saved settings exist */
@@ -384,6 +386,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highlightColor: '',
   resourceMonitorEnabled: true,
   resourceMonitorInterval: 2,
+  haHomeCardEnabled: false,
+  haHomeCardEntities: [],
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
@@ -827,4 +831,14 @@ export interface HaServiceCall {
   domain: string
   service: string
   serviceData?: Record<string, unknown>
+}
+
+export type HaHomeCardEntityType = 'light' | 'climate' | 'sensor' | 'scene' | 'service_call'
+
+export interface HaHomeCardEntity {
+  entityId: string
+  displayName?: string
+  type: HaHomeCardEntityType
+  serviceDomain?: string
+  serviceName?: string
 }
