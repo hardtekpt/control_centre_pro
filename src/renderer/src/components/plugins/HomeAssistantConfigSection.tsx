@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { HaHomeCardEntity, Plugin } from '@shared/types'
 import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { useHaStore } from '../../stores/haStore'
+import { useServiceStore } from '../../stores/serviceStore'
 import { HaEntityPicker } from './HaEntityPicker'
+import { Toggle } from './Toggle'
 
 interface Props {
   plugin: Plugin
@@ -68,13 +70,16 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
       const trimmedUrl = draftUrlRef.current.trim().replace(/\/$/, '')
       const trimmedToken = draftTokenRef.current.trim()
       const current = await window.api.getSettings()
-      await window.api.setSettings({
+      const updated = {
         ...current,
         haUrl: trimmedUrl,
         haToken: trimmedToken,
         haHomeCardEnabled: draftHomeCardEnabledRef.current,
         haHomeCardEntities: draftHomeCardEntitiesRef.current,
-      })
+      }
+      await window.api.setSettings(updated)
+      // Propagate to renderer store so home page updates immediately without restart
+      useServiceStore.getState().setSettings(updated)
       setSavedUrl(trimmedUrl)
       setDraftUrl(trimmedUrl)
       setSavedToken(trimmedToken)
@@ -131,7 +136,7 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
       )}
 
       {savedUrl && isError && (
-        <div className="banner error">
+        <div className="banner warn">
           <div className="banner-content">
             <div className="banner-title">Connection error</div>
             <div className="banner-sub">{haState?.error ?? 'Unknown error'}</div>
@@ -139,6 +144,7 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
         </div>
       )}
 
+      {/* Connection */}
       <div className="cfg-section">
         <div className="cfg-section-h">
           <h3>Connection</h3>
@@ -175,12 +181,11 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             className="btn-ghost"
             onClick={handleTestConnection}
             disabled={testing || !draftUrl || !draftToken}
-            style={{ border: 'none' }}
           >
             {testing ? 'Testing…' : 'Test connection'}
           </button>
@@ -188,7 +193,7 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
             <span
               className="mono"
               style={{
-                fontSize: '12px',
+                fontSize: 12,
                 color: testResult.ok ? 'var(--color-accent)' : 'var(--color-text-secondary)',
               }}
             >
@@ -198,6 +203,7 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
         </div>
       </div>
 
+      {/* Status */}
       {isConnected && (
         <div className="cfg-section">
           <div className="cfg-section-h">
@@ -208,85 +214,181 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
               <div className="ff-label-title">Entities loaded</div>
               <div className="ff-label-desc">Total entities synced from Home Assistant</div>
             </div>
-            <span
-              className="mono"
-              style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}
-            >
+            <span className="mono" style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
               {haState?.entityCount ?? 0}
             </span>
           </div>
         </div>
       )}
 
+      {/* Home Card */}
       <div className="cfg-section">
         <div className="cfg-section-h">
           <h3>Home Card</h3>
           <span className="desc">Entities shown on the home page dashboard</span>
         </div>
 
+        {/* Enable toggle */}
         <div className="ff">
           <div className="ff-label">
             <div className="ff-label-title">Show on home page</div>
+            <div className="ff-label-desc">Display a Home Assistant card in the home page Smart Home section</div>
           </div>
-          <input
-            type="checkbox"
-            checked={draftHomeCardEnabled}
-            onChange={e => { setDraftHomeCardEnabled(e.target.checked); setDirty(true) }}
-          />
+          <div className="toggle-field">
+            <Toggle
+              checked={draftHomeCardEnabled}
+              onChange={(v) => { setDraftHomeCardEnabled(v); setDirty(true) }}
+            />
+          </div>
         </div>
 
+        {/* Entity list */}
         {draftHomeCardEnabled && (
           <>
-            {draftHomeCardEntities.map((cfg, i) => (
-              <div key={cfg.entityId + i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                <button
-                  onClick={() => moveEntity(i, 'up')}
-                  disabled={i === 0}
-                  style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: 'var(--color-text-secondary)', opacity: i === 0 ? 0.3 : 1, fontSize: 14 }}
-                >↑</button>
-                <button
-                  onClick={() => moveEntity(i, 'down')}
-                  disabled={i === draftHomeCardEntities.length - 1}
-                  style={{ background: 'none', border: 'none', cursor: i === draftHomeCardEntities.length - 1 ? 'default' : 'pointer', color: 'var(--color-text-secondary)', opacity: i === draftHomeCardEntities.length - 1 ? 0.3 : 1, fontSize: 14 }}
-                >↓</button>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 64, flexShrink: 0 }}>
+            {draftHomeCardEntities.length > 0 && draftHomeCardEntities.map((cfg, i) => (
+              <div
+                key={cfg.entityId + i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '9px 18px',
+                  borderBottom: '1px solid var(--color-border)',
+                }}
+              >
+                {/* Reorder buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0 }}>
+                  <button
+                    onClick={() => moveEntity(i, 'up')}
+                    disabled={i === 0}
+                    title="Move up"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: i === 0 ? 'default' : 'pointer',
+                      color: 'var(--color-text-secondary)',
+                      opacity: i === 0 ? 0.25 : 0.7,
+                      padding: '1px 3px',
+                      lineHeight: 1,
+                      fontSize: 12,
+                      borderRadius: 3,
+                    }}
+                  >▲</button>
+                  <button
+                    onClick={() => moveEntity(i, 'down')}
+                    disabled={i === draftHomeCardEntities.length - 1}
+                    title="Move down"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: i === draftHomeCardEntities.length - 1 ? 'default' : 'pointer',
+                      color: 'var(--color-text-secondary)',
+                      opacity: i === draftHomeCardEntities.length - 1 ? 0.25 : 0.7,
+                      padding: '1px 3px',
+                      lineHeight: 1,
+                      fontSize: 12,
+                      borderRadius: 3,
+                    }}
+                  >▼</button>
+                </div>
+
+                {/* Type badge */}
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    color: 'var(--color-text-secondary)',
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 4,
+                    padding: '2px 5px',
+                    flexShrink: 0,
+                    width: 72,
+                    textAlign: 'center',
+                  }}
+                >
                   {cfg.type}
                 </span>
-                <span style={{ flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {cfg.displayName ?? haState?.entities.find(e => e.entity_id === cfg.entityId)?.attributes?.friendly_name as string ?? cfg.entityId}
+
+                {/* Display name */}
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    color: 'var(--color-text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }}
+                >
+                  {cfg.displayName ?? (haState?.entities.find(e => e.entity_id === cfg.entityId)?.attributes?.friendly_name as string | undefined) ?? cfg.entityId}
                 </span>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--color-text-secondary)', flexShrink: 0 }}>
+
+                {/* Entity ID */}
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--color-text-secondary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: 180,
+                    flexShrink: 0,
+                  }}
+                >
                   {cfg.entityId}
                 </span>
+
+                {/* Remove */}
                 <button
                   onClick={() => removeEntity(i)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 14, flexShrink: 0 }}
                   title="Remove"
-                >🗑</button>
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 14,
+                    lineHeight: 1,
+                    padding: '2px 4px',
+                    borderRadius: 4,
+                    flexShrink: 0,
+                    transition: 'color 0.12s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+                >×</button>
               </div>
             ))}
 
-            <button
-              className="btn-ghost"
-              onClick={() => setShowPicker(true)}
-              disabled={haState?.status !== 'connected'}
-              title={haState?.status !== 'connected' ? 'Connect to Home Assistant to browse entities' : undefined}
-              style={{ marginTop: 4 }}
-            >
-              + Add entity
-            </button>
-
-            {showPicker && (
-              <HaEntityPicker
-                entities={haState?.entities ?? []}
-                configured={draftHomeCardEntities}
-                onAdd={(entity) => {
-                  setDraftHomeCardEntities(prev => [...prev, entity])
-                  setDirty(true)
-                }}
-                onClose={() => setShowPicker(false)}
-              />
-            )}
+            {/* Add entity / picker */}
+            <div style={{ padding: '10px 18px' }}>
+              {!showPicker ? (
+                <button
+                  className="btn-ghost"
+                  onClick={() => setShowPicker(true)}
+                  disabled={haState?.status !== 'connected'}
+                  title={haState?.status !== 'connected' ? 'Connect to Home Assistant to browse entities' : undefined}
+                >
+                  + Add entity
+                </button>
+              ) : (
+                <HaEntityPicker
+                  entities={haState?.entities ?? []}
+                  configured={draftHomeCardEntities}
+                  onAdd={(entity) => {
+                    setDraftHomeCardEntities(prev => [...prev, entity])
+                    setDirty(true)
+                  }}
+                  onClose={() => setShowPicker(false)}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

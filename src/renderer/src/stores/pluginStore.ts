@@ -79,6 +79,7 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
         if (p.id !== 'home-assistant') return p
         let status: Plugin['status']
         let statusLine: string
+        const enabled = haState.status !== 'disabled'
         switch (haState.status) {
           case 'connected':
             status = 'connected'
@@ -96,7 +97,7 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
             status = 'disabled'
             statusLine = 'Disabled'
         }
-        return { ...p, status, statusLine }
+        return { ...p, status, statusLine, enabled }
       }),
     })
   },
