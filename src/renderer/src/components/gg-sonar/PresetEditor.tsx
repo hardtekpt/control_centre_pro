@@ -123,31 +123,19 @@ function buildNewConfig(channel: SonarDeviceChannel): SonarConfig {
   }
 }
 
-function buildCopy(source: SonarConfig): SonarConfig {
-  const now = new Date().toISOString()
-  return {
-    ...clone(source),
-    id: crypto.randomUUID(),
-    name: `${source.name} Copy`,
-    isPreset: false,
-    isFavorite: false,
-    favoritePosition: -1,
-    createdAt: now,
-    updatedAt: now,
-  }
-}
-
 // ─── Inline primitives ──────────────────────────────────────────────────────────
 
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }): JSX.Element {
+function Toggle({ value, onChange, disabled = false }: { value: boolean; onChange: (v: boolean) => void; disabled?: boolean }): JSX.Element {
   return (
     <button
-      onClick={() => onChange(!value)}
+      onClick={() => { if (!disabled) onChange(!value) }}
+      disabled={disabled}
       style={{
         width: 28, height: 16, borderRadius: 8, flexShrink: 0,
         background: value ? 'var(--color-accent)' : 'var(--color-surface-raised)',
         border: '1px solid var(--color-border)',
-        position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+        position: 'relative', cursor: disabled ? 'not-allowed' : 'pointer', transition: 'background 0.15s',
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <span style={{
@@ -188,9 +176,9 @@ function RowShell({ children, last = false }: { children: React.ReactNode; last?
 }
 
 function NumberField({
-  value, min, max, step = 1, onChange, width = 56,
+  value, min, max, step = 1, onChange, width = 56, disabled = false,
 }: {
-  value: number; min: number; max: number; step?: number; onChange: (v: number) => void; width?: number
+  value: number; min: number; max: number; step?: number; onChange: (v: number) => void; width?: number; disabled?: boolean
 }): JSX.Element {
   return (
     <input
@@ -199,6 +187,7 @@ function NumberField({
       min={min}
       max={max}
       step={step}
+      disabled={disabled}
       onChange={(e) => {
         const v = Number(e.target.value)
         if (!Number.isNaN(v)) onChange(Math.max(min, Math.min(max, v)))
@@ -209,25 +198,28 @@ function NumberField({
         background: 'var(--color-surface-raised)',
         border: '1px solid var(--color-border)',
         borderRadius: 4, color: 'var(--color-text-primary)',
+        cursor: disabled ? 'not-allowed' : 'text', opacity: disabled ? 0.5 : 1,
       }}
     />
   )
 }
 
 function Select<T extends string>({
-  value, options, onChange, width = 'auto',
+  value, options, onChange, width = 'auto', disabled = false,
 }: {
-  value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; width?: number | string
+  value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; width?: number | string; disabled?: boolean
 }): JSX.Element {
   return (
     <select
       value={value}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value as T)}
       style={{
         width, fontSize: 11, padding: '2px 4px',
         background: 'var(--color-surface-raised)',
         border: '1px solid var(--color-border)',
-        borderRadius: 4, color: 'var(--color-text-primary)', cursor: 'pointer',
+        borderRadius: 4, color: 'var(--color-text-primary)',
+        cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
       }}
     >
       {options.map((o) => (
@@ -238,15 +230,16 @@ function Select<T extends string>({
 }
 
 function RangeSlider({
-  value, min, max, step = 1, onChange, format,
+  value, min, max, step = 1, onChange, format, disabled = false,
 }: {
   value: number; min: number; max: number; step?: number
-  onChange: (v: number) => void; format?: (v: number) => string
+  onChange: (v: number) => void; format?: (v: number) => string; disabled?: boolean
 }): JSX.Element {
   const norm = (value - min) / (max - min)
   return (
     <div className="flex items-center gap-2" style={{ flex: 1 }}>
       <SliderInput
+        disabled={disabled}
         value={Math.max(0, Math.min(1, norm))}
         onChange={(v) => {
           const raw = min + v * (max - min)
@@ -254,7 +247,7 @@ function RangeSlider({
           onChange(Number(snapped.toFixed(4)))
         }}
       />
-      <span className="mono text-xs" style={{ minWidth: 44, textAlign: 'right', color: 'var(--color-text-primary)' }}>
+      <span className="mono text-xs" style={{ minWidth: 44, textAlign: 'right', color: 'var(--color-text-primary)', opacity: disabled ? 0.6 : 1 }}>
         {format ? format(value) : value}
       </span>
     </div>
@@ -264,7 +257,7 @@ function RangeSlider({
 type ValueState = { enabled: boolean; value: number }
 
 function ToggleSliderRow({
-  label, state, min, max, step = 1, format, onChange, last = false,
+  label, state, min, max, step = 1, format, onChange, last = false, disabled = false,
 }: {
   label: string
   state: ValueState | undefined
@@ -272,13 +265,14 @@ function ToggleSliderRow({
   format?: (v: number) => string
   onChange: (next: ValueState) => void
   last?: boolean
+  disabled?: boolean
 }): JSX.Element {
   const s = state ?? { enabled: false, value: 0 }
   return (
     <RowShell last={last}>
       <div className="flex items-center justify-between">
         <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-        <Toggle value={s.enabled} onChange={(en) => onChange({ ...s, enabled: en })} />
+        <Toggle value={s.enabled} disabled={disabled} onChange={(en) => onChange({ ...s, enabled: en })} />
       </div>
       {s.enabled && (
         <div className="mt-2">
@@ -288,6 +282,7 @@ function ToggleSliderRow({
             max={max}
             step={step}
             format={format}
+            disabled={disabled}
             onChange={(v) => onChange({ ...s, value: v })}
           />
         </div>
@@ -297,15 +292,15 @@ function ToggleSliderRow({
 }
 
 function ToggleRow({
-  label, value, onChange, last = false,
+  label, value, onChange, last = false, disabled = false,
 }: {
-  label: string; value: boolean; onChange: (v: boolean) => void; last?: boolean
+  label: string; value: boolean; onChange: (v: boolean) => void; last?: boolean; disabled?: boolean
 }): JSX.Element {
   return (
     <RowShell last={last}>
       <div className="flex items-center justify-between">
         <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-        <Toggle value={value} onChange={onChange} />
+        <Toggle value={value} disabled={disabled} onChange={onChange} />
       </div>
     </RowShell>
   )
@@ -314,10 +309,11 @@ function ToggleRow({
 // ─── EQ editor table ──────────────────────────────────────────────────────────
 
 function EQEditor({
-  eq, onChange,
+  eq, onChange, disabled = false,
 }: {
   eq: SonarParametricEQ | undefined
   onChange: (eq: SonarParametricEQ) => void
+  disabled?: boolean
 }): JSX.Element {
   const safe = eq ?? makeOutputEQ()
   const setFilter = (k: EQFilterKey, patch: Partial<SonarEQFilter>): void => {
@@ -326,20 +322,21 @@ function EQEditor({
   return (
     <Section
       title="Parametric EQ"
-      right={<Toggle value={safe.enabled} onChange={(en) => onChange({ ...safe, enabled: en })} />}
+      right={<Toggle value={safe.enabled} disabled={disabled} onChange={(en) => onChange({ ...safe, enabled: en })} />}
     >
       {FILTER_KEYS.map((k, i) => {
         const flt = safe[k]
         return (
           <RowShell key={k} last={i === FILTER_KEYS.length - 1}>
             <div className="flex items-center gap-2 flex-wrap">
-              <Toggle value={flt.enabled} onChange={(en) => setFilter(k, { enabled: en })} />
+              <Toggle value={flt.enabled} disabled={disabled} onChange={(en) => setFilter(k, { enabled: en })} />
               <NumberField
                 value={flt.frequency}
                 min={20}
                 max={20000}
                 step={1}
                 width={62}
+                disabled={disabled}
                 onChange={(v) => setFilter(k, { frequency: v })}
               />
               <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Hz</span>
@@ -348,6 +345,7 @@ function EQEditor({
                 options={EQ_TYPES.map((t) => ({ value: t, label: EQ_TYPE_LABELS[t] }))}
                 onChange={(v) => setFilter(k, { type: v })}
                 width={88}
+                disabled={disabled}
               />
             </div>
             <div className="flex items-center gap-2 mt-2">
@@ -357,6 +355,7 @@ function EQEditor({
                 max={12}
                 step={0.5}
                 format={fmtDb}
+                disabled={disabled}
                 onChange={(v) => setFilter(k, { gain: v })}
               />
               <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Q</span>
@@ -366,6 +365,7 @@ function EQEditor({
                 max={10}
                 step={0.01}
                 width={52}
+                disabled={disabled}
                 onChange={(v) => setFilter(k, { qFactor: v })}
               />
             </div>
@@ -390,16 +390,17 @@ const SURROUND_CHANNELS: { key: keyof NonNullable<SonarConfigData['virtualSurrou
 ]
 
 function OutputEditForm({
-  draft, onChange,
+  draft, onChange, disabled = false,
 }: {
   draft: SonarConfigData
   onChange: (patch: Partial<SonarConfigData>) => void
+  disabled?: boolean
 }): JSX.Element {
   const surround = draft.virtualSurroundChannels
   return (
     <>
       <Section title="Processing">
-        <ToggleRow label="Global Enable" value={draft.globalEnableState ?? false} onChange={(v) => onChange({ globalEnableState: v })} last />
+        <ToggleRow label="Global Enable" value={draft.globalEnableState ?? false} disabled={disabled} onChange={(v) => onChange({ globalEnableState: v })} last />
       </Section>
 
       <Section title="Volume Boost">
@@ -408,6 +409,7 @@ function OutputEditForm({
           state={draft.bassBoostState}
           min={0}
           max={12}
+          disabled={disabled}
           onChange={(next) => onChange({ bassBoostState: next })}
         />
         <ToggleSliderRow
@@ -415,6 +417,7 @@ function OutputEditForm({
           state={draft.trebleBoostState}
           min={0}
           max={12}
+          disabled={disabled}
           onChange={(next) => onChange({ trebleBoostState: next })}
         />
         <ToggleSliderRow
@@ -422,6 +425,7 @@ function OutputEditForm({
           state={draft.voiceClarityState}
           min={0}
           max={12}
+          disabled={disabled}
           onChange={(next) => onChange({ voiceClarityState: next })}
         />
         <RowShell last>
@@ -434,6 +438,7 @@ function OutputEditForm({
               min={-12}
               max={12}
               format={fmtDb}
+              disabled={disabled}
               onChange={(v) => onChange({ generalGain: v })}
             />
           </div>
@@ -442,7 +447,7 @@ function OutputEditForm({
 
       <Section
         title="Smart Volume"
-        right={<Toggle value={draft.smartVolume?.enabled ?? false} onChange={(en) => onChange({ smartVolume: { ...(draft.smartVolume ?? { volumeLevel: 0, loudness: 'balanced' }), enabled: en } })} />}
+        right={<Toggle value={draft.smartVolume?.enabled ?? false} disabled={disabled} onChange={(en) => onChange({ smartVolume: { ...(draft.smartVolume ?? { volumeLevel: 0, loudness: 'balanced' }), enabled: en } })} />}
       >
         {draft.smartVolume?.enabled ? (
           <>
@@ -458,6 +463,7 @@ function OutputEditForm({
                   ]}
                   onChange={(v) => onChange({ smartVolume: { ...draft.smartVolume!, loudness: v } })}
                   width={100}
+                  disabled={disabled}
                 />
               </div>
             </RowShell>
@@ -468,6 +474,7 @@ function OutputEditForm({
                   value={draft.smartVolume.volumeLevel}
                   min={0}
                   max={100}
+                  disabled={disabled}
                   onChange={(v) => onChange({ smartVolume: { ...draft.smartVolume!, volumeLevel: v } })}
                 />
               </div>
@@ -482,7 +489,7 @@ function OutputEditForm({
 
       <Section
         title="Spatial Audio"
-        right={<Toggle value={draft.virtualSurroundState ?? false} onChange={(en) => onChange({ virtualSurroundState: en })} />}
+        right={<Toggle value={draft.virtualSurroundState ?? false} disabled={disabled} onChange={(en) => onChange({ virtualSurroundState: en })} />}
       >
         <RowShell>
           <div className="flex items-center justify-between">
@@ -495,6 +502,7 @@ function OutputEditForm({
               ]}
               onChange={(v) => onChange({ formFactor: v })}
               width={110}
+              disabled={disabled}
             />
           </div>
         </RowShell>
@@ -506,6 +514,7 @@ function OutputEditForm({
               min={-40}
               max={0}
               format={fmtDb}
+              disabled={disabled}
               onChange={(v) => onChange({ reverbGainDB: v })}
             />
           </div>
@@ -528,6 +537,7 @@ function OutputEditForm({
                       min={-180}
                       max={180}
                       width={62}
+                      disabled={disabled}
                       onChange={(v) => onChange({ virtualSurroundChannels: { ...surround, [key]: { ...ch, position: v } } })}
                     />
                     <NumberField
@@ -535,6 +545,7 @@ function OutputEditForm({
                       min={-12}
                       max={12}
                       width={56}
+                      disabled={disabled}
                       onChange={(v) => onChange({ virtualSurroundChannels: { ...surround, [key]: { ...ch, gain: v } } })}
                     />
                   </div>
@@ -545,7 +556,7 @@ function OutputEditForm({
         )}
       </Section>
 
-      <EQEditor eq={draft.parametricEQ} onChange={(eq) => onChange({ parametricEQ: eq })} />
+      <EQEditor eq={draft.parametricEQ} disabled={disabled} onChange={(eq) => onChange({ parametricEQ: eq })} />
     </>
   )
 }
@@ -553,15 +564,16 @@ function OutputEditForm({
 // ─── Voice edit form (schemaVersion 6) ──────────────────────────────────────────
 
 function VoiceEditForm({
-  draft, onChange,
+  draft, onChange, disabled = false,
 }: {
   draft: SonarConfigData
   onChange: (patch: Partial<SonarConfigData>) => void
+  disabled?: boolean
 }): JSX.Element {
   return (
     <>
       <Section title="Processing">
-        <ToggleRow label="Global Enable" value={draft.globalEnableState ?? false} onChange={(v) => onChange({ globalEnableState: v })} last />
+        <ToggleRow label="Global Enable" value={draft.globalEnableState ?? false} disabled={disabled} onChange={(v) => onChange({ globalEnableState: v })} last />
       </Section>
 
       <Section title="Noise Processing">
@@ -571,6 +583,7 @@ function VoiceEditForm({
           min={0}
           max={3}
           step={0.1}
+          disabled={disabled}
           onChange={(next) => onChange({ noiseReductionState: next })}
         />
         <ToggleSliderRow
@@ -580,6 +593,7 @@ function VoiceEditForm({
           max={0}
           step={0.1}
           format={fmtDb}
+          disabled={disabled}
           onChange={(next) => onChange({ noiseGateState: next })}
         />
         <ToggleSliderRow
@@ -588,6 +602,7 @@ function VoiceEditForm({
           min={0}
           max={3}
           step={0.1}
+          disabled={disabled}
           onChange={(next) => onChange({ volumeStabilizerState: next })}
         />
         <ToggleSliderRow
@@ -596,6 +611,7 @@ function VoiceEditForm({
           min={0}
           max={3}
           step={0.1}
+          disabled={disabled}
           onChange={(next) => onChange({ impactNoiseReductionState: next })}
         />
         <ToggleSliderRow
@@ -604,89 +620,25 @@ function VoiceEditForm({
           min={0}
           max={3}
           step={0.1}
+          disabled={disabled}
           onChange={(next) => onChange({ noiseCancelingState: next })}
         />
         <ToggleRow
           label="Auto Noise Gate"
           value={draft.automaticNoiseGateState?.enabled ?? false}
+          disabled={disabled}
           onChange={(en) => onChange({ automaticNoiseGateState: { ...(draft.automaticNoiseGateState ?? { value: 0 }), enabled: en } })}
         />
         <ToggleRow
           label="Echo Canceling"
           value={draft.acousticEchoCancelingState ?? false}
+          disabled={disabled}
           onChange={(v) => onChange({ acousticEchoCancelingState: v })}
           last
         />
       </Section>
 
-      <EQEditor eq={draft.parametricEQ} onChange={(eq) => onChange({ parametricEQ: eq })} />
-    </>
-  )
-}
-
-// ─── Read-only view ─────────────────────────────────────────────────────────────
-
-function ViewRow({ label, value }: { label: string; value: React.ReactNode }): JSX.Element {
-  return (
-    <RowShell>
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-        <span className="text-xs mono" style={{ color: 'var(--color-text-primary)' }}>{value}</span>
-      </div>
-    </RowShell>
-  )
-}
-
-function StateValue({ state, suffix = '' }: { state: ValueState | undefined; suffix?: string }): JSX.Element {
-  if (!state) return <span style={{ color: 'var(--color-text-secondary)' }}>—</span>
-  return <span>{state.enabled ? `On · ${state.value}${suffix}` : 'Off'}</span>
-}
-
-function OutputView({ data }: { data: SonarConfigData }): JSX.Element {
-  return (
-    <>
-      <Section title="Processing">
-        <ViewRow label="Global Enable" value={data.globalEnableState ? 'On' : 'Off'} />
-      </Section>
-      <Section title="Volume Boost">
-        <ViewRow label="Bass Boost" value={<StateValue state={data.bassBoostState} />} />
-        <ViewRow label="Treble Boost" value={<StateValue state={data.trebleBoostState} />} />
-        <ViewRow label="Voice Clarity" value={<StateValue state={data.voiceClarityState} />} />
-        <ViewRow label="General Gain" value={fmtDb(data.generalGain ?? 0)} />
-      </Section>
-      <Section title="Smart Volume">
-        <ViewRow label="Smart Volume" value={data.smartVolume?.enabled ? `${data.smartVolume.loudness} · ${data.smartVolume.volumeLevel}` : 'Off'} />
-      </Section>
-      <Section title="Spatial Audio">
-        <ViewRow label="Virtual Surround" value={data.virtualSurroundState ? 'On' : 'Off'} />
-        <ViewRow label="Form Factor" value={data.formFactor ?? '—'} />
-        <ViewRow label="Reverb Gain" value={fmtDb(data.reverbGainDB ?? 0)} />
-      </Section>
-      <Section title="Parametric EQ">
-        <ViewRow label="Enabled" value={data.parametricEQ?.enabled ? 'On' : 'Off'} />
-      </Section>
-    </>
-  )
-}
-
-function VoiceView({ data }: { data: SonarConfigData }): JSX.Element {
-  return (
-    <>
-      <Section title="Processing">
-        <ViewRow label="Global Enable" value={data.globalEnableState ? 'On' : 'Off'} />
-      </Section>
-      <Section title="Noise Processing">
-        <ViewRow label="Noise Reduction" value={<StateValue state={data.noiseReductionState} />} />
-        <ViewRow label="Noise Gate" value={<StateValue state={data.noiseGateState} suffix=" dB" />} />
-        <ViewRow label="Volume Stabilizer" value={<StateValue state={data.volumeStabilizerState} />} />
-        <ViewRow label="Impact Noise Reduction" value={<StateValue state={data.impactNoiseReductionState} />} />
-        <ViewRow label="Noise Canceling" value={<StateValue state={data.noiseCancelingState} />} />
-        <ViewRow label="Auto Noise Gate" value={data.automaticNoiseGateState?.enabled ? 'On' : 'Off'} />
-        <ViewRow label="Echo Canceling" value={data.acousticEchoCancelingState ? 'On' : 'Off'} />
-      </Section>
-      <Section title="Parametric EQ">
-        <ViewRow label="Enabled" value={data.parametricEQ?.enabled ? 'On' : 'Off'} />
-      </Section>
+      <EQEditor eq={draft.parametricEQ} disabled={disabled} onChange={(eq) => onChange({ parametricEQ: eq })} />
     </>
   )
 }
@@ -723,14 +675,32 @@ export function PresetEditor({
   const resolvedActiveId = activePresetId ?? channelConfigs.find((c) => c.isSelected)?.id
   const activeConfig = channelConfigs.find((c) => c.id === resolvedActiveId) ?? channelConfigs[0]
 
-  const [view, setView] = useState<'view' | 'edit'>('view')
   const [draft, setDraft] = useState<SonarConfig | null>(null)
-  const [editKind, setEditKind] = useState<'edit' | 'new' | 'copy'>('edit')
+  // True while composing a brand-new preset that isn't in `configs` yet — suppresses
+  // the active-config sync so the new draft isn't overwritten.
+  const [composing, setComposing] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   const ddBtnRef = useRef<HTMLButtonElement>(null)
   const ddMenuRef = useRef<HTMLDivElement>(null)
+
+  const activeId = activeConfig?.id
+  const editable = !!draft && !draft.isPreset
+  // Compare only the editable surface (name + data) so poll-driven timestamp/favourite
+  // churn doesn't spuriously re-enable Save.
+  const dirty = !!draft && (composing || !activeConfig ||
+    draft.name !== activeConfig.name ||
+    JSON.stringify(draft.data) !== JSON.stringify(activeConfig.data))
+
+  // Mirror the active preset into the editable draft. Re-runs only when the active
+  // preset id changes (selection) or we stop composing — never on background polls,
+  // so in-progress edits survive the 1 s refresh cycle.
+  useEffect(() => {
+    if (composing) return
+    setDraft(activeConfig ? clone(activeConfig) : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, composing])
 
   useEffect(() => {
     if (!dropdownOpen) return
@@ -742,18 +712,19 @@ export function PresetEditor({
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [dropdownOpen])
 
-  // Escape closes the dropdown first, then cancels an edit, then closes the panel —
-  // never dismisses a panel that has an in-progress draft in one keystroke.
+  // Escape closes the dropdown first, then discards unsaved changes, then closes the
+  // panel — never dismisses a panel with unsaved edits in a single keystroke.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent): void {
       if (e.key !== 'Escape') return
       if (dropdownOpen) setDropdownOpen(false)
-      else if (view === 'edit') { setView('view'); setDraft(null) }
+      else if (dirty) discardChanges()
       else onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [dropdownOpen, view, onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dropdownOpen, dirty, onClose])
 
   function toggleDropdown(): void {
     if (!dropdownOpen && ddBtnRef.current) {
@@ -763,42 +734,36 @@ export function PresetEditor({
     setDropdownOpen((o) => !o)
   }
 
-  function enterEdit(): void {
-    if (!activeConfig) return
-    if (activeConfig.isPreset) {
-      setDraft(buildCopy(activeConfig))
-      setEditKind('copy')
-    } else {
-      setDraft({ ...clone(activeConfig), updatedAt: new Date().toISOString() })
-      setEditKind('edit')
-    }
-    setView('edit')
-  }
-
   function startNew(): void {
     setDropdownOpen(false)
+    setComposing(true)
     setDraft(buildNewConfig(channel))
-    setEditKind('new')
-    setView('edit')
   }
 
-  function cancelEdit(): void {
-    setView('view')
-    setDraft(null)
+  function discardChanges(): void {
+    if (composing) setComposing(false)          // sync effect resyncs to the active preset
+    else if (activeConfig) setDraft(clone(activeConfig))
+  }
+
+  function selectPreset(id: string): void {
+    setComposing(false)
+    onPresetSelect(id)
+    setDropdownOpen(false)
   }
 
   async function save(): Promise<void> {
-    if (!draft) return
+    if (!draft || !editable || !dirty) return
+    const wasComposing = composing
     const now = new Date().toISOString()
     const final: SonarConfig = {
       ...draft,
       isPreset: false,
       updatedAt: now,
-      createdAt: editKind === 'edit' ? draft.createdAt : now,
+      createdAt: wasComposing ? now : draft.createdAt,
     }
     await onUpsert(final)
-    setView('view')
-    setDraft(null)
+    if (wasComposing) setComposing(false)  // snap back to the channel's active preset
+    else setDraft(final)                   // keep editing the just-saved preset
   }
 
   const patchData = (patch: Partial<SonarConfigData>): void => {
@@ -821,7 +786,7 @@ export function PresetEditor({
         </span>
         <div className="sn-pe-title">
           <span className="sn-pe-title-name">{channelLabel}</span>
-          <span className="sn-pe-title-sub mono">{activeConfig?.name ?? 'No presets'}</span>
+          <span className="sn-pe-title-sub mono">{draft?.name ?? activeConfig?.name ?? 'No presets'}</span>
         </div>
         <button
           className={`sn-pe-hbtn${activeConfig?.isFavorite ? ' fav-on' : ''}`}
@@ -883,7 +848,7 @@ export function PresetEditor({
                 style={{ padding: '6px 10px', borderBottom: '1px solid var(--color-border)' }}
               >
                 <button
-                  onClick={() => { onPresetSelect(c.id); setDropdownOpen(false) }}
+                  onClick={() => selectPreset(c.id)}
                   className="flex items-center gap-1.5 min-w-0 flex-1 text-left"
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)' }}
                 >
@@ -910,52 +875,27 @@ export function PresetEditor({
         document.body,
       )}
 
-      {/* Mode bar (view mode) */}
-      {view === 'view' && (
-        <div
-          className="px-4 py-2 flex items-center justify-between flex-shrink-0"
-          style={{ borderBottom: '1px solid var(--color-border)' }}
-        >
-          <div className="min-w-0">
-            <div className="text-xs truncate" style={{ color: 'var(--color-text-secondary)' }}>
-              {activeConfig?.name ?? '—'}
-            </div>
-            {activeConfig?.isPreset && (
-              <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                Built-in — editing creates a copy
-              </div>
-            )}
-          </div>
-          <button
-            onClick={enterEdit}
-            disabled={!activeConfig}
-            style={{
-              padding: '4px 12px', borderRadius: 5,
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)', fontSize: 12,
-              cursor: activeConfig ? 'pointer' : 'not-allowed', flexShrink: 0,
-            }}
-          >
-            Edit
-          </button>
-        </div>
-      )}
-
-      {/* Scrollable body */}
+      {/* Scrollable body — always the form; inputs disabled for non-editable presets */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6 selectable">
-        {view === 'view' ? (
-          activeConfig
-            ? (mic ? <VoiceView data={activeConfig.data} /> : <OutputView data={activeConfig.data} />)
-            : <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>No preset selected.</div>
-        ) : draft ? (
+        {draft ? (
           <>
-            {editKind === 'copy' && (
+            {!editable && (
               <div
-                className="px-3 py-2 mb-3 text-xs rounded"
+                className="flex items-center justify-between gap-2 px-3 py-2 mb-3 text-xs rounded"
                 style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
               >
-                Built-in preset — saving will create your own copy
+                <span>Built-in preset — read-only.</span>
+                <button
+                  onClick={() => activeConfig && onDuplicate(activeConfig.id)}
+                  style={{
+                    padding: '3px 8px', borderRadius: 4, flexShrink: 0,
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: 11,
+                  }}
+                >
+                  Duplicate
+                </button>
               </div>
             )}
             <div className="mb-4">
@@ -965,50 +905,58 @@ export function PresetEditor({
               <input
                 type="text"
                 value={draft.name}
+                disabled={!editable}
                 onChange={(e) => setDraft((d) => (d ? { ...d, name: e.target.value } : d))}
                 style={{
                   width: '100%', fontSize: 13, padding: '6px 10px',
                   background: 'var(--color-surface-raised)',
                   border: '1px solid var(--color-border)',
                   borderRadius: 5, color: 'var(--color-text-primary)',
+                  cursor: editable ? 'text' : 'not-allowed', opacity: editable ? 1 : 0.5,
                 }}
               />
             </div>
             {mic
-              ? <VoiceEditForm draft={draft.data} onChange={patchData} />
-              : <OutputEditForm draft={draft.data} onChange={patchData} />}
+              ? <VoiceEditForm draft={draft.data} onChange={patchData} disabled={!editable} />
+              : <OutputEditForm draft={draft.data} onChange={patchData} disabled={!editable} />}
           </>
-        ) : null}
+        ) : (
+          <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>No preset selected.</div>
+        )}
       </div>
 
-      {/* Footer (edit mode) */}
-      {view === 'edit' && (
+      {/* Footer — only for editable presets */}
+      {editable && (
         <div
           className="flex items-center gap-2 px-4 py-3 flex-shrink-0"
           style={{ borderTop: '1px solid var(--color-border)' }}
         >
           <button
             onClick={() => void save()}
+            disabled={!dirty}
             style={{
               flex: 1, padding: '7px 0', borderRadius: 5,
               background: 'var(--color-accent)',
               border: '1px solid var(--color-border)',
-              color: 'var(--color-bg)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              color: 'var(--color-bg)', fontSize: 12, fontWeight: 600,
+              cursor: dirty ? 'pointer' : 'not-allowed', opacity: dirty ? 1 : 0.45,
             }}
           >
             Save
           </button>
-          <button
-            onClick={cancelEdit}
-            style={{
-              flex: 1, padding: '7px 0', borderRadius: 5,
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)', fontSize: 12, cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
+          {dirty && (
+            <button
+              onClick={discardChanges}
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: 5,
+                background: 'var(--color-surface-raised)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)', fontSize: 12, cursor: 'pointer',
+              }}
+            >
+              {composing ? 'Cancel' : 'Revert'}
+            </button>
+          )}
         </div>
       )}
     </div>
