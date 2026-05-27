@@ -29,6 +29,7 @@ export interface ChannelStripProps {
   onProcessDrop: (processId: number) => void
   onPresetSelect: (channel: SonarChannel, configId: string) => void
   onSolo: (channel: SonarChannel) => void
+  onOpenEditor: () => void
 }
 
 function ChannelStripComponent({
@@ -50,6 +51,7 @@ function ChannelStripComponent({
   onProcessDrop,
   onPresetSelect,
   onSolo,
+  onOpenEditor,
 }: ChannelStripProps): JSX.Element {
   const isMic = channel === 'chatCapture'
   const [isDragOver, setIsDragOver] = useState(false)
@@ -122,7 +124,7 @@ function ChannelStripComponent({
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="sn-strip-head">
+      <div className="sn-strip-head" style={{ cursor: 'pointer' }} onClick={onOpenEditor} title="Manage presets">
         <div className="sn-strip-ic">{icon}</div>
         <div className="sn-strip-meta">
           <div className="sn-strip-name">{label}</div>

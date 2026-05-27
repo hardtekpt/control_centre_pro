@@ -1,7 +1,9 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
+import ReactDOM from 'react-dom'
 import { useSonarStore } from '../../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { MasterStrip } from './MasterStrip'
+import { PresetEditor } from '../../../components/gg-sonar/PresetEditor'
 import { notifySonarPresetChange } from '../../../lib/notifyFromEvent'
 import type {
   SonarState,
@@ -76,6 +78,10 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
   const patchRouting       = useSonarStore((s) => s.patchRouting)
   const activePresetIds    = useSonarStore((s) => s.activePresetIds)
   const setActivePreset    = useSonarStore((s) => s.setActivePreset)
+  const upsertConfigOptimistic = useSonarStore((s) => s.upsertConfigOptimistic)
+  const deleteConfigOptimistic = useSonarStore((s) => s.deleteConfigOptimistic)
+
+  const [editingChannel, setEditingChannel] = useState<SonarDeviceChannel | null>(null)
 
   // Group sessions by role
   const sessionsByRole = useMemo(() => {
@@ -226,6 +232,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
               onProcessDrop={dropHandlersRef.current[channel] ?? (() => {})}
               onPresetSelect={handlePresetSelect}
               onSolo={handleSolo}
+              onOpenEditor={() => setEditingChannel(channel as SonarDeviceChannel)}
             />
           )
         })}
@@ -246,6 +253,28 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
           onPresetSelect={handlePresetSelect}
         />
       </div>
+
+      {editingChannel && ReactDOM.createPortal(
+        <PresetEditor
+          channel={editingChannel}
+          configs={sonarState.configs}
+          activePresetId={activePresetIds[editingChannel]}
+          onClose={() => setEditingChannel(null)}
+          onPresetSelect={(configId) => handlePresetSelect(editingChannel, configId)}
+          onUpsert={async (config) => {
+            upsertConfigOptimistic(config)
+            await window.api.sonarUpsertConfig(config)
+          }}
+          onDelete={async (id) => {
+            deleteConfigOptimistic(id)
+            await window.api.sonarDeleteConfig(id)
+          }}
+          onDuplicate={(sourceId) => window.api.sonarDuplicateConfig(sourceId).then(upsertConfigOptimistic)}
+          onReset={(id) => window.api.sonarResetConfig(id).then(upsertConfigOptimistic)}
+          onToggleFavorite={(id, fav) => window.api.sonarToggleFavorite(id, fav)}
+        />,
+        document.body,
+      )}
     </div>
   )
 }
