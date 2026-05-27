@@ -738,16 +738,22 @@ export function PresetEditor({
       const t = e.target as Node
       if (!ddBtnRef.current?.contains(t) && !ddMenuRef.current?.contains(t)) setDropdownOpen(false)
     }
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') setDropdownOpen(false)
-    }
     document.addEventListener('mousedown', onMouseDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
+    return () => document.removeEventListener('mousedown', onMouseDown)
   }, [dropdownOpen])
+
+  // Escape closes the dropdown first, then cancels an edit, then closes the panel —
+  // never dismisses a panel that has an in-progress draft in one keystroke.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key !== 'Escape') return
+      if (dropdownOpen) setDropdownOpen(false)
+      else if (view === 'edit') { setView('view'); setDraft(null) }
+      else onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [dropdownOpen, view, onClose])
 
   function toggleDropdown(): void {
     if (!dropdownOpen && ddBtnRef.current) {
@@ -802,54 +808,33 @@ export function PresetEditor({
   const channelLabel = CHANNEL_LABELS[channel] ?? channel
 
   return (
-    <div
-      className="fixed top-0 right-0 bottom-0 flex flex-col"
-      style={{
-        width: 360,
-        background: 'var(--color-surface)',
-        borderLeft: '1px solid var(--color-border)',
-        zIndex: 50,
-      }}
-    >
+    <div className="sn-preset-editor" role="dialog" aria-label="Preset editor">
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--color-border)' }}
-      >
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          {channelLabel}
-        </h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => activeConfig && onToggleFavorite(activeConfig.id, !activeConfig.isFavorite)}
-            disabled={!activeConfig}
-            title={activeConfig?.isFavorite ? 'Unfavourite' : 'Favourite'}
-            style={{
-              width: 22, height: 22, borderRadius: 4,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: activeConfig?.isFavorite ? 'var(--color-warn, var(--color-accent))' : 'var(--color-text-secondary)',
-              cursor: activeConfig ? 'pointer' : 'not-allowed',
-              fontSize: 13, lineHeight: 1,
-            }}
-          >
-            {activeConfig?.isFavorite ? '★' : '☆'}
-          </button>
-          <button
-            onClick={onClose}
-            title="Close"
-            style={{
-              width: 22, height: 22, borderRadius: 4,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 12,
-            }}
-          >
-            ✕
-          </button>
+      <div className="sn-pe-head">
+        <span className="sn-pe-ic">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+          </svg>
+        </span>
+        <div className="sn-pe-title">
+          <span className="sn-pe-title-name">{channelLabel}</span>
+          <span className="sn-pe-title-sub mono">{activeConfig?.name ?? 'No presets'}</span>
         </div>
+        <button
+          className={`sn-pe-hbtn${activeConfig?.isFavorite ? ' fav-on' : ''}`}
+          onClick={() => activeConfig && onToggleFavorite(activeConfig.id, !activeConfig.isFavorite)}
+          disabled={!activeConfig}
+          title={activeConfig?.isFavorite ? 'Unfavourite' : 'Favourite'}
+          aria-label="Toggle favourite"
+        >
+          {activeConfig?.isFavorite ? '★' : '☆'}
+        </button>
+        <button className="sn-pe-hbtn" onClick={onClose} title="Close" aria-label="Close">
+          ✕
+        </button>
       </div>
 
       {/* Preset dropdown row */}
