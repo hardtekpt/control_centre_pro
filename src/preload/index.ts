@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
   HaState, HaServiceCall, ResourceSnapshot,
@@ -149,6 +149,21 @@ const api = {
 
   sonarRouteProcess: (processId: number, targetChannel: string): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_ROUTE_PROCESS, processId, targetChannel),
+
+  sonarUpsertConfig: (config: SonarConfig): Promise<SonarConfig> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_UPSERT_CONFIG, config),
+
+  sonarDeleteConfig: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_DELETE_CONFIG, id),
+
+  sonarDuplicateConfig: (sourceId: string): Promise<SonarConfig> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_DUPLICATE_CONFIG, sourceId),
+
+  sonarResetConfig: (id: string): Promise<SonarConfig> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_RESET_CONFIG, id),
+
+  sonarToggleFavorite: (id: string, isFavorite: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_TOGGLE_FAVORITE, id, isFavorite),
 
   sonarRefreshDevices: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_REFRESH_DEVICES),

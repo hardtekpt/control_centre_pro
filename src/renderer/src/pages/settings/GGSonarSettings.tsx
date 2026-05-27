@@ -140,7 +140,7 @@ export function GGSonarSettings(): JSX.Element {
         {sonarState && (
           <div className="px-5 py-3.5">
             <div className="segment-group w-fit">
-              {(['classic', 'streamer'] as SonarMode[]).map((m) => (
+              {(['classic', 'stream'] as SonarMode[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => handleModeChange(m)}

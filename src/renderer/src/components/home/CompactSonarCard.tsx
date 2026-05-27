@@ -415,7 +415,7 @@ export function CompactSonarCard(): JSX.Element {
           />
         </div>
         <span className="card-row-label">
-          {sonarState.mode === 'streamer' ? 'Streamer' : 'Classic'}
+          {sonarState.mode === 'stream' ? 'Streamer' : 'Classic'}
         </span>
       </div>
 

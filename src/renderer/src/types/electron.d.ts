@@ -1,6 +1,6 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
   HaState, HaServiceCall, ResourceSnapshot,
@@ -64,6 +64,11 @@ declare global {
     sonarSetRedirection: (channel: SonarDeviceChannel, deviceId: string) => Promise<void>
     sonarRouteProcess: (processId: number, targetChannel: string) => Promise<void>
     sonarRefreshDevices: () => Promise<void>
+    sonarUpsertConfig: (config: SonarConfig) => Promise<SonarConfig>
+    sonarDeleteConfig: (id: string) => Promise<void>
+    sonarDuplicateConfig: (sourceId: string) => Promise<SonarConfig>
+    sonarResetConfig: (id: string) => Promise<SonarConfig>
+    sonarToggleFavorite: (id: string, isFavorite: boolean) => Promise<void>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
 
     // Discord Voice Control

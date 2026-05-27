@@ -1,5 +1,6 @@
 import * as https from 'https'
 import * as http from 'http'
+import { randomUUID } from 'crypto'
 import type { BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '../../shared/types'
 import type {
@@ -158,8 +159,8 @@ export class SonarService {
   async setMode(mode: SonarMode): Promise<void> {
     if (!this.baseUrl) return
     try {
-      // API path key: 'classic' → 'classic', 'streamer' → 'stream'
-      const modeKey = mode === 'streamer' ? 'stream' : 'classic'
+      // mode values map 1:1 to API path keys ('classic' | 'stream')
+      const modeKey = mode === 'stream' ? 'stream' : 'classic'
       this.log('info', `Mode: ${mode}`)
       await this.httpPut(`${this.baseUrl}/mode/${modeKey}`)
       // Hold the mode for 4 s so the 1-second fast poll doesn't immediately
@@ -222,6 +223,56 @@ export class SonarService {
       }
     }
     this.push()
+    this.scheduleRefresh()
+  }
+
+  // ── Config CRUD ───────────────────────────────────────────────────────────────
+
+  async upsertConfig(config: SonarConfig): Promise<SonarConfig> {
+    if (!this.baseUrl) throw new Error('Sonar not available')
+    const raw = await this.httpPutJson(`${this.baseUrl}/configs`, JSON.stringify(config))
+    this.scheduleRefresh()
+    return JSON.parse(raw) as SonarConfig
+  }
+
+  async deleteConfig(id: string): Promise<void> {
+    if (!this.baseUrl) throw new Error('Sonar not available')
+    await this.httpDelete(`${this.baseUrl}/configs/${id}`)
+    this.scheduleRefresh()
+  }
+
+  async duplicateConfig(sourceId: string): Promise<SonarConfig> {
+    if (!this.baseUrl) throw new Error('Sonar not available')
+    const source = this.state.configs.find((c) => c.id === sourceId)
+    if (!source) throw new Error(`Config ${sourceId} not found`)
+    const now = new Date().toISOString()
+    const copy: SonarConfig = {
+      ...source,
+      id: randomUUID(),
+      name: `${source.name} Copy`,
+      isPreset: false,
+      createdAt: now,
+      updatedAt: now,
+    }
+    return this.upsertConfig(copy)
+  }
+
+  async resetConfig(id: string): Promise<SonarConfig> {
+    if (!this.baseUrl) throw new Error('Sonar not available')
+    const config = this.state.configs.find((c) => c.id === id)
+    if (!config) throw new Error(`Config ${id} not found`)
+    if (!config.defaultData) throw new Error('No defaultData to reset to')
+    const reset: SonarConfig = {
+      ...config,
+      data: config.defaultData,
+      updatedAt: new Date().toISOString(),
+    }
+    return this.upsertConfig(reset)
+  }
+
+  async toggleFavorite(id: string, isFavorite: boolean): Promise<void> {
+    if (!this.baseUrl) throw new Error('Sonar not available')
+    await this.httpPut(`${this.baseUrl}/configs/${id}/isFavorite/${isFavorite}`)
     this.scheduleRefresh()
   }
 
@@ -595,6 +646,26 @@ export class SonarService {
       req.on('error', reject)
       req.setTimeout(3000, () => { req.destroy(); reject(new Error('timeout')) })
       req.write(buf)
+      req.end()
+    })
+  }
+
+  private httpDelete(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(url)
+      const options: http.RequestOptions = {
+        hostname: parsed.hostname,
+        port: Number(parsed.port),
+        path: parsed.pathname + parsed.search,
+        method: 'DELETE',
+        headers: { 'Content-Length': '0' },
+      }
+      const req = http.request(options, (res) => {
+        res.resume()
+        res.on('end', () => resolve())
+      })
+      req.on('error', reject)
+      req.setTimeout(3000, () => { req.destroy(); reject(new Error('timeout')) })
       req.end()
     })
   }

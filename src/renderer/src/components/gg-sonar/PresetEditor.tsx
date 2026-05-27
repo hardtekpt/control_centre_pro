@@ -163,7 +163,7 @@ function VoiceData({ data }: { data: SonarConfigData }): JSX.Element {
     { label: 'Auto Noise Gate', enabled: data.automaticNoiseGateState?.enabled },
     { label: 'Impact Noise Reduction', enabled: data.impactNoiseReductionState?.enabled },
     { label: 'Noise Canceling', enabled: data.noiseCancelingState?.enabled },
-    { label: 'Echo Canceling', enabled: data.acousticEchoCancelingState?.enabled },
+    { label: 'Echo Canceling', enabled: data.acousticEchoCancelingState },
   ].filter((f) => f.enabled !== undefined)
 
   return (

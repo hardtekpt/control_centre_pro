@@ -44,7 +44,7 @@ export function Sonar(): JSX.Element {
           GG Sonar
         </h1>
         <div style={{ display: 'flex', gap: 6 }}>
-          {(['classic', 'streamer'] as const).map((m) => (
+          {(['classic', 'stream'] as const).map((m) => (
             <button
               key={m}
               onClick={() => void sonarSetMode(m)}

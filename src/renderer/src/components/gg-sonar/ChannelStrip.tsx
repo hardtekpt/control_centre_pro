@@ -639,7 +639,7 @@ function ChannelStripComponent({
 
       {/* Fader zone */}
       <div className="flex flex-col items-center px-3 pt-2 pb-1 flex-shrink-0 min-h-0">
-        {mode === 'streamer' && streamerMix ? (
+        {mode === 'stream' && streamerMix ? (
           <StreamerFaders mix={streamerMix} />
         ) : (
           <>

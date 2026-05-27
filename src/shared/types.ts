@@ -53,6 +53,11 @@ export const IPC_CHANNELS = {
   SONAR_SET_REDIRECTION: 'sonar:setRedirection', // renderer → main invoke (channel, deviceId)
   SONAR_ROUTE_PROCESS: 'sonar:routeProcess',     // renderer → main invoke (sessionId, targetDeviceId)
   SONAR_REFRESH_DEVICES: 'sonar:refreshDevices', // renderer → main invoke (on-demand device refresh)
+  SONAR_UPSERT_CONFIG:    'sonar:upsertConfig',     // renderer → main: SonarConfig → SonarConfig
+  SONAR_DELETE_CONFIG:    'sonar:deleteConfig',     // renderer → main: id → void
+  SONAR_DUPLICATE_CONFIG: 'sonar:duplicateConfig',  // renderer → main: sourceId → SonarConfig
+  SONAR_RESET_CONFIG:     'sonar:resetConfig',      // renderer → main: id → SonarConfig
+  SONAR_TOGGLE_FAVORITE:  'sonar:toggleFavorite',   // renderer → main: (id, bool) → void
 
   // Preset Switcher — auto-switch presets by active app
   ACTIVE_WINDOW_CHANGE: 'activeWindow:change',          // main → renderer push
@@ -567,7 +572,7 @@ export interface ArctisState {
 
 // ─── GG Sonar HTTP REST ───────────────────────────────────────────────────────
 
-export type SonarMode = 'classic' | 'streamer'
+export type SonarMode = 'classic' | 'stream'
 
 export const SONAR_CHANNELS = ['master', 'game', 'chatRender', 'chatCapture', 'media', 'aux'] as const
 export type SonarChannel = (typeof SONAR_CHANNELS)[number]
@@ -613,26 +618,55 @@ export interface SonarDeviceRoute {
   audioSessions: SonarAudioSession[]
 }
 
+export interface SonarEQFilter {
+  enabled: boolean
+  qFactor: number
+  frequency: number
+  gain: number
+  type: 'peakingEQ' | 'lowShelving' | 'highShelving'
+}
+
+export interface SonarParametricEQ {
+  enabled: boolean
+  filter1: SonarEQFilter;  filter2: SonarEQFilter;  filter3: SonarEQFilter
+  filter4: SonarEQFilter;  filter5: SonarEQFilter;  filter6: SonarEQFilter
+  filter7: SonarEQFilter;  filter8: SonarEQFilter;  filter9: SonarEQFilter
+  filter10: SonarEQFilter
+}
+
+export interface SonarVirtualSurroundChannels {
+  frontLeft:  { position: number; gain: number }
+  frontRight: { position: number; gain: number }
+  center:     { position: number; gain: number }
+  subWoofer:  { position: number; gain: number }
+  rearLeft:   { position: number; gain: number }
+  rearRight:  { position: number; gain: number }
+  sideLeft:   { position: number; gain: number }
+  sideRight:  { position: number; gain: number }
+}
+
 export interface SonarConfigData {
-  // Output channels (game, media, aux)
-  bassBoostState?: { enabled: boolean; value: number }
-  trebleBoostState?: { enabled: boolean; value: number }
+  // Output channels (game, media, aux, chatRender) — schemaVersion 5
+  bassBoostState?:    { enabled: boolean; value: number }
+  trebleBoostState?:  { enabled: boolean; value: number }
   voiceClarityState?: { enabled: boolean; value: number }
-  smartVolume?: { enabled: boolean; volumeLevel: number; loudness: string }
-  generalGain?: number
-  parametricEQ?: { enabled: boolean }
-  virtualSurroundState?: boolean
-  reverbGainDB?: number
-  formFactor?: string
+  smartVolume?:       { enabled: boolean; volumeLevel: number; loudness: string }
+  generalGain?:       number
+  parametricEQ?:      SonarParametricEQ
+  virtualSurroundState?:    boolean
+  virtualSurroundChannels?: SonarVirtualSurroundChannels
+  reverbGainDB?:  number
+  formFactor?:    string
+  // Mic channel (chatCapture) — schemaVersion 6
+  noiseReductionState?:        { enabled: boolean; value: number }
+  volumeStabilizerState?:      { enabled: boolean; value: number }
+  noiseGateState?:             { enabled: boolean; value: number }
+  automaticNoiseGateState?:    { enabled: boolean; value: number }
+  impactNoiseReductionState?:  { enabled: boolean; value: number }
+  noiseCancelingState?:        { enabled: boolean; value: number }
+  acousticEchoCancelingState?: boolean
+  // Common
   globalEnableState?: boolean
-  // Voice channels (chatRender, chatCapture)
-  noiseReductionState?: { enabled: boolean }
-  volumeStabilizerState?: { enabled: boolean }
-  noiseGateState?: { enabled: boolean }
-  automaticNoiseGateState?: { enabled: boolean }
-  impactNoiseReductionState?: { enabled: boolean }
-  noiseCancelingState?: { enabled: boolean }
-  acousticEchoCancelingState?: { enabled: boolean }
 }
 
 export interface SonarConfig {
@@ -648,6 +682,9 @@ export interface SonarConfig {
   image: string
   createdAt: string
   updatedAt: string
+  defaultData?:    SonarConfigData   // built-in presets carry original data for reset
+  schemaVersion?:  number
+  releaseVersion?: string | null
 }
 
 export interface SonarChatMix {

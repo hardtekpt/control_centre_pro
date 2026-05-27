@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   SonarState, SonarChannel, SonarDeviceChannel, SonarChannelVolume,
-  SonarAudioDevice, SonarRedirections, SonarDeviceRoute, SonarAudioSession,
+  SonarAudioDevice, SonarRedirections, SonarDeviceRoute, SonarAudioSession, SonarConfig,
 } from '@shared/types'
 import { DEFAULT_PRESET_CHIPS, type UserPresetChip } from '../features/sonar/data/catalogues'
 
@@ -39,6 +39,10 @@ interface SonarStoreState {
   /** Optimistic patch for a process routing move — avoids session jumping back during poll cycle */
   patchRouting: (processId: number, toChannel: string) => void
   setActivePreset: (virtualAudioDevice: string, presetId: string) => void
+  /** Optimistic insert/update of a config — keeps the preset list fresh before the poll confirms */
+  upsertConfigOptimistic: (config: SonarConfig) => void
+  /** Optimistic removal of a config — drops it from the list before the poll confirms */
+  deleteConfigOptimistic: (id: string) => void
   setChannelVisibility: (channel: SonarChannel, visible: boolean) => void
   setPresetChips: (chips: UserPresetChip[]) => void
   /** Lock/unlock a channel against backend volume updates while the fader is being dragged */
@@ -239,6 +243,22 @@ export const useSonarStore = create<SonarStoreState>()(
         _pendingPresetSelections[virtualAudioDevice] = Date.now() + 5000
         set((s) => ({ activePresetIds: { ...s.activePresetIds, [virtualAudioDevice]: presetId } }))
       },
+
+      upsertConfigOptimistic: (config) =>
+        set((s) => {
+          if (!s.sonarState) return s
+          const idx = s.sonarState.configs.findIndex((c) => c.id === config.id)
+          const configs = idx >= 0
+            ? s.sonarState.configs.map((c, i) => (i === idx ? config : c))
+            : [...s.sonarState.configs, config]
+          return { sonarState: { ...s.sonarState, configs } }
+        }),
+
+      deleteConfigOptimistic: (id) =>
+        set((s) => {
+          if (!s.sonarState) return s
+          return { sonarState: { ...s.sonarState, configs: s.sonarState.configs.filter((c) => c.id !== id) } }
+        }),
 
       setChannelVisibility: (channel, visible) =>
         set((s) => {

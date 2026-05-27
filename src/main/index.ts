@@ -671,6 +671,12 @@ function registerIpcHandlers(): void {
     sonarService.refreshDevices()
   )
 
+  ipcMain.handle(IPC_CHANNELS.SONAR_UPSERT_CONFIG,    (_, config) => sonarService.upsertConfig(config))
+  ipcMain.handle(IPC_CHANNELS.SONAR_DELETE_CONFIG,    (_, id) => sonarService.deleteConfig(id))
+  ipcMain.handle(IPC_CHANNELS.SONAR_DUPLICATE_CONFIG, (_, sourceId) => sonarService.duplicateConfig(sourceId))
+  ipcMain.handle(IPC_CHANNELS.SONAR_RESET_CONFIG,     (_, id) => sonarService.resetConfig(id))
+  ipcMain.handle(IPC_CHANNELS.SONAR_TOGGLE_FAVORITE,  (_, id, isFavorite) => sonarService.toggleFavorite(id, isFavorite))
+
   // ── Discord RPC Voice Control ──────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.DISCORD_GET_STATE, () => discordService.getState())
 
