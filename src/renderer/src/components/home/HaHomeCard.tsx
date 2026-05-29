@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useHaStore } from '../../stores/haStore'
 import { useServiceStore } from '../../stores/serviceStore'
 import { SliderInput } from '../SliderInput'
@@ -33,26 +33,18 @@ function HaIcon(): JSX.Element {
 // ─── Light row ────────────────────────────────────────────────────────────────
 
 function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }): JSX.Element {
+  const patchEntity = useHaStore(s => s.patchEntity)
   const attrs = entity.attributes as Record<string, unknown>
   const isOn = entity.state === 'on'
 
-  // Optimistic brightness
-  const brightLock = useRef(0)
-  const [localBright, setLocalBright] = useState<number | null>(null)
+  // All display values read straight from the (optimistically patched) store entity.
   const rawBrightness = typeof attrs.brightness === 'number' ? attrs.brightness as number : 0
-  const brightness = Date.now() - brightLock.current < 1200
-    ? (localBright ?? rawBrightness / 255)
-    : rawBrightness / 255
+  const brightness = rawBrightness / 255
 
-  // Optimistic color temp
-  const ctLock = useRef(0)
-  const [localCt, setLocalCt] = useState<number | null>(null)
   const minCt = typeof attrs.min_color_temp_kelvin === 'number' ? attrs.min_color_temp_kelvin as number : 2000
   const maxCt = typeof attrs.max_color_temp_kelvin === 'number' ? attrs.max_color_temp_kelvin as number : 6500
   const rawCtK = typeof attrs.color_temp_kelvin === 'number' ? attrs.color_temp_kelvin as number : minCt
-  const ctNorm = Date.now() - ctLock.current < 1200
-    ? (localCt ?? (rawCtK - minCt) / (maxCt - minCt))
-    : (rawCtK - minCt) / (maxCt - minCt)
+  const ctNorm = (rawCtK - minCt) / (maxCt - minCt)
 
   const colorMode = String(attrs.color_mode ?? '')
   const showColorTemp = colorMode === 'color_temp' || typeof attrs.color_temp_kelvin === 'number'
@@ -64,34 +56,32 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
   const colorHex = rgbArr ? rgbToHex(rgbArr[0], rgbArr[1], rgbArr[2]) : '#ffffff'
 
   const handleToggle = useCallback((): void => {
+    patchEntity(cfg.entityId, { state: isOn ? 'off' : 'on' })
     callService('light', isOn ? 'turn_off' : 'turn_on', { entity_id: cfg.entityId })
-  }, [cfg.entityId, isOn])
+  }, [cfg.entityId, isOn, patchEntity])
 
   const handleBrightness = useCallback((v: number): void => {
-    setLocalBright(v)
-    brightLock.current = Date.now()
-    callService('light', 'turn_on', { entity_id: cfg.entityId, brightness: Math.round(v * 255) })
-  }, [cfg.entityId])
+    const bright = Math.round(v * 255)
+    patchEntity(cfg.entityId, { state: 'on', attributes: { brightness: bright } })
+    callService('light', 'turn_on', { entity_id: cfg.entityId, brightness: bright })
+  }, [cfg.entityId, patchEntity])
 
   const handleColorTemp = useCallback((v: number): void => {
     const kelvin = Math.round(minCt + v * (maxCt - minCt))
-    setLocalCt(v)
-    ctLock.current = Date.now()
+    patchEntity(cfg.entityId, { attributes: { color_temp_kelvin: kelvin } })
     callService('light', 'turn_on', { entity_id: cfg.entityId, color_temp_kelvin: kelvin })
-  }, [cfg.entityId, minCt, maxCt])
+  }, [cfg.entityId, minCt, maxCt, patchEntity])
 
   const handleColor = useCallback((hex: string): void => {
     const [r, g, b] = hexToRgb(hex)
+    patchEntity(cfg.entityId, { attributes: { rgb_color: [r, g, b] } })
     callService('light', 'turn_on', { entity_id: cfg.entityId, rgb_color: [r, g, b] })
-  }, [cfg.entityId])
+  }, [cfg.entityId, patchEntity])
 
   const handleEffect = useCallback((val: string): void => {
-    if (val === 'None') {
-      callService('light', 'turn_on', { entity_id: cfg.entityId, effect: 'None' })
-    } else {
-      callService('light', 'turn_on', { entity_id: cfg.entityId, effect: val })
-    }
-  }, [cfg.entityId])
+    patchEntity(cfg.entityId, { attributes: { effect: val } })
+    callService('light', 'turn_on', { entity_id: cfg.entityId, effect: val })
+  }, [cfg.entityId, patchEntity])
 
   const name = cfg.displayName ?? String(attrs.friendly_name ?? cfg.entityId)
 
@@ -152,7 +142,7 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
       {isOn && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className="card-row-label" style={{ width: 56 }}>Brightness</span>
-          <SliderInput value={brightness} onChange={handleBrightness} />
+          <SliderInput value={Math.max(0, Math.min(1, brightness))} onChange={handleBrightness} />
           <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 30, textAlign: 'right' }}>
             {Math.round(brightness * 100)}%
           </span>
@@ -176,6 +166,7 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
 // ─── Climate row ──────────────────────────────────────────────────────────────
 
 function ClimateRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }): JSX.Element {
+  const patchEntity = useHaStore(s => s.patchEntity)
   const attrs = entity.attributes as Record<string, unknown>
   const name = cfg.displayName ?? String(attrs.friendly_name ?? cfg.entityId)
   const currentTemp = typeof attrs.current_temperature === 'number' ? (attrs.current_temperature as number).toFixed(1) : '—'
@@ -185,25 +176,18 @@ function ClimateRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }
   const hvacModes = Array.isArray(attrs.hvac_modes) ? attrs.hvac_modes as string[] : []
   const hvacMode = String(entity.state)
 
-  const tempLock = useRef(0)
-  const [localSetpoint, setLocalSetpoint] = useState<number | null>(null)
   const setpointNorm = (setpointRaw - minTemp) / (maxTemp - minTemp)
-  const displayNorm = Date.now() - tempLock.current < 1200
-    ? (localSetpoint ?? setpointNorm)
-    : setpointNorm
-
-  const displaySetpoint = minTemp + displayNorm * (maxTemp - minTemp)
 
   const handleTemp = useCallback((v: number): void => {
     const temp = Math.round((minTemp + v * (maxTemp - minTemp)) * 2) / 2
-    setLocalSetpoint(v)
-    tempLock.current = Date.now()
+    patchEntity(cfg.entityId, { attributes: { temperature: temp } })
     callService('climate', 'set_temperature', { entity_id: cfg.entityId, temperature: temp })
-  }, [cfg.entityId, minTemp, maxTemp])
+  }, [cfg.entityId, minTemp, maxTemp, patchEntity])
 
   const handleMode = useCallback((mode: string): void => {
+    patchEntity(cfg.entityId, { state: mode })
     callService('climate', 'set_hvac_mode', { entity_id: cfg.entityId, hvac_mode: mode })
-  }, [cfg.entityId])
+  }, [cfg.entityId, patchEntity])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
@@ -224,9 +208,9 @@ function ClimateRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span className="card-row-label" style={{ width: 56 }}>Setpoint</span>
-        <SliderInput value={Math.max(0, Math.min(1, displayNorm))} onChange={handleTemp} />
+        <SliderInput value={Math.max(0, Math.min(1, setpointNorm))} onChange={handleTemp} />
         <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 36, textAlign: 'right' }}>
-          {displaySetpoint.toFixed(1)}°
+          {(minTemp + setpointNorm * (maxTemp - minTemp)).toFixed(1)}°
         </span>
       </div>
     </div>

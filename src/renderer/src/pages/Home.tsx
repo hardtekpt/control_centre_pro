@@ -113,7 +113,7 @@ export function Home(): JSX.Element {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gridTemplateColumns: 'minmax(320px, 480px)',
                 gap: '12px',
                 alignItems: 'start',
               }}
