@@ -11,20 +11,22 @@ export function Plugins(): JSX.Element {
   const selectedPlugin = selectedPluginId ? plugins.find((p) => p.id === selectedPluginId) : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {selectedPlugin ? (
-        <ConfigurePage
-          plugin={selectedPlugin}
-          onBack={() => setSelectedPluginId(null)}
-          onTogglePlugin={togglePlugin}
-        />
-      ) : (
-        <PluginGrid
-          plugins={plugins}
-          onPluginSelect={setSelectedPluginId}
-          onTogglePlugin={togglePlugin}
-        />
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="flex-1 overflow-y-auto">
+        {selectedPlugin ? (
+          <ConfigurePage
+            plugin={selectedPlugin}
+            onBack={() => setSelectedPluginId(null)}
+            onTogglePlugin={togglePlugin}
+          />
+        ) : (
+          <PluginGrid
+            plugins={plugins}
+            onPluginSelect={setSelectedPluginId}
+            onTogglePlugin={togglePlugin}
+          />
+        )}
+      </div>
     </div>
   )
 }

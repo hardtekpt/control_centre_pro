@@ -73,8 +73,8 @@ function SettingsLayoutInner(): JSX.Element {
           className="flex-1 flex flex-col overflow-hidden selectable"
           style={{ background: 'var(--color-bg)' }}
         >
-          <div className="flex-1 overflow-y-auto px-8 py-6">
-            <PageTransition viewKey={currentSettingsTab}>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <PageTransition viewKey={currentSettingsTab} fill>
               {currentSettingsTab === 'general' && <GeneralSettings />}
               {currentSettingsTab === 'gg-sonar' && <GGSonarSettings />}
               {currentSettingsTab === 'ddc' && <DDCSettings />}
