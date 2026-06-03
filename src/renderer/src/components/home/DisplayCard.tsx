@@ -48,6 +48,22 @@ function SetPrimaryIcon(): JSX.Element {
   )
 }
 
+function BrightnessIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  )
+}
+
 function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayCardProps): JSX.Element {
   const { setDdcMonitors } = useServiceStore()
   const [draftBrightness, setDraftBrightness] = useState<number | null>(null)
@@ -91,14 +107,41 @@ function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayC
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2">
         <span style={{ color: 'var(--color-accent)' }}><MonitorIcon /></span>
-        <h3 className="text-sm font-semibold flex-1" style={{ color: 'var(--color-text-primary)' }}>
+        <h3 className="text-sm font-semibold flex-1 truncate" style={{ color: 'var(--color-text-primary)' }}>
           {monitor.name}
         </h3>
+        {supportsInput && monitor.available_inputs.length > 0 && (
+          <select
+            id={`input-${monitor.monitor_id}`}
+            value={monitor.input_source}
+            onChange={(e) => {
+              if (e.currentTarget.value) {
+                const inputHex = e.currentTarget.value
+                const inputName = getInputName(inputHex)
+                window.api.ddcSetInputSource(monitor.monitor_id, inputHex).catch(console.error)
+                notifyDisplayInputChange(monitor.name, inputName)
+              }
+            }}
+            className="text-xs py-0.5 px-1.5 rounded"
+            style={{
+              background: 'var(--color-surface-raised)',
+              color: 'var(--color-text-secondary)',
+              border: '1px solid var(--color-border)',
+              maxWidth: 100,
+            }}
+          >
+            {monitor.available_inputs.map((input) => (
+              <option key={input} value={input}>
+                {getInputName(input)}
+              </option>
+            ))}
+          </select>
+        )}
         {monitor.is_primary ? (
           <span
-            className="text-xs px-1.5 py-0.5 rounded mono"
+            className="text-xs px-1.5 py-0.5 rounded mono shrink-0"
             style={{
               background: 'var(--color-surface-raised)',
               color: 'var(--color-text-secondary)',
@@ -112,7 +155,7 @@ function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayC
             onClick={(): void => {
               window.api.ddcSetPrimaryMonitor(monitor.monitor_id).catch(console.error)
             }}
-            className="p-1 rounded-md"
+            className="p-1 rounded-md shrink-0"
             title="Set as primary display"
             style={{
               background: 'transparent',
@@ -140,62 +183,30 @@ function DisplayCardComponent({ monitor, syncBrightness, allMonitors }: DisplayC
 
       {/* Brightness Control */}
       {supportsBrightness ? (
-        <div className="mb-3">
-          <label htmlFor={`brightness-${monitor.monitor_id}`} className="text-xs font-medium block mb-1" style={{ color: 'var(--color-text-primary)' }}>
-            Brightness
-          </label>
-          <div className="flex items-center gap-2 py-1">
-            <SliderInput
-              value={displayBrightness / 100}
-              onChange={(v) => {
-                const newValue = Math.round(v * 100)
-                handleBrightnessChange({ currentTarget: { value: String(newValue) } } as React.ChangeEvent<HTMLInputElement>)
-                lockedUntilRef.current = Date.now() + 1200
-                setConfirmedBrightness(newValue)
-                setDraftBrightness(null)
-                window.api.ddcSetBrightness(monitor.monitor_id, newValue).catch(console.error)
-                if (syncBrightness && allMonitors) {
-                  const otherMonitors = allMonitors.filter((m) => m.monitor_id !== monitor.monitor_id && m.supports.includes('brightness'))
-                  otherMonitors.forEach((m) => {
-                    window.api.ddcSetBrightness(m.monitor_id, newValue).catch(console.error)
-                  })
-                }
-              }}
-              onDragEnd={(v) => notifyDisplayBrightness(monitor.monitor_id, monitor.name, Math.round(v * 100))}
-            />
-            <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', width: 28 }}>
-              {displayBrightness}%
-            </span>
-          </div>
+        <div className="flex items-center gap-2 py-1">
+          <span style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}><BrightnessIcon /></span>
+          <SliderInput
+            value={displayBrightness / 100}
+            onChange={(v) => {
+              const newValue = Math.round(v * 100)
+              handleBrightnessChange({ currentTarget: { value: String(newValue) } } as React.ChangeEvent<HTMLInputElement>)
+              lockedUntilRef.current = Date.now() + 1200
+              setConfirmedBrightness(newValue)
+              setDraftBrightness(null)
+              window.api.ddcSetBrightness(monitor.monitor_id, newValue).catch(console.error)
+              if (syncBrightness && allMonitors) {
+                const otherMonitors = allMonitors.filter((m) => m.monitor_id !== monitor.monitor_id && m.supports.includes('brightness'))
+                otherMonitors.forEach((m) => {
+                  window.api.ddcSetBrightness(m.monitor_id, newValue).catch(console.error)
+                })
+              }
+            }}
+            onDragEnd={(v) => notifyDisplayBrightness(monitor.monitor_id, monitor.name, Math.round(v * 100))}
+          />
+          <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', width: 28 }}>
+            {displayBrightness}%
+          </span>
         </div>
-      ) : null}
-
-      {/* Input Control */}
-      {supportsInput && monitor.available_inputs.length > 0 ? (
-        <select
-          id={`input-${monitor.monitor_id}`}
-          value={monitor.input_source}
-          onChange={(e) => {
-            if (e.currentTarget.value) {
-              const inputHex = e.currentTarget.value
-              const inputName = getInputName(inputHex)
-              window.api.ddcSetInputSource(monitor.monitor_id, inputHex).catch(console.error)
-              notifyDisplayInputChange(monitor.name, inputName)
-            }
-          }}
-          className="w-full text-xs p-1.5 rounded"
-          style={{
-            background: 'var(--color-surface-raised)',
-            color: 'var(--color-text-primary)',
-            border: '1px solid var(--color-border)',
-          }}
-        >
-          {monitor.available_inputs.map((input) => (
-            <option key={input} value={input}>
-              {getInputName(input)}
-            </option>
-          ))}
-        </select>
       ) : null}
     </div>
   )
