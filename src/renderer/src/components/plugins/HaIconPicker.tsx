@@ -277,8 +277,8 @@ interface HaIconPickerPopupProps {
   anchorRect: DOMRect
 }
 
-const POPUP_W = 220
-const BTN = 32
+const POPUP_W = 208
+const BTN = 26
 
 export function HaIconPickerPopup({ value, type, onChange, onClose, anchorRect }: HaIconPickerPopupProps): JSX.Element {
   const currentId = value || defaultHaIcon(type)
