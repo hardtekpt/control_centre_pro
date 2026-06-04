@@ -4,6 +4,7 @@ import { useSettingsForm } from '../../contexts/settingsFormContext'
 import { useHaStore } from '../../stores/haStore'
 import { useServiceStore } from '../../stores/serviceStore'
 import { HaEntityPicker } from './HaEntityPicker'
+import { HaIconSvg, HaIconPickerPopup, defaultHaIcon } from './HaIconPicker'
 import { Toggle } from './Toggle'
 
 interface Props {
@@ -27,6 +28,8 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
   const [savedHomeCardEntities, setSavedHomeCardEntities] = useState<HaHomeCardEntity[]>([])
   const [draftHomeCardEntities, setDraftHomeCardEntities] = useState<HaHomeCardEntity[]>([])
   const [showPicker, setShowPicker] = useState(false)
+  const [iconPickerIndex, setIconPickerIndex] = useState<number | null>(null)
+  const [iconPickerRect, setIconPickerRect] = useState<DOMRect | null>(null)
 
   const draftUrlRef = useRef(draftUrl)
   const draftTokenRef = useRef(draftToken)
@@ -356,16 +359,31 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
                   {cfg.favorite ? '★' : '☆'}
                 </button>
 
-                {/* Icon input */}
-                <input
-                  type="text"
-                  value={cfg.icon ?? ''}
-                  onChange={e => updateEntity(i, { icon: e.target.value.slice(0, 2) })}
-                  placeholder="🔮"
-                  title="Icon (emoji)"
-                  className="input"
-                  style={{ width: 34, textAlign: 'center', fontSize: 14, padding: '1px 2px', flexShrink: 0 }}
-                />
+                {/* Icon picker */}
+                <button
+                  title="Choose icon"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setIconPickerRect(rect)
+                    setIconPickerIndex(iconPickerIndex === i ? null : i)
+                  }}
+                  style={{
+                    width: 34,
+                    height: 28,
+                    padding: 0,
+                    borderRadius: 6,
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface-raised)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-text-primary)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <HaIconSvg id={cfg.icon || defaultHaIcon(cfg.type)} size={16} />
+                </button>
 
                 {/* Icon colour picker */}
                 <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Icon colour">
@@ -446,6 +464,20 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
                 />
               )}
             </div>
+
+            {/* Icon picker popup (portal) */}
+            {iconPickerIndex !== null && iconPickerRect && draftHomeCardEntities[iconPickerIndex] && (
+              <HaIconPickerPopup
+                value={draftHomeCardEntities[iconPickerIndex].icon}
+                type={draftHomeCardEntities[iconPickerIndex].type}
+                onChange={(iconId) => {
+                  updateEntity(iconPickerIndex, { icon: iconId })
+                  setIconPickerIndex(null)
+                }}
+                onClose={() => setIconPickerIndex(null)}
+                anchorRect={iconPickerRect}
+              />
+            )}
           </>
         )}
       </div>

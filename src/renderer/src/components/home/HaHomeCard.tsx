@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { useHaStore } from '../../stores/haStore'
 import { useServiceStore } from '../../stores/serviceStore'
 import { SliderInput } from '../SliderInput'
+import { HaIconSvg, defaultHaIcon } from '../plugins/HaIconPicker'
 import type { HaHomeCardEntity, HaEntity } from '@shared/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -177,18 +178,6 @@ function ColorPickerPopup({ value, onChange, onClose, anchorRect }: ColorPickerP
   )
 }
 
-// ─── Defaults ─────────────────────────────────────────────────────────────────
-
-function defaultIcon(type: import('@shared/types').HaHomeCardEntityType): string {
-  switch (type) {
-    case 'light': return '💡'
-    case 'climate': return '🌡️'
-    case 'scene': return '🎬'
-    case 'service_call': return '⚡'
-    default: return '📊'
-  }
-}
-
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 function BrightnessIcon(): JSX.Element {
@@ -233,8 +222,7 @@ function FavouritesRow({ cfgs, entities }: { cfgs: HaHomeCardEntity[]; entities:
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingBottom: 8, marginBottom: 4, borderBottom: '1px solid var(--color-border)' }}>
       {cfgs.map((cfg) => {
         const entity = entities.find(e => e.entity_id === cfg.entityId)
-        const icon = cfg.icon || defaultIcon(cfg.type)
-        const color = cfg.iconColor
+        const iconId = cfg.icon || defaultHaIcon(cfg.type)
         const isOn = entity?.state === 'on'
 
         const handleClick = (): void => {
@@ -250,10 +238,9 @@ function FavouritesRow({ cfgs, entities }: { cfgs: HaHomeCardEntity[]; entities:
           }
         }
 
-        const bgColor = color
-          ? (isOn ? color + '40' : color + '18')
-          : 'var(--color-surface-raised)'
-        const borderColor = color ? color + '70' : 'var(--color-border)'
+        const iconColor = cfg.iconColor
+          ? (isOn ? cfg.iconColor : cfg.iconColor + '60')
+          : (isOn ? 'var(--color-text-primary)' : 'var(--color-text-secondary)')
 
         return (
           <button
@@ -261,22 +248,22 @@ function FavouritesRow({ cfgs, entities }: { cfgs: HaHomeCardEntity[]; entities:
             onClick={handleClick}
             title={cfg.displayName ?? cfg.entityId}
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 8,
-              border: `1px solid ${borderColor}`,
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              border: '1px solid var(--color-border)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 18,
-              lineHeight: 1,
-              background: bgColor,
+              background: 'var(--color-surface-raised)',
               flexShrink: 0,
-              transition: 'background 150ms',
+              color: iconColor,
+              transition: 'color 150ms',
+              padding: 0,
             }}
           >
-            {icon}
+            <HaIconSvg id={iconId} size={16} />
           </button>
         )
       })}
