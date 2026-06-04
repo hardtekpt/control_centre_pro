@@ -125,7 +125,7 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
             />
           </label>
         )}
-        {effectList.length > 0 && (
+        {isOn && effectList.length > 0 && (
           <select
             value={currentEffect ?? 'None'}
             onChange={e => handleEffect(e.target.value)}
