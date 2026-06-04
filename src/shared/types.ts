@@ -878,4 +878,7 @@ export interface HaHomeCardEntity {
   type: HaHomeCardEntityType
   serviceDomain?: string
   serviceName?: string
+  icon?: string
+  iconColor?: string
+  favorite?: boolean
 }

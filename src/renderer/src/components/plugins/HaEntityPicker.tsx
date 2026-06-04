@@ -41,13 +41,14 @@ export function HaEntityPicker({ entities, configured, onAdd, onClose }: Props):
 
   const configuredIds = new Set(configured.map(c => c.entityId))
 
-  const filtered = search.trim()
+  const hasSearch = search.trim().length > 0
+  const filtered = hasSearch
     ? entities.filter(e => {
         const q = search.toLowerCase()
         return e.entity_id.toLowerCase().includes(q) ||
           String(e.attributes?.friendly_name ?? '').toLowerCase().includes(q)
       })
-    : entities
+    : []
 
   const grouped = groupByDomain(filtered)
 
@@ -99,59 +100,69 @@ export function HaEntityPicker({ entities, configured, onAdd, onClose }: Props):
 
       {/* Entity list */}
       <div style={{ overflowY: 'auto', flex: 1 }}>
-        {[...grouped.entries()].map(([domain, domainEntities]) => (
-          <div key={domain}>
-            <div style={{
-              padding: '4px 10px',
-              fontSize: 10,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: 'var(--color-text-secondary)',
-              background: 'var(--color-surface-raised)',
-              borderBottom: '1px solid var(--color-border)',
-            }}>
-              {domain}
-            </div>
-            {domainEntities.map(e => {
-              const alreadyAdded = configuredIds.has(e.entity_id)
-              const friendlyName = String(e.attributes?.friendly_name ?? e.entity_id)
-              return (
-                <div
-                  key={e.entity_id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '5px 10px',
-                    borderBottom: '1px solid var(--color-border)',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {friendlyName}
-                    </div>
-                    <div className="mono" style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>
-                      {e.entity_id}
-                    </div>
-                  </div>
-                  <button
-                    className="btn-ghost"
-                    disabled={alreadyAdded}
-                    onClick={() => onAdd({
-                      entityId: e.entity_id,
-                      displayName: friendlyName,
-                      type: inferType(e.entity_id),
-                    })}
-                    style={{ fontSize: 11, padding: '2px 8px', opacity: alreadyAdded ? 0.4 : 1 }}
-                  >
-                    {alreadyAdded ? 'Added' : 'Add'}
-                  </button>
-                </div>
-              )
-            })}
+        {!hasSearch ? (
+          <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 12, color: 'var(--color-text-secondary)' }}>
+            Type to search {entities.length > 0 ? `${entities.length} entities` : 'entities'}…
           </div>
-        ))}
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: '20px 10px', textAlign: 'center', fontSize: 12, color: 'var(--color-text-secondary)' }}>
+            No entities match "{search}"
+          </div>
+        ) : (
+          [...grouped.entries()].map(([domain, domainEntities]) => (
+            <div key={domain}>
+              <div style={{
+                padding: '4px 10px',
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: 'var(--color-text-secondary)',
+                background: 'var(--color-surface-raised)',
+                borderBottom: '1px solid var(--color-border)',
+              }}>
+                {domain}
+              </div>
+              {domainEntities.map(e => {
+                const alreadyAdded = configuredIds.has(e.entity_id)
+                const friendlyName = String(e.attributes?.friendly_name ?? e.entity_id)
+                return (
+                  <div
+                    key={e.entity_id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '5px 10px',
+                      borderBottom: '1px solid var(--color-border)',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {friendlyName}
+                      </div>
+                      <div className="mono" style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>
+                        {e.entity_id}
+                      </div>
+                    </div>
+                    <button
+                      className="btn-ghost"
+                      disabled={alreadyAdded}
+                      onClick={() => onAdd({
+                        entityId: e.entity_id,
+                        displayName: friendlyName,
+                        type: inferType(e.entity_id),
+                      })}
+                      style={{ fontSize: 11, padding: '2px 8px', opacity: alreadyAdded ? 0.4 : 1 }}
+                    >
+                      {alreadyAdded ? 'Added' : 'Add'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ))
+        )}
 
         {/* Service call section */}
         <div>

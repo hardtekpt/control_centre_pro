@@ -19,6 +19,18 @@ function callService(domain: string, service: string, serviceData?: Record<strin
   window.api.haCallService({ domain, service, serviceData }).catch(console.error)
 }
 
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
+function defaultIcon(type: import('@shared/types').HaHomeCardEntityType): string {
+  switch (type) {
+    case 'light': return '💡'
+    case 'climate': return '🌡️'
+    case 'scene': return '🎬'
+    case 'service_call': return '⚡'
+    default: return '📊'
+  }
+}
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 function BrightnessIcon(): JSX.Element {
@@ -51,6 +63,66 @@ function HaIcon(): JSX.Element {
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
+  )
+}
+
+// ─── Favourites row ───────────────────────────────────────────────────────────
+
+function FavouritesRow({ cfgs, entities }: { cfgs: HaHomeCardEntity[]; entities: HaEntity[] }): JSX.Element {
+  const patchEntity = useHaStore(s => s.patchEntity)
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingBottom: 8, marginBottom: 4, borderBottom: '1px solid var(--color-border)' }}>
+      {cfgs.map((cfg) => {
+        const entity = entities.find(e => e.entity_id === cfg.entityId)
+        const icon = cfg.icon || defaultIcon(cfg.type)
+        const color = cfg.iconColor
+        const isOn = entity?.state === 'on'
+
+        const handleClick = (): void => {
+          if (cfg.type === 'service_call') {
+            if (cfg.serviceDomain && cfg.serviceName)
+              callService(cfg.serviceDomain, cfg.serviceName)
+          } else if (cfg.type === 'scene') {
+            callService('scene', 'turn_on', { entity_id: cfg.entityId })
+          } else if (cfg.type === 'light') {
+            const on = entity?.state === 'on'
+            patchEntity(cfg.entityId, { state: on ? 'off' : 'on' })
+            callService('light', on ? 'turn_off' : 'turn_on', { entity_id: cfg.entityId })
+          }
+        }
+
+        const bgColor = color
+          ? (isOn ? color + '40' : color + '18')
+          : 'var(--color-surface-raised)'
+        const borderColor = color ? color + '70' : 'var(--color-border)'
+
+        return (
+          <button
+            key={cfg.entityId}
+            onClick={handleClick}
+            title={cfg.displayName ?? cfg.entityId}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 8,
+              border: `1px solid ${borderColor}`,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              lineHeight: 1,
+              background: bgColor,
+              flexShrink: 0,
+              transition: 'background 150ms',
+            }}
+          >
+            {icon}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -315,6 +387,9 @@ export function HaHomeCard(): JSX.Element {
   const isConnected = haState?.status === 'connected'
   const liveEntities = haState?.entities ?? []
 
+  const favourites = entities.filter(cfg => cfg.favorite)
+  const normal = entities.filter(cfg => !cfg.favorite)
+
   return (
     <div className="card card-surface">
       {/* Header */}
@@ -334,9 +409,14 @@ export function HaHomeCard(): JSX.Element {
         />
       </div>
 
-      {/* Entity rows */}
+      {/* Favourites quick-access row */}
+      {favourites.length > 0 && (
+        <FavouritesRow cfgs={favourites} entities={liveEntities} />
+      )}
+
+      {/* Normal entity rows */}
       <div>
-        {entities.map((cfg, i) => (
+        {normal.map((cfg, i) => (
           <EntityRow key={cfg.entityId + i} cfg={cfg} entities={liveEntities} />
         ))}
         {entities.length === 0 && (

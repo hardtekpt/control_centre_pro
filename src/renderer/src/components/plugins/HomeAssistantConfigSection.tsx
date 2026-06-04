@@ -109,6 +109,15 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
   const isConnected = haState?.status === 'connected'
   const isError = haState?.status === 'error'
 
+  const updateEntity = (i: number, patch: Partial<import('@shared/types').HaHomeCardEntity>): void => {
+    setDraftHomeCardEntities(prev => {
+      const next = [...prev]
+      next[i] = { ...next[i], ...patch }
+      return next
+    })
+    setDirty(true)
+  }
+
   const moveEntity = (i: number, dir: 'up' | 'down'): void => {
     const j = dir === 'up' ? i - 1 : i + 1
     setDraftHomeCardEntities(prev => {
@@ -328,6 +337,54 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
                   {cfg.displayName ?? (haState?.entities.find(e => e.entity_id === cfg.entityId)?.attributes?.friendly_name as string | undefined) ?? cfg.entityId}
                 </span>
 
+                {/* Favourite toggle */}
+                <button
+                  onClick={() => updateEntity(i, { favorite: !cfg.favorite })}
+                  title={cfg.favorite ? 'Remove from favourites' : 'Mark as favourite'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    lineHeight: 1,
+                    padding: '2px 3px',
+                    color: cfg.favorite ? '#f59e0b' : 'var(--color-text-secondary)',
+                    flexShrink: 0,
+                    transition: 'color 0.12s',
+                  }}
+                >
+                  {cfg.favorite ? '★' : '☆'}
+                </button>
+
+                {/* Icon input */}
+                <input
+                  type="text"
+                  value={cfg.icon ?? ''}
+                  onChange={e => updateEntity(i, { icon: e.target.value.slice(0, 2) })}
+                  placeholder="🔮"
+                  title="Icon (emoji)"
+                  className="input"
+                  style={{ width: 34, textAlign: 'center', fontSize: 14, padding: '1px 2px', flexShrink: 0 }}
+                />
+
+                {/* Icon colour picker */}
+                <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Icon colour">
+                  <div style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: cfg.iconColor ?? 'var(--color-text-secondary)',
+                    border: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                  }} />
+                  <input
+                    type="color"
+                    value={cfg.iconColor ?? '#888888'}
+                    onChange={e => updateEntity(i, { iconColor: e.target.value })}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+                  />
+                </label>
+
                 {/* Entity ID */}
                 <span
                   className="mono"
@@ -337,7 +394,7 @@ export function HomeAssistantConfigSection({ plugin }: Props): JSX.Element {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    maxWidth: 180,
+                    maxWidth: 130,
                     flexShrink: 0,
                   }}
                 >
