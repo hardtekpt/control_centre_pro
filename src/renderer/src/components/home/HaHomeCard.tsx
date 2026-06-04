@@ -113,7 +113,7 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
       {/* Name + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ flex: 1, fontSize: 12, color: 'var(--color-text-primary)' }}>{name}</span>
+        <span className="flex-1 text-xs">{name}</span>
         {showColor && (
           <label style={{ position: 'relative', cursor: 'pointer' }}>
             <div style={{ width: 16, height: 16, borderRadius: '50%', background: colorHex, border: '1px solid var(--color-border)', cursor: 'pointer' }} />
@@ -129,7 +129,8 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
           <select
             value={currentEffect ?? 'None'}
             onChange={e => handleEffect(e.target.value)}
-            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: 11, padding: '2px 6px' }}
+            className="text-xs py-0.5 px-1.5 rounded"
+            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
           >
             <option value="None">No effect</option>
             {effectList.map(ef => <option key={ef} value={ef}>{ef}</option>)}
@@ -137,28 +138,16 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
         )}
         <button
           onClick={handleToggle}
-          style={{
-            width: 32,
-            height: 18,
-            borderRadius: 9,
-            border: 'none',
-            cursor: 'pointer',
-            background: isOn ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-            position: 'relative',
-            flexShrink: 0,
-            transition: 'background 150ms ease',
-          }}
+          className="toggle-track"
+          style={{ background: isOn ? 'var(--color-text-primary)' : 'var(--color-border)' }}
         >
-          <div style={{
-            position: 'absolute',
-            top: 2,
-            left: isOn ? 16 : 2,
-            width: 14,
-            height: 14,
-            borderRadius: '50%',
-            background: 'var(--color-text-primary)',
-            transition: 'left 150ms ease',
-          }} />
+          <span
+            className="toggle-thumb"
+            style={{
+              transform: isOn ? 'translateX(14px)' : 'translateX(0)',
+              background: isOn ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+            }}
+          />
         </button>
       </div>
 
@@ -216,15 +205,14 @@ function ClimateRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ flex: 1, fontSize: 12, color: 'var(--color-text-primary)' }}>{name}</span>
-        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-          {currentTemp}°
-        </span>
+        <span className="flex-1 text-xs">{name}</span>
+        <span className="card-row-label">{currentTemp}°</span>
         {hvacModes.length > 0 && (
           <select
             value={hvacMode}
             onChange={e => handleMode(e.target.value)}
-            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: 11, padding: '2px 6px' }}
+            className="text-xs py-0.5 px-1.5 rounded"
+            style={{ background: 'var(--color-surface-raised)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
           >
             {hvacModes.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
@@ -250,7 +238,7 @@ function SensorRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity })
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
       <span style={{ flex: 1, fontSize: 12, color: 'var(--color-text-primary)' }}>{name}</span>
-      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+      <span className="card-row-label text-xs">
         {entity.state}{unit ? ` ${unit}` : ''}
       </span>
     </div>
@@ -308,8 +296,8 @@ function EntityRow({ cfg, entities }: { cfg: HaHomeCardEntity; entities: HaEntit
   const entity = entities.find(e => e.entity_id === cfg.entityId)
   if (!entity) return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--color-border)', opacity: 0.5 }}>
-      <span style={{ flex: 1, fontSize: 12, color: 'var(--color-text-secondary)' }}>{cfg.displayName ?? cfg.entityId}</span>
-      <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>unavailable</span>
+      <span className="flex-1 text-xs card-row-label">{cfg.displayName ?? cfg.entityId}</span>
+      <span className="card-row-label">unavailable</span>
     </div>
   )
   if (cfg.type === 'light') return <LightRow cfg={cfg} entity={entity} />
