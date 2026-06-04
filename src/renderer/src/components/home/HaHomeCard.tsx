@@ -1,4 +1,5 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import ReactDOM from 'react-dom'
 import { useHaStore } from '../../stores/haStore'
 import { useServiceStore } from '../../stores/serviceStore'
 import { SliderInput } from '../SliderInput'
@@ -17,6 +18,163 @@ function rgbToHex(r: number, g: number, b: number): string {
 
 function callService(domain: string, service: string, serviceData?: Record<string, unknown>): void {
   window.api.haCallService({ domain, service, serviceData }).catch(console.error)
+}
+
+function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min
+  let h = 0
+  const s = max === 0 ? 0 : d / max, v = max
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
+    else if (max === g) h = ((b - r) / d + 2) / 6
+    else h = ((r - g) / d + 4) / 6
+  }
+  return [h, s, v]
+}
+
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const i = Math.floor(h * 6), f = h * 6 - i
+  const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s)
+  const c: [number, number, number][] = [[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]]
+  const [r, g, b] = c[i % 6]
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)]
+}
+
+// ─── Color picker popup ───────────────────────────────────────────────────────
+
+interface ColorPickerPopupProps {
+  value: string
+  onChange: (hex: string) => void
+  onClose: () => void
+  anchorRect: DOMRect
+}
+
+const PICKER_W = 200
+const PICKER_H = 218
+const SV_H = 140
+
+function ColorPickerPopup({ value, onChange, onClose, anchorRect }: ColorPickerPopupProps): JSX.Element {
+  const [initH, initS, initV] = rgbToHsv(...hexToRgb(value))
+  const [hue, setHue] = useState(initH)
+  const [sat, setSat] = useState(initS)
+  const [bri, setBri] = useState(initV)
+
+  const svRef = useRef<HTMLDivElement>(null)
+  const hueRef = useRef<HTMLDivElement>(null)
+  const dragging = useRef<'sv' | 'hue' | null>(null)
+  const hsvRef = useRef([initH, initS, initV])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent): void => {
+      if (dragging.current === 'sv' && svRef.current) {
+        const r = svRef.current.getBoundingClientRect()
+        const s = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
+        const v = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height))
+        hsvRef.current[1] = s; hsvRef.current[2] = v
+        setSat(s); setBri(v)
+        onChange(rgbToHex(...hsvToRgb(hsvRef.current[0], s, v)))
+      } else if (dragging.current === 'hue' && hueRef.current) {
+        const r = hueRef.current.getBoundingClientRect()
+        const h = Math.max(0, Math.min(0.9999, (e.clientX - r.left) / r.width))
+        hsvRef.current[0] = h
+        setHue(h)
+        onChange(rgbToHex(...hsvToRgb(h, hsvRef.current[1], hsvRef.current[2])))
+      }
+    }
+    const onUp = (): void => { dragging.current = null }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [onChange])
+
+  const hueHex = rgbToHex(...hsvToRgb(hue, 1, 1))
+  const currentHex = rgbToHex(...hsvToRgb(hue, sat, bri))
+
+  // Position panel below anchor, flip up if needed, clamp to viewport
+  const winW = window.innerWidth, winH = window.innerHeight
+  let left = anchorRect.left
+  let top = anchorRect.bottom + 6
+  if (left + PICKER_W > winW - 8) left = winW - PICKER_W - 8
+  if (top + PICKER_H > winH - 8) top = anchorRect.top - PICKER_H - 6
+  if (left < 8) left = 8
+  if (top < 8) top = 8
+
+  return ReactDOM.createPortal(
+    <>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={onClose} />
+      <div style={{
+        position: 'fixed', left, top, width: PICKER_W, zIndex: 9999,
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 8,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+        padding: 10,
+        display: 'flex', flexDirection: 'column', gap: 8,
+        userSelect: 'none',
+      }}>
+        {/* SV square */}
+        <div
+          ref={svRef}
+          onMouseDown={e => { dragging.current = 'sv'; e.preventDefault() }}
+          style={{
+            position: 'relative', height: SV_H, borderRadius: 4,
+            cursor: 'crosshair',
+            background: `linear-gradient(to bottom, transparent, #000), linear-gradient(to right, #fff, ${hueHex})`,
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <div style={{
+            position: 'absolute',
+            left: `${sat * 100}%`, top: `${(1 - bri) * 100}%`,
+            transform: 'translate(-50%, -50%)',
+            width: 10, height: 10, borderRadius: '50%',
+            border: '2px solid #fff',
+            boxShadow: '0 0 3px rgba(0,0,0,0.6)',
+            background: currentHex,
+            pointerEvents: 'none',
+          }} />
+        </div>
+
+        {/* Hue slider */}
+        <div
+          ref={hueRef}
+          onMouseDown={e => { dragging.current = 'hue'; e.preventDefault() }}
+          style={{
+            position: 'relative', height: 14, borderRadius: 4,
+            cursor: 'ew-resize',
+            background: 'linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <div style={{
+            position: 'absolute',
+            left: `${hue * 100}%`, top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 8, height: 18, borderRadius: 3,
+            border: '2px solid #fff',
+            boxShadow: '0 0 3px rgba(0,0,0,0.5)',
+            background: hueHex,
+            pointerEvents: 'none',
+          }} />
+        </div>
+
+        {/* Preview + hex */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 24, height: 24, borderRadius: 4, flexShrink: 0,
+            background: currentHex, border: '1px solid var(--color-border)',
+          }} />
+          <span style={{
+            fontSize: 11, color: 'var(--color-text-secondary)',
+            fontFamily: 'JetBrains Mono, Cascadia Code, monospace',
+            letterSpacing: '0.05em',
+          }}>{currentHex.toUpperCase()}</span>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -132,6 +290,8 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
   const patchEntity = useHaStore(s => s.patchEntity)
   const attrs = entity.attributes as Record<string, unknown>
   const isOn = entity.state === 'on'
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const swatchRef = useRef<HTMLDivElement>(null)
 
   // All display values read straight from the (optimistically patched) store entity.
   const rawBrightness = typeof attrs.brightness === 'number' ? attrs.brightness as number : 0
@@ -187,15 +347,22 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span className="flex-1 text-xs">{name}</span>
         {showColor && (
-          <label style={{ position: 'relative', cursor: 'pointer' }}>
-            <div style={{ width: 16, height: 16, borderRadius: '50%', background: colorHex, border: '1px solid var(--color-border)', cursor: 'pointer' }} />
-            <input
-              type="color"
-              value={colorHex}
-              onChange={e => handleColor(e.target.value)}
-              style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+          <>
+            <div
+              ref={swatchRef}
+              onClick={() => setPickerOpen(o => !o)}
+              title="Pick colour"
+              style={{ width: 16, height: 16, borderRadius: '50%', background: colorHex, border: '1px solid var(--color-border)', cursor: 'pointer', flexShrink: 0 }}
             />
-          </label>
+            {pickerOpen && swatchRef.current && (
+              <ColorPickerPopup
+                value={colorHex}
+                onChange={handleColor}
+                onClose={() => setPickerOpen(false)}
+                anchorRect={swatchRef.current.getBoundingClientRect()}
+              />
+            )}
+          </>
         )}
         {isOn && effectList.length > 0 && (
           <select
