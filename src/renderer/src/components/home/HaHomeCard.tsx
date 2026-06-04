@@ -19,7 +19,31 @@ function callService(domain: string, service: string, serviceData?: Record<strin
   window.api.haCallService({ domain, service, serviceData }).catch(console.error)
 }
 
-// ─── Icon ─────────────────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
+function BrightnessIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <line x1="12" y1="2" x2="12" y2="5" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" />
+      <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" />
+      <line x1="2" y1="12" x2="5" y2="12" />
+      <line x1="19" y1="12" x2="22" y2="12" />
+      <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" />
+      <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" />
+    </svg>
+  )
+}
+
+function ColorTempIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+    </svg>
+  )
+}
 
 function HaIcon(): JSX.Element {
   return (
@@ -138,25 +162,25 @@ function LightRow({ cfg, entity }: { cfg: HaHomeCardEntity; entity: HaEntity }):
         </button>
       </div>
 
-      {/* Brightness slider */}
+      {/* Brightness + Color temp sliders side by side */}
       {isOn && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="card-row-label" style={{ width: 56 }}>Brightness</span>
-          <SliderInput value={Math.max(0, Math.min(1, brightness))} onChange={handleBrightness} />
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 30, textAlign: 'right' }}>
-            {Math.round(brightness * 100)}%
-          </span>
-        </div>
-      )}
-
-      {/* Color temp slider */}
-      {isOn && showColorTemp && maxCt > minCt && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="card-row-label" style={{ width: 56 }}>Color temp</span>
-          <SliderInput value={Math.max(0, Math.min(1, ctNorm))} onChange={handleColorTemp} />
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 30, textAlign: 'right' }}>
-            {Math.round(minCt + ctNorm * (maxCt - minCt))}K
-          </span>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+            <span style={{ color: 'var(--color-text-secondary)', flexShrink: 0, display: 'flex' }}><BrightnessIcon /></span>
+            <SliderInput value={Math.max(0, Math.min(1, brightness))} onChange={handleBrightness} />
+            <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 28, textAlign: 'right', flexShrink: 0 }}>
+              {Math.round(brightness * 100)}%
+            </span>
+          </div>
+          {showColorTemp && maxCt > minCt && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+              <span style={{ color: 'var(--color-text-secondary)', flexShrink: 0, display: 'flex' }}><ColorTempIcon /></span>
+              <SliderInput value={Math.max(0, Math.min(1, ctNorm))} onChange={handleColorTemp} />
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', width: 28, textAlign: 'right', flexShrink: 0 }}>
+                {Math.round(minCt + ctNorm * (maxCt - minCt))}K
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
