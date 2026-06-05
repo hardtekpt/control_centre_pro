@@ -37,6 +37,7 @@ export interface RingNotification extends BaseNotification {
   icon: ReactNode
   value: number   // 0–100
   label?: string
+  badge?: string  // short text rendered inside the circle (e.g. monitor number)
 }
 
 export interface GlyphNotification extends BaseNotification {

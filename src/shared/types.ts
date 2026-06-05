@@ -161,6 +161,7 @@ export interface SerializedNotification {
   // volume / ring-specific
   value?: number
   label?: string
+  badge?: string    // short text rendered inside the ring circle (e.g. monitor number)
   // circle-specific
   dot?: boolean
   // glyph-specific

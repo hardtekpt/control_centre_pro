@@ -29,12 +29,13 @@ interface NotificationCircleRingProps {
   icon: ReactNode
   value: number   // 0–100
   label?: string
+  badge?: string
   className?: string
   onClick?: () => void
 }
 
 export function NotificationCircleRing({
-  icon, value, label, className = '', onClick,
+  icon, value, label, badge, className = '', onClick,
 }: NotificationCircleRingProps): JSX.Element {
   const R = 25
   const C = 2 * Math.PI * R
@@ -62,8 +63,11 @@ export function NotificationCircleRing({
           transform="rotate(-90 28 28)"
         />
       </svg>
-      <span className="ring-content">{icon}</span>
-      {label && (
+      <span className="ring-content">
+        {icon}
+        {badge && <span className="ring-badge">{badge}</span>}
+      </span>
+      {label && !badge && (
         <span
           style={{
             position: 'absolute',
