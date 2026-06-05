@@ -149,10 +149,22 @@ export class KvmDetector {
     this.reschedule()
   }
 
-  private async isPresent(instanceId: string): Promise<boolean> {
-    const devices = await this.queryDevices()
-    const needle = instanceId.toLowerCase()
-    return devices.some((d) => d.instanceId.toLowerCase() === needle)
+  private isPresent(instanceId: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Query only the specific device by instance ID to avoid triggering a
+      // full USB bus re-enumeration (which caused random device disconnects).
+      const escaped = instanceId.replace(/'/g, "''")
+      const ps = `$d = Get-PnpDevice -InstanceId '${escaped}' -ErrorAction SilentlyContinue; ($d -ne $null -and $d.Status -ne 'Unknown')`
+      execFile(
+        'powershell.exe',
+        ['-NonInteractive', '-NoProfile', '-Command', ps],
+        { timeout: 8000 },
+        (err, stdout) => {
+          if (err) { resolve(false); return }
+          resolve(stdout.trim().toLowerCase() === 'true')
+        },
+      )
+    })
   }
 
   private queryDevices(): Promise<UsbDevice[]> {
