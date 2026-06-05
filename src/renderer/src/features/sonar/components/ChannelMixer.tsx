@@ -2,7 +2,6 @@ import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useSonarStore } from '../../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { MasterStrip } from './MasterStrip'
-import { PresetSubpage } from './PresetSubpage'
 import { notifySonarPresetChange } from '../../../lib/notifyFromEvent'
 import type {
   SonarState,
@@ -68,19 +67,16 @@ const CHANNEL_DEFS: ChannelDef[] = [
 
 interface ChannelMixerProps {
   sonarState: SonarState
+  onOpenPresetEditor: (channel: SonarDeviceChannel) => void
 }
 
-export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
+export function ChannelMixer({ sonarState, onOpenPresetEditor }: ChannelMixerProps): JSX.Element {
   const visibleChannels    = useSonarStore((s) => s.visibleChannels)
   const patchClassicVolume = useSonarStore((s) => s.patchClassicVolume)
   const patchRedirection   = useSonarStore((s) => s.patchRedirection)
   const patchRouting       = useSonarStore((s) => s.patchRouting)
   const activePresetIds    = useSonarStore((s) => s.activePresetIds)
   const setActivePreset    = useSonarStore((s) => s.setActivePreset)
-  const upsertConfigOptimistic = useSonarStore((s) => s.upsertConfigOptimistic)
-  const deleteConfigOptimistic = useSonarStore((s) => s.deleteConfigOptimistic)
-
-  const [editingChannel, setEditingChannel] = useState<SonarDeviceChannel | null>(null)
 
   // Group sessions by role
   const sessionsByRole = useMemo(() => {
@@ -231,7 +227,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
               onProcessDrop={dropHandlersRef.current[channel] ?? (() => {})}
               onPresetSelect={handlePresetSelect}
               onSolo={handleSolo}
-              onOpenEditor={() => setEditingChannel((prev) => prev === channel ? null : channel as SonarDeviceChannel)}
+              onOpenEditor={() => onOpenPresetEditor(channel as SonarDeviceChannel)}
             />
           )
         })}
@@ -253,26 +249,6 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
         />
       </div>
 
-      {editingChannel && (
-        <PresetSubpage
-          channel={editingChannel}
-          configs={sonarState.configs}
-          activePresetId={activePresetIds[editingChannel]}
-          onClose={() => setEditingChannel(null)}
-          onPresetSelect={(configId) => handlePresetSelect(editingChannel, configId)}
-          onUpsert={async (config) => {
-            upsertConfigOptimistic(config)
-            await window.api.sonarUpsertConfig(config)
-          }}
-          onDelete={async (id) => {
-            deleteConfigOptimistic(id)
-            await window.api.sonarDeleteConfig(id)
-          }}
-          onDuplicate={(sourceId) => window.api.sonarDuplicateConfig(sourceId).then(upsertConfigOptimistic)}
-          onReset={(id) => window.api.sonarResetConfig(id).then(upsertConfigOptimistic)}
-          onToggleFavorite={(id, fav) => window.api.sonarToggleFavorite(id, fav)}
-        />
-      )}
     </div>
   )
 }

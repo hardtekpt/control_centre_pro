@@ -5,8 +5,10 @@ import { MainPageHeader } from '../components/MainPageHeader'
 import { PresetChips } from '../features/sonar/components/PresetChips'
 import { ChannelMixer } from '../features/sonar/components/ChannelMixer'
 import { AutoPresetSection } from '../features/sonar/components/AutoPreset/AutoPresetSection'
+import { PresetDetailPage } from '../features/sonar/components/PresetDetailPage'
 import type { UserPresetChip } from '../features/sonar/data/catalogues'
 import { notifySonarPresetChange } from '../lib/notifyFromEvent'
+import type { SonarDeviceChannel, SonarConfig } from '@shared/types'
 
 // ─── Unavailable state ────────────────────────────────────────────────────────
 
@@ -94,9 +96,14 @@ export function GGSonar(): JSX.Element {
   const setActivePreset = useSonarStore((s) => s.setActivePreset)
   const { setView, setSettingsTab } = useAppStore()
 
+  const upsertConfigOptimistic = useSonarStore((s) => s.upsertConfigOptimistic)
+  const deleteConfigOptimistic = useSonarStore((s) => s.deleteConfigOptimistic)
+
   const [search, setSearch] = useState('')
   const [autoPilot, setAutoPilot] = useState(false)
   const [autoConfigId, setAutoConfigId] = useState<string | undefined>(undefined)
+  // null = sonar mixer view; SonarDeviceChannel = preset detail page for that channel
+  const [presetChannel, setPresetChannel] = useState<SonarDeviceChannel | null>(null)
 
   useEffect(() => {
     window.api.sonarGetState().then(setSonarState).catch(console.error)
@@ -161,6 +168,25 @@ export function GGSonar(): JSX.Element {
 
   const available = sonarState?.available ?? false
 
+  // ─── Preset detail page handlers ─────────────────────────────────────────
+
+  const handlePresetSelectForChannel = useCallback((channel: SonarDeviceChannel, configId: string): void => {
+    setActivePreset(channel, configId)
+    window.api.sonarSelectPreset(configId).catch(console.error)
+    const preset = sonarState?.configs.find((c) => c.id === configId)
+    notifySonarPresetChange(preset?.name ?? 'Preset')
+  }, [setActivePreset, sonarState])
+
+  const handleUpsert = useCallback(async (config: SonarConfig): Promise<void> => {
+    upsertConfigOptimistic(config)
+    await window.api.sonarUpsertConfig(config)
+  }, [upsertConfigOptimistic])
+
+  const handleDelete = useCallback(async (id: string): Promise<void> => {
+    deleteConfigOptimistic(id)
+    await window.api.sonarDeleteConfig(id)
+  }, [deleteConfigOptimistic])
+
   const trailingActions = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {!available && (
@@ -218,6 +244,29 @@ export function GGSonar(): JSX.Element {
     ? `${liveCount} channels live`
     : 'Not detected'
 
+  // ─── Preset detail page ───────────────────────────────────────────────────
+  if (presetChannel && sonarState) {
+    return (
+      <PresetDetailPage
+        channel={presetChannel}
+        configs={sonarState.configs}
+        activePresetId={activePresetIds[presetChannel]}
+        onBack={() => setPresetChannel(null)}
+        onPresetSelect={(id) => handlePresetSelectForChannel(presetChannel, id)}
+        onUpsert={handleUpsert}
+        onDelete={handleDelete}
+        onDuplicate={(sourceId) =>
+          window.api.sonarDuplicateConfig(sourceId).then(upsertConfigOptimistic)
+        }
+        onReset={(id) =>
+          window.api.sonarResetConfig(id).then(upsertConfigOptimistic)
+        }
+        onToggleFavorite={(id, fav) => window.api.sonarToggleFavorite(id, fav)}
+      />
+    )
+  }
+
+  // ─── Main mixer view ──────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--color-bg)' }}>
       {/* Header */}
@@ -241,7 +290,10 @@ export function GGSonar(): JSX.Element {
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         {/* Mixer */}
         {available && sonarState ? (
-          <ChannelMixer sonarState={sonarState} />
+          <ChannelMixer
+            sonarState={sonarState}
+            onOpenPresetEditor={setPresetChannel}
+          />
         ) : (
           <div style={{ padding: '16px 20px' }}>
             <UnavailableState onRetry={handleRetry} />

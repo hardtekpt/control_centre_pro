@@ -124,12 +124,19 @@ interface EQCurveEditorProps {
   eq: SonarParametricEQ
   onChange: (eq: SonarParametricEQ) => void
   disabled?: boolean
+  /** Externally controlled active (selected) key — if undefined, component self-manages */
+  selectedKey?: FilterKey | null
+  onNodeClick?: (key: FilterKey) => void
 }
 
-export function EQCurveEditor({ eq, onChange, disabled = false }: EQCurveEditorProps): JSX.Element {
+export function EQCurveEditor({
+  eq, onChange, disabled = false, selectedKey, onNodeClick,
+}: EQCurveEditorProps): JSX.Element {
   const svgRef              = useRef<SVGSVGElement>(null)
-  const [active, setActive] = useState<FilterKey | null>(null)
+  const [internalActive, setInternalActive] = useState<FilterKey | null>(null)
   const [hover,  setHover]  = useState<FilterKey | null>(null)
+  // Use external selectedKey if provided, otherwise use internalActive
+  const active = selectedKey !== undefined ? selectedKey : internalActive
 
   // Sample frequencies (log-spaced across the SVG width)
   const sampleFreqs = useMemo<number[]>(() => {
@@ -163,7 +170,8 @@ export function EQCurveEditor({ eq, onChange, disabled = false }: EQCurveEditorP
     if (disabled) return
     e.preventDefault()
     e.stopPropagation()
-    setActive(key)
+    if (selectedKey === undefined) setInternalActive(key)
+    onNodeClick?.(key)
 
     const onMove = (ev: PointerEvent): void => {
       const { sx, sy } = toSvgCoords(ev.clientX, ev.clientY)
@@ -173,16 +181,16 @@ export function EQCurveEditor({ eq, onChange, disabled = false }: EQCurveEditorP
     }
 
     const onUp = (): void => {
-      setActive(null)
+      if (selectedKey === undefined) setInternalActive(null)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-  }, [disabled, eq, onChange, toSvgCoords])
+  }, [disabled, eq, onChange, toSvgCoords, selectedKey, onNodeClick])
 
-  const midY   = gainToY(0)
-  const tipKey = active ?? hover
+  const midY    = gainToY(0)
+  const tipKey  = active ?? hover
 
   return (
     <svg

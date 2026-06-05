@@ -26,6 +26,10 @@
   --color-row-hover:       rgba(20,20,20,0.035);
   --color-warn:            #9a6a2c;
 
+  /* Positive / affirmative accent (green — toggles, active states) */
+  --color-accent-positive:        #28A657;
+  --color-accent-positive-muted:  rgba(40, 166, 87, 0.14);
+
   /* Text on bright app-accent backgrounds (always dark for contrast) */
   --color-text-on-accent:  #1a1a1a;
 
@@ -139,6 +143,10 @@
   --color-text-tertiary:   #5a5a5a;
   --color-row-hover:       rgba(255,255,255,0.035);
   --color-warn:            #c4a36a;
+
+  /* Positive / affirmative accent (green) */
+  --color-accent-positive:        #3ECF74;
+  --color-accent-positive-muted:  rgba(62, 207, 116, 0.15);
 
   /* Plugin status tokens */
   --color-ok:              #8baa7b;
