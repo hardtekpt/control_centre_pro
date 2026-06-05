@@ -780,9 +780,9 @@
 }
 
 .sn-rules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* Rule row */
@@ -859,7 +859,8 @@
   color: var(--color-text-tertiary);
   transition: color 0.12s, background 0.12s;
 }
-.sn-rule-edit-btn:hover {
+.sn-rule-edit-btn:hover,
+.sn-rule-edit-btn.active {
   color: var(--color-text-primary);
   background: var(--color-surface);
 }
@@ -883,15 +884,19 @@
   background: var(--color-surface);
 }
 
-/* Rule edit form (inline expansion below the row) */
-.sn-rule-edit-form {
+/* Rule edit popup (floating, portal-rendered) */
+.sn-rule-edit-popup {
+  position: fixed;
+  z-index: 9999;
+  width: 224px;
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 8px 10px;
+  padding: 10px;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* Add rule form */

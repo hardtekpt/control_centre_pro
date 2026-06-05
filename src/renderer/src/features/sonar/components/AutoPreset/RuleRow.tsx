@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import ReactDOM from 'react-dom'
 import type { PresetSwitcherRule, SonarConfig } from '@shared/types'
 import { MonogramTile } from '../AppChip'
 import { CHANNEL_LABELS } from '../../data/catalogues'
@@ -31,10 +32,15 @@ function EditIcon(): JSX.Element {
   )
 }
 
+interface PopupPos { top: number; left: number }
+
 export function RuleRow({ rule, isActive, configs, onUpdate, onRemove }: RuleRowProps): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [editChannel, setEditChannel] = useState(rule.channel ?? '')
   const [editPresetId, setEditPresetId] = useState(rule.presetId ?? '')
+  const [popupPos, setPopupPos] = useState<PopupPos | null>(null)
+  const editBtnRef = useRef<HTMLButtonElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
 
   const presetName = rule.presetId
     ? (configs.find((c) => c.id === rule.presetId)?.name ?? rule.presetId)
@@ -46,45 +52,60 @@ export function RuleRow({ rule, isActive, configs, onUpdate, onRemove }: RuleRow
 
   const presetsForChannel = configs.filter((c) => c.virtualAudioDevice === editChannel && c.isFavorite)
 
+  function openEdit(): void {
+    if (!editBtnRef.current) return
+    const rect = editBtnRef.current.getBoundingClientRect()
+    const popupWidth = 224
+    let left = rect.right - popupWidth
+    if (left < 8) left = 8
+    setPopupPos({ top: rect.bottom + 4, left })
+    setEditChannel(rule.channel ?? '')
+    setEditPresetId(rule.presetId ?? '')
+    setEditing(true)
+  }
+
   function handleSave(): void {
     if (!editChannel || !editPresetId) return
     onUpdate({ ...rule, channel: editChannel, presetId: editPresetId })
     setEditing(false)
   }
 
-  function handleCancel(): void {
+  const handleCancel = useCallback((): void => {
     setEditChannel(rule.channel ?? '')
     setEditPresetId(rule.presetId ?? '')
     setEditing(false)
-  }
+  }, [rule.channel, rule.presetId])
 
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className={`sn-rule-row${isActive ? ' matched' : ''}`}>
-        <MonogramTile name={rule.displayName} processName={rule.appProcessName} size="sm" />
-        <span className="sn-rule-app-name" title={rule.displayName}>{rule.displayName}</span>
-        <span className="sn-rule-arrow">→</span>
-        <span
-          className="sn-rule-preset-btn"
-          title={`${channelLabel} / ${presetName}`}
-          style={{ cursor: 'default' }}
-        >
-          {channelLabel} / {presetName}
-        </span>
-        <button
-          className="sn-rule-edit-btn"
-          onClick={() => { setEditing((v) => !v); setEditChannel(rule.channel ?? ''); setEditPresetId(rule.presetId ?? '') }}
-          title="Edit rule"
-        >
-          <EditIcon />
-        </button>
-        <button className="sn-rule-del" onClick={onRemove} title="Remove rule">
-          <TrashIcon />
-        </button>
-      </div>
+  // Click-outside to cancel
+  useEffect(() => {
+    if (!editing) return
+    function onMouseDown(e: MouseEvent): void {
+      const target = e.target as Node
+      if (!popupRef.current?.contains(target) && !editBtnRef.current?.contains(target)) {
+        handleCancel()
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [editing, handleCancel])
 
-      {editing && (
-        <div className="sn-rule-edit-form expand-in">
+  // Escape key to cancel
+  useEffect(() => {
+    if (!editing) return
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') handleCancel()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [editing, handleCancel])
+
+  const popup = editing && popupPos
+    ? ReactDOM.createPortal(
+        <div
+          ref={popupRef}
+          className="sn-rule-edit-popup"
+          style={{ top: popupPos.top, left: popupPos.left }}
+        >
           <select
             className="sn-form-select"
             value={editChannel}
@@ -118,8 +139,37 @@ export function RuleRow({ rule, isActive, configs, onUpdate, onRemove }: RuleRow
             </button>
             <button className="sn-form-btn-cancel" onClick={handleCancel}>Cancel</button>
           </div>
-        </div>
-      )}
-    </div>
+        </div>,
+        document.body,
+      )
+    : null
+
+  return (
+    <>
+      <div className={`sn-rule-row${isActive ? ' matched' : ''}`}>
+        <MonogramTile name={rule.displayName} processName={rule.appProcessName} size="sm" />
+        <span className="sn-rule-app-name" title={rule.displayName}>{rule.displayName}</span>
+        <span className="sn-rule-arrow">→</span>
+        <span
+          className="sn-rule-preset-btn"
+          title={`${channelLabel} / ${presetName}`}
+          style={{ cursor: 'default' }}
+        >
+          {channelLabel} / {presetName}
+        </span>
+        <button
+          ref={editBtnRef}
+          className={`sn-rule-edit-btn${editing ? ' active' : ''}`}
+          onClick={openEdit}
+          title="Edit rule"
+        >
+          <EditIcon />
+        </button>
+        <button className="sn-rule-del" onClick={onRemove} title="Remove rule">
+          <TrashIcon />
+        </button>
+      </div>
+      {popup}
+    </>
   )
 }
