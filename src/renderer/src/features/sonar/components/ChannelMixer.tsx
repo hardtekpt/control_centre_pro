@@ -1,9 +1,8 @@
 import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
-import ReactDOM from 'react-dom'
 import { useSonarStore } from '../../../stores/sonarStore'
 import { ChannelStrip } from './ChannelStrip'
 import { MasterStrip } from './MasterStrip'
-import { PresetEditor } from '../../../components/gg-sonar/PresetEditor'
+import { PresetSubpage } from './PresetSubpage'
 import { notifySonarPresetChange } from '../../../lib/notifyFromEvent'
 import type {
   SonarState,
@@ -232,7 +231,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
               onProcessDrop={dropHandlersRef.current[channel] ?? (() => {})}
               onPresetSelect={handlePresetSelect}
               onSolo={handleSolo}
-              onOpenEditor={() => setEditingChannel(channel as SonarDeviceChannel)}
+              onOpenEditor={() => setEditingChannel((prev) => prev === channel ? null : channel as SonarDeviceChannel)}
             />
           )
         })}
@@ -254,8 +253,8 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
         />
       </div>
 
-      {editingChannel && ReactDOM.createPortal(
-        <PresetEditor
+      {editingChannel && (
+        <PresetSubpage
           channel={editingChannel}
           configs={sonarState.configs}
           activePresetId={activePresetIds[editingChannel]}
@@ -272,8 +271,7 @@ export function ChannelMixer({ sonarState }: ChannelMixerProps): JSX.Element {
           onDuplicate={(sourceId) => window.api.sonarDuplicateConfig(sourceId).then(upsertConfigOptimistic)}
           onReset={(id) => window.api.sonarResetConfig(id).then(upsertConfigOptimistic)}
           onToggleFavorite={(id, fav) => window.api.sonarToggleFavorite(id, fav)}
-        />,
-        document.body,
+        />
       )}
     </div>
   )
