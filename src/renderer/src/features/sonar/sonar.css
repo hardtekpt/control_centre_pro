@@ -618,7 +618,16 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.sn-aps-active-app {
+  font-size: 11px;
+  color: var(--color-text-secondary);
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .sn-aps-pill {
@@ -653,8 +662,7 @@
 }
 
 .sn-aps-body {
-  display: grid;
-  grid-template-columns: 260px 1fr;
+  display: block;
 }
 
 /* Now active card */

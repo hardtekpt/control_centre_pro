@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { PresetSwitcherRule, SonarState, OpenApp, ActiveWindowInfo } from '@shared/types'
 import { Toggle } from '../../../../components/plugins/Toggle'
-import { NowActiveCard } from './NowActiveCard'
 import { RuleRow } from './RuleRow'
 import { AddRuleForm } from './AddRuleForm'
 import '../../sonar.css'
@@ -114,12 +113,19 @@ export function AutoPresetSection({ sonarState, onAutoPresetChange }: AutoPreset
     setShowAddForm(true)
   }
 
+  const activeDisplayName = activeProcessName
+    ? activeProcessName.replace(/\.(exe|app)$/i, '')
+    : null
+
   return (
     <div className="sn-aps">
       {/* Titlebar */}
       <div className="sn-aps-titlebar">
         <span className="sn-aps-ic"><LightningIcon /></span>
         <span className="sn-aps-title">Auto preset</span>
+        {activeDisplayName && (
+          <span className="sn-aps-active-app">{activeDisplayName}</span>
+        )}
 
         <span className={`sn-aps-pill${autoPilot ? ' on' : ''}`}>
           {autoPilot && <span className="sn-aps-pulse-dot" />}
@@ -130,17 +136,8 @@ export function AutoPresetSection({ sonarState, onAutoPresetChange }: AutoPreset
         <Toggle checked={autoPilot} onChange={handleToggleAuto} size="sm" />
       </div>
 
-      {/* Body: now-active | rules grid */}
+      {/* Body: rules grid */}
       <div className="sn-aps-body">
-        {/* Left: Now active */}
-        <NowActiveCard
-          activeProcessName={activeProcessName}
-          matchedRule={matchedRule}
-          autoPilot={autoPilot}
-          configs={configs}
-        />
-
-        {/* Right: Rules */}
         <div className="sn-aps-rules">
           <div className="sn-rules-header">
             <span className="sn-aps-label">Rules</span>
