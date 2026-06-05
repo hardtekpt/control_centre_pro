@@ -79,6 +79,7 @@ function NotifItem({ item, onDismiss }: NotifItemProps): JSX.Element {
       <NotificationVolume
         icon={item.icon}
         label={item.label}
+        badge={item.badge}
         value={item.value}
         className={phaseClass}
         onClick={handleClick}

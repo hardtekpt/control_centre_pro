@@ -23,6 +23,7 @@ export interface VolumeNotification extends BaseNotification {
   kind: 'volume'
   icon: ReactNode
   label?: string
+  badge?: string
   value: number   // 0–100
 }
 

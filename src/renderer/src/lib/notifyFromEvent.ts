@@ -342,7 +342,7 @@ export function notifyDisplayBrightness(monitorId: number, monitorName: string, 
   const ttl = getDurationMs()
   if (cfg.brightness.enabled) {
     if (cfg.brightness.shape === 'volume') {
-      push({ kind: 'volume', key: `display-brightness-${monitorId}`, iconId: 'monitor', label: `Monitor ${monitorId}`, value: brightness, ttl })
+      push({ kind: 'volume', key: `display-brightness-${monitorId}`, iconId: 'monitor', label: 'Brightness', badge: String(monitorId), value: brightness, ttl })
     } else {
       push({ kind: 'ring', key: `display-brightness-${monitorId}`, iconId: 'monitor', badge: String(monitorId), value: brightness, ttl })
     }

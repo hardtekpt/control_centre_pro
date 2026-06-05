@@ -35,13 +35,14 @@ export function NotificationRect({
 interface NotificationVolumeProps {
   icon: ReactNode
   label?: string
+  badge?: string
   value: number   // 0–100
   className?: string
   onClick?: () => void
 }
 
 export function NotificationVolume({
-  icon, label = 'Volume', value, className = '', onClick,
+  icon, label = 'Volume', badge, value, className = '', onClick,
 }: NotificationVolumeProps): JSX.Element {
   const clamped = Math.max(0, Math.min(100, value))
   return (
@@ -49,7 +50,10 @@ export function NotificationVolume({
       className={`notif notif-rect slider wide${className ? ` ${className}` : ''}`}
       onClick={onClick}
     >
-      <div className="ic">{icon}</div>
+      <div className="ic" style={{ position: 'relative', flexDirection: 'column', gap: '2px' }}>
+        {icon}
+        {badge && <span className="ic-badge">{badge}</span>}
+      </div>
       <div className="body">
         <div className="row1">
           <div className="title">{label}</div>

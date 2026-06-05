@@ -52,6 +52,15 @@
   color: var(--color-text-primary);
 }
 
+.notif-rect .ic-badge {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
 .notif-rect .body {
   min-width: 0;
   display: flex;

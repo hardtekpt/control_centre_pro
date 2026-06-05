@@ -49,7 +49,7 @@ function deserialize(spec: SerializedNotification): NotificationInput | null {
       return { kind: 'rect', key: spec.key, icon, title: spec.title, subtitle: spec.subtitle, tail: spec.tail, wide: spec.wide, ttl: spec.ttl }
     case 'volume':
       if (!icon) return null
-      return { kind: 'volume', key: spec.key, icon, label: spec.label, value: spec.value ?? 0, ttl: spec.ttl }
+      return { kind: 'volume', key: spec.key, icon, label: spec.label, badge: spec.badge, value: spec.value ?? 0, ttl: spec.ttl }
     case 'circle':
       if (!icon) return null
       return { kind: 'circle', key: spec.key, icon, dot: spec.dot, ttl: spec.ttl }
