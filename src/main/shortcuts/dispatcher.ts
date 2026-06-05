@@ -39,9 +39,9 @@ function notifyBrightness(monitors: DdcMonitor[], brightnessMap: Map<number, num
   for (const m of monitors) {
     const value = brightnessMap.get(m.monitor_id) ?? m.brightness
     if (cfg.shape === 'volume') {
-      _pushNotif?.({ kind: 'volume', key: `display-brightness-${m.monitor_id}`, iconId: 'monitor', label: `Monitor ${m.monitor_id}`, value, ttl })
+      _pushNotif?.({ kind: 'volume', key: `display-brightness-${m.monitor_id}`, iconId: 'monitor', label: 'Brightness', badge: String(m.monitor_id), value, ttl })
     } else {
-      _pushNotif?.({ kind: 'ring', key: `display-brightness-${m.monitor_id}`, iconId: 'monitor', label: `Monitor ${m.monitor_id}`, value, ttl })
+      _pushNotif?.({ kind: 'ring', key: `display-brightness-${m.monitor_id}`, iconId: 'monitor', badge: String(m.monitor_id), value, ttl })
     }
   }
 }
