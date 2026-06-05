@@ -100,7 +100,7 @@ src/
 │   ├── index.ts                      # Window creation, IPC handlers, lifecycle
 │   └── services/
 │       ├── serviceManager.ts         # Spawns/monitors Python subprocesses
-│       ├── sonarService.ts           # GG Sonar HTTP REST polling client
+│       ├── sonarService.ts           # GG Sonar facade over the gg-sonar Python service
 │       ├── activeWindowMonitor.ts    # Foreground window monitor (preset switcher)
 │       ├── notifications/
 │       │   ├── windowService.ts      # System notification BrowserWindows

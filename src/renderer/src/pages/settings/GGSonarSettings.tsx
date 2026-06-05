@@ -22,6 +22,22 @@ function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
   return true
 }
 
+/** A read-only status pill — used for hardware state the app can read but not change here */
+function ReadOnlyValue({ value }: { value: string }): JSX.Element {
+  return (
+    <span
+      className="px-2.5 py-1 rounded text-xs font-medium"
+      style={{
+        background: 'var(--color-surface-raised)',
+        color: 'var(--color-text-secondary)',
+        border: '1px solid var(--color-border)',
+      }}
+    >
+      {value}
+    </span>
+  )
+}
+
 export function GGSonarSettings(): JSX.Element {
   const { sonarState, visibleChannels, setChannelVisibility, presetChips, setPresetChips } = useSonarStore()
   const { setDirty, registerSave } = useSettingsForm()
@@ -153,6 +169,32 @@ export function GGSonarSettings(): JSX.Element {
           </div>
         )}
       </SettingSection>
+
+      {sonarState?.available && (sonarState.deviceOut || sonarState.classic) && (
+        <SettingSection title="Output">
+          <SettingRow
+            label="Physical Output"
+            description="Current SteelSeries hardware output (read-only)"
+          >
+            <ReadOnlyValue
+              value={
+                sonarState.deviceOut?.selectedDeviceOut === 'LineOut'
+                  ? 'Line Out'
+                  : sonarState.deviceOut?.selectedDeviceOut === 'HeadphoneOut'
+                    ? 'Headphone Out'
+                    : '—'
+              }
+            />
+          </SettingRow>
+          <SettingRow
+            label="Link Volumes"
+            description="Whether all output channel volumes move together (read-only)"
+            last
+          >
+            <ReadOnlyValue value={sonarState.linkAllEnabled ? 'On' : 'Off'} />
+          </SettingRow>
+        </SettingSection>
+      )}
 
       <SettingSection title="Visible Channels">
         <div className="grid grid-cols-2 gap-0">

@@ -6,6 +6,7 @@ import type {
   SonarParametricEQ,
   SonarEQFilter,
   SonarDeviceChannel,
+  SonarAudioSample,
 } from '@shared/types'
 import { SliderInput } from '../SliderInput'
 
@@ -643,6 +644,75 @@ function VoiceEditForm({
   )
 }
 
+// ─── Audio sample preview ───────────────────────────────────────────────────────
+
+/** Humanise a sample id, e.g. "virtualSurround" → "Virtual Surround" */
+function sampleLabel(id: string): string {
+  const spaced = id.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ')
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+/**
+ * Plays the GG built-in preview clips for a channel role so the user can audition
+ * routing / EQ. The role is the SonarDeviceChannel name (game, chatRender, …);
+ * the section hides itself if the role exposes no samples.
+ */
+function SamplePreview({ channel }: { channel: SonarDeviceChannel }): JSX.Element | null {
+  const [samples, setSamples] = useState<SonarAudioSample[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    window.api
+      .sonarGetAudioSamples(channel)
+      .then((s) => { if (!cancelled) setSamples(s) })
+      .catch(() => { if (!cancelled) setSamples([]) })
+    return () => { cancelled = true }
+  }, [channel])
+
+  if (samples.length === 0) return null
+
+  async function play(id: string): Promise<void> {
+    try {
+      const updated = await window.api.sonarPlayAudioSample(channel, id)
+      setSamples(updated)
+    } catch {
+      // sample playback is best-effort — ignore failures
+    }
+  }
+
+  return (
+    <Section title="Preview">
+      <RowShell last>
+        <div className="flex flex-wrap gap-1.5">
+          {samples.map((s) => {
+            const playing = s.isPlaying
+            return (
+              <button
+                key={s.id}
+                onClick={() => void play(s.id)}
+                className="flex items-center gap-1.5"
+                style={{
+                  padding: '4px 9px', borderRadius: 5, fontSize: 11,
+                  background: playing ? 'var(--color-accent)' : 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  color: playing ? 'var(--color-bg)' : 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                }}
+                title={playing ? 'Stop' : 'Play preview'}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  {playing ? <rect x="6" y="5" width="12" height="14" rx="1" /> : <polygon points="6 4 20 12 6 20 6 4" />}
+                </svg>
+                {sampleLabel(s.id)}
+              </button>
+            )
+          })}
+        </div>
+      </RowShell>
+    </Section>
+  )
+}
+
 // ─── PresetEditor ─────────────────────────────────────────────────────────────
 
 interface PresetEditorProps {
@@ -916,6 +986,7 @@ export function PresetEditor({
                 }}
               />
             </div>
+            <SamplePreview channel={channel} />
             {mic
               ? <VoiceEditForm draft={draft.data} onChange={patchData} disabled={!editable} />
               : <OutputEditForm draft={draft.data} onChange={patchData} disabled={!editable} />}

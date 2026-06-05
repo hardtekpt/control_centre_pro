@@ -41,7 +41,7 @@ export const IPC_CHANNELS = {
   ARCTIS_EVENT: 'arctis:event',             // main → renderer push
   ARCTIS_CMD: 'arctis:cmd',                 // renderer → main invoke (write/query command)
 
-  // GG Sonar HTTP REST integration
+  // GG Sonar (steelseries_gg Python subprocess service)
   SONAR_GET_STATE: 'sonar:getState',        // renderer → main invoke
   SONAR_STATE_CHANGE: 'sonar:stateChange',  // main → renderer push
   SONAR_SET_VOLUME: 'sonar:setVolume',      // renderer → main invoke
@@ -58,6 +58,8 @@ export const IPC_CHANNELS = {
   SONAR_DUPLICATE_CONFIG: 'sonar:duplicateConfig',  // renderer → main: sourceId → SonarConfig
   SONAR_RESET_CONFIG:     'sonar:resetConfig',      // renderer → main: id → SonarConfig
   SONAR_TOGGLE_FAVORITE:  'sonar:toggleFavorite',   // renderer → main: (id, bool) → void
+  SONAR_GET_AUDIO_SAMPLES: 'sonar:getAudioSamples', // renderer → main: role → SonarAudioSample[]
+  SONAR_PLAY_AUDIO_SAMPLE: 'sonar:playAudioSample', // renderer → main: (role, id) → SonarAudioSample[]
 
   // Preset Switcher — auto-switch presets by active app
   ACTIVE_WINDOW_CHANGE: 'activeWindow:change',          // main → renderer push
@@ -570,7 +572,7 @@ export interface ArctisState {
   volumeLimiterOn: boolean       // volume limiter enabled (from VolumeLimiterData.limiter_on)
 }
 
-// ─── GG Sonar HTTP REST ───────────────────────────────────────────────────────
+// ─── GG Sonar (steelseries_gg Python subprocess) ──────────────────────────────
 
 export type SonarMode = 'classic' | 'stream'
 
@@ -701,6 +703,19 @@ export interface SonarAudioDevice {
 /** Maps Sonar channel role ('game', 'chatRender', etc.) → the currently assigned device */
 export type SonarRedirections = Record<string, SonarAudioDevice>
 
+/** Physical output selection (HeadphoneOut / LineOut) — read-only display today */
+export interface SonarDeviceOut {
+  selectedDeviceOut: string
+  deviceOutSettings: { volume: number; mute: boolean; feature: string }[]
+}
+
+/** A built-in preview sample for a channel role (used by the Preset Editor) */
+export interface SonarAudioSample {
+  role: string
+  id: string
+  isPlaying: boolean
+}
+
 export interface SonarState {
   available: boolean
   mode: SonarMode
@@ -711,6 +726,8 @@ export interface SonarState {
   chatMix: SonarChatMix | null
   audioDevices: SonarAudioDevice[]       // available Windows playback devices
   redirections: SonarRedirections        // channel role → Windows device id
+  deviceOut: SonarDeviceOut | null       // physical output (HeadphoneOut/LineOut) — read-only
+  linkAllEnabled: boolean                // render volume link-all state — read-only
 }
 
 export interface SonarPollingConfig {

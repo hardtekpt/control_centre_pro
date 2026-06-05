@@ -12,4 +12,8 @@ asarUnpack:
 extraResources:
   - from: "resources/MultiMonitorTool.exe"
     to: "MultiMonitorTool.exe"
+  # Python subprocess services must live on disk (outside app.asar) so the main
+  # process can spawn them at process.resourcesPath/services — see serviceManager.servicesDir()
+  - from: "resources/services"
+    to: "services"
 buildDependenciesFromSource: false

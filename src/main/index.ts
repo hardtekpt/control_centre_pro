@@ -506,7 +506,6 @@ function registerIpcHandlers(): void {
       httpApiServer?.stop()
       httpApiServer = null
       serviceManager.setWsBroadcast(null)
-      sonarService.setWsBroadcast(null)
       ddcService.setWsBroadcast(null)
       if (settings.remoteEnabled) {
         const ready = ensureValidRemoteToken(settings)
@@ -516,7 +515,6 @@ function registerIpcHandlers(): void {
         httpApiServer.start(ready.remotePort ?? 8080)
         const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
         serviceManager.setWsBroadcast(broadcast)
-        sonarService.setWsBroadcast(broadcast)
         ddcService.setWsBroadcast(broadcast)
       }
     } else if (httpApiServer && (durationChanged || prevSettings.remoteAuthToken !== settings.remoteAuthToken)) {
@@ -676,6 +674,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SONAR_DUPLICATE_CONFIG, (_, sourceId) => sonarService.duplicateConfig(sourceId))
   ipcMain.handle(IPC_CHANNELS.SONAR_RESET_CONFIG,     (_, id) => sonarService.resetConfig(id))
   ipcMain.handle(IPC_CHANNELS.SONAR_TOGGLE_FAVORITE,  (_, id, isFavorite) => sonarService.toggleFavorite(id, isFavorite))
+  ipcMain.handle(IPC_CHANNELS.SONAR_GET_AUDIO_SAMPLES, (_, role: string) => sonarService.getAudioSamples(role))
+  ipcMain.handle(IPC_CHANNELS.SONAR_PLAY_AUDIO_SAMPLE, (_, role: string, id: string) => sonarService.playAudioSample(role, id))
 
   // ── Discord RPC Voice Control ──────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.DISCORD_GET_STATE, () => discordService.getState())
@@ -974,32 +974,16 @@ app.whenReady().then(() => {
   })
 
   serviceManager = new ServiceManager()
-  sonarService = new SonarService()
+  sonarService = new SonarService(serviceManager)
   ddcService = new DdcService()
   kvmDetector = new KvmDetector(
     (state) => mainWindow?.webContents.send(IPC_CHANNELS.KVM_STATE_CHANGE, state),
     (actions) => { for (const a of actions) ddcService.setInputSource(a.monitorId, a.inputValue) },
   )
 
-  // Wire SonarService into the service infrastructure so it appears in the
-  // service list and About terminal alongside the Python services
-  sonarService.setLogEmitter((level, msg) => {
-    serviceManager.emitNativeLog('gg-sonar', 'GG Sonar', level, msg)
-  })
-  sonarService.setStateChangeNotifier(() => {
-    serviceManager.broadcastServiceState()
-  })
-  serviceManager.registerNativeService({
-    id: 'gg-sonar',
-    name: 'GG Sonar',
-    description: 'SteelSeries GG Sonar audio mixer integration (HTTP REST)',
-    onEnable: () => {
-      serviceManager.emitNativeLog('gg-sonar', 'GG Sonar', 'info', 'Service enabled, discovering Sonar instance...')
-      sonarService.start()
-    },
-    onDisable: () => sonarService.stop(),
-    isRunning: () => sonarService.isAvailable(),
-  })
+  // GG Sonar runs as the `gg-sonar` Python subprocess (resources/services/sonar_service.py,
+  // wrapping the steelseries_gg package), managed by ServiceManager like the other
+  // Python services. SonarService is a thin facade over it (see services/sonarService.ts).
 
   // Wire DDCService into the service infrastructure so it appears in the
   // service list and About terminal alongside the Python services
@@ -1136,7 +1120,6 @@ app.whenReady().then(() => {
     httpApiServer.start(bootSettings.remotePort ?? 8080)
     const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
     serviceManager.setWsBroadcast(broadcast)
-    sonarService.setWsBroadcast(broadcast)
     ddcService.setWsBroadcast(broadcast)
   }
   if (typeof bootSettings.minimizeToTray === 'boolean') minimizeToTray = bootSettings.minimizeToTray
@@ -1145,7 +1128,6 @@ app.whenReady().then(() => {
   kvmDetector.start(bootSettings)
   serviceManager.setWindow(mainWindow!)
   initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow, loadAppSettings, pushNotifFromMain)
-  sonarService.setWindow(mainWindow!)
   discordService.setWindow(mainWindow!)
   haService.setWindow(mainWindow!)
 

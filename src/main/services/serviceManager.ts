@@ -1,12 +1,13 @@
 import { spawn } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import { join } from 'path'
+import { randomUUID } from 'crypto'
 import { app } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'fs'
 import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../../shared/types'
-import type { ServiceInfo, ServiceConfig, LogEntry, ArctisState } from '../../shared/types'
+import type { ServiceInfo, ServiceConfig, LogEntry, ArctisState, SonarState } from '../../shared/types'
 
 // ─── Service registry ─────────────────────────────────────────────────────────
 
@@ -41,7 +42,17 @@ const SERVICE_DEFS: ServiceDef[] = [
     description: 'Live CPU, RAM, GPU, storage, and network usage statistics.',
     script: 'resource_monitor_service.py',
   },
+  {
+    id: 'gg-sonar',
+    name: 'GG Sonar',
+    description: 'SteelSeries GG Sonar audio mixer integration (steelseries_gg)',
+    script: 'sonar_service.py',
+  },
 ]
+
+// Python services that should stay opt-in (disabled until the user enables them),
+// preserving the behaviour they had as native services.
+const DEFAULT_DISABLED = new Set<string>(['gg-sonar'])
 
 // ─── Persisted config shape ───────────────────────────────────────────────────
 
@@ -61,6 +72,9 @@ export class ServiceManager {
   private window: BrowserWindow | null = null
   private lastArctisState: ArctisState | null = null
   private lastResourceSnapshot: unknown = null
+  private lastSonarState: SonarState | null = null
+  // Correlates stdin commands awaiting a `{type:'response', id}` reply
+  private pendingCommands = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>()
   private nativeServices: NativeServiceRegistration[] = []
   private logCache: LogEntry[] = []
   private readonly MAX_CACHED_LOGS = 500
@@ -105,11 +119,11 @@ export class ServiceManager {
       }
       // Apply defaults for Python services not yet in the saved config
       for (const def of SERVICE_DEFS) {
-        if (!(def.id in this.enabled)) this.enabled[def.id] = true
+        if (!(def.id in this.enabled)) this.enabled[def.id] = DEFAULT_DISABLED.has(def.id) ? false : true
       }
     } else {
       for (const def of SERVICE_DEFS) {
-        this.enabled[def.id] = true
+        this.enabled[def.id] = DEFAULT_DISABLED.has(def.id) ? false : true
       }
     }
   }
@@ -209,6 +223,39 @@ export class ServiceManager {
     child.stdin.write(JSON.stringify({ cmd, value }) + '\n')
   }
 
+  getSonarState(): SonarState | null {
+    return this.lastSonarState
+  }
+
+  /**
+   * Send a command to a Python service's stdin and await its `{type:'response'}`
+   * reply, correlated by a generated id. Used by the GG Sonar facade so the
+   * renderer can still `await` write/query results across the subprocess boundary.
+   */
+  sendCommand(serviceId: string, cmd: string, value: unknown): Promise<unknown> {
+    const child = this.processes.get(serviceId)
+    if (!child?.stdin?.writable) {
+      return Promise.reject(new Error(`${serviceId} service is not running`))
+    }
+    const id = randomUUID()
+    return new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingCommands.delete(id)
+        reject(new Error(`Command '${cmd}' timed out`))
+      }, 5000)
+      this.pendingCommands.set(id, { resolve, reject, timer })
+      child.stdin!.write(JSON.stringify({ id, cmd, value }) + '\n')
+    })
+  }
+
+  private rejectPendingCommands(reason: string): void {
+    for (const [id, p] of this.pendingCommands) {
+      clearTimeout(p.timer)
+      p.reject(new Error(reason))
+      this.pendingCommands.delete(id)
+    }
+  }
+
   getResourceSnapshot(): unknown {
     return this.lastResourceSnapshot
   }
@@ -244,6 +291,11 @@ export class ServiceManager {
       }
       if (id === 'resource-monitor') {
         this.lastResourceSnapshot = null
+      }
+      if (id === 'gg-sonar') {
+        this.lastSonarState = null
+        this.push(IPC_CHANNELS.SONAR_STATE_CHANGE, this.makeUnavailableSonarState())
+        this.wsBroadcast?.('sonar:stateChange', this.makeUnavailableSonarState())
       }
     }
     this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
@@ -320,6 +372,10 @@ export class ServiceManager {
 
     child.on('exit', (code) => {
       this.processes.set(id, null)
+      if (id === 'gg-sonar') {
+        this.lastSonarState = null
+        this.rejectPendingCommands('GG Sonar service exited')
+      }
       this.emitLog(id, def.name, 'info', `Service process exited (code ${code ?? 'unknown'})`)
       this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
     })
@@ -343,11 +399,53 @@ export class ServiceManager {
       this.emitLog(id, name, 'error', msg.message as string)
       return
     }
+    // Correlated command reply (see sendCommand)
+    if (msg.type === 'response') {
+      const pending = this.pendingCommands.get(msg.id as string)
+      if (pending) {
+        clearTimeout(pending.timer)
+        this.pendingCommands.delete(msg.id as string)
+        if (msg.ok) pending.resolve(msg.data)
+        else pending.reject(new Error((msg.error as string) ?? 'Command failed'))
+      }
+      return
+    }
 
     if (id === 'arctis-hid') {
       this.handleArctisMessage(name, msg)
     } else if (id === 'resource-monitor') {
       this.handleResourceMessage(msg)
+    } else if (id === 'gg-sonar') {
+      this.handleSonarMessage(msg)
+    }
+  }
+
+  private handleSonarMessage(msg: Record<string, unknown>): void {
+    if (msg.type !== 'state') return
+    const state = msg.data as SonarState
+    const wasAvailable = this.lastSonarState?.available ?? false
+    this.lastSonarState = state
+    this.push(IPC_CHANNELS.SONAR_STATE_CHANGE, state)
+    this.wsBroadcast?.('sonar:stateChange', state)
+    // Refresh the service list when GG availability flips (mirrors the old native service)
+    if (state.available !== wasAvailable) {
+      this.broadcastServiceState()
+    }
+  }
+
+  private makeUnavailableSonarState(): SonarState {
+    return {
+      available: false,
+      mode: 'classic',
+      classic: null,
+      streamer: null,
+      configs: [],
+      routing: [],
+      chatMix: null,
+      audioDevices: [],
+      redirections: {},
+      deviceOut: null,
+      linkAllEnabled: false,
     }
   }
 

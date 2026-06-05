@@ -1,6 +1,6 @@
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
   HaState, HaServiceCall, ResourceSnapshot,
@@ -69,6 +69,8 @@ declare global {
     sonarDuplicateConfig: (sourceId: string) => Promise<SonarConfig>
     sonarResetConfig: (id: string) => Promise<SonarConfig>
     sonarToggleFavorite: (id: string, isFavorite: boolean) => Promise<void>
+    sonarGetAudioSamples: (role: string) => Promise<SonarAudioSample[]>
+    sonarPlayAudioSample: (role: string, id: string) => Promise<SonarAudioSample[]>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
 
     // Discord Voice Control

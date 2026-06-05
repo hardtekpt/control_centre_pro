@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
-  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig,
+  SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
   HaState, HaServiceCall, ResourceSnapshot,
@@ -167,6 +167,12 @@ const api = {
 
   sonarRefreshDevices: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_REFRESH_DEVICES),
+
+  sonarGetAudioSamples: (role: string): Promise<SonarAudioSample[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_GET_AUDIO_SAMPLES, role),
+
+  sonarPlayAudioSample: (role: string, id: string): Promise<SonarAudioSample[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_PLAY_AUDIO_SAMPLE, role, id),
 
   onSonarStateChange: (callback: (state: SonarState) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: SonarState): void => callback(state)

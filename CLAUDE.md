@@ -4,7 +4,7 @@
 
 **Control Centre Pro** is a Windows desktop app for managing hardware devices and services via a clean sidebar-based UI. Monitor headsets (Arctis Nova Pro), control display settings (DDC/CI), manage audio (GG Sonar), and configure keyboard shortcuts with real-time OSD notifications.
 
-**Architecture**: Extensible shell pattern. Main process spawns Python subprocesses (services) that emit newline-delimited JSON events, and also runs native Node.js services (DDC, Sonar, Discord). Renderer (React) consumes these via Zustand stores. All state persists to `app.getPath('userData')`.
+**Architecture**: Extensible shell pattern. Main process spawns Python subprocesses (services — Arctis HID, Resource Monitor, GG Sonar) that emit newline-delimited JSON events, and also runs native Node.js services (DDC, Discord). Renderer (React) consumes these via Zustand stores. All state persists to `app.getPath('userData')`.
 
 ---
 
@@ -14,7 +14,7 @@
 |---|---|
 | **Shell** | Electron 31+, electron-vite, electron-builder |
 | **UI** | React 18 + TypeScript, Tailwind CSS, Zustand |
-| **Services** | Python subprocesses (JSON stdout), Node.js (DDC, Sonar, Discord), worker threads (blocking native calls) |
+| **Services** | Python subprocesses (JSON stdout — Arctis HID, Resource Monitor, GG Sonar), Node.js (DDC, Discord), worker threads (blocking native calls) |
 | **Styling** | Tailwind (layout/spacing) + CSS custom properties (colors) |
 
 ---
@@ -236,6 +236,9 @@ npm run typecheck        # TypeScript validation
 
 # Arctis HID service setup
 python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development
+
+# GG Sonar service setup (Python subprocess wrapping the steelseries_gg package)
+python -m pip install git+https://github.com/hardtekpt/steelseries_gg_py.git
 ```
 
 ---

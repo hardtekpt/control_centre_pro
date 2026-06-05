@@ -1,9 +1,27 @@
 # GG Sonar Integration — Implementation Reference
 
-## Status: Implemented
+> **⚠️ ARCHITECTURE SUPERSEDED (current).** The Sonar backend is no longer a Node.js HTTP
+> client. It now runs as the `gg-sonar` **Python subprocess** (`resources/services/sonar_service.py`)
+> wrapping the [`steelseries_gg`](https://github.com/hardtekpt/steelseries_gg_py) package —
+> the dedicated home for the GG Sonar REST protocol (discovery, endpoints, models). It is
+> managed by `ServiceManager` exactly like the Arctis service.
+>
+> - **State** flows `sonar_service.py` → `{type:'state', data:<SonarState>}` on stdout →
+>   `ServiceManager.handleSonarMessage` (caches `lastSonarState`, pushes `SONAR_STATE_CHANGE`,
+>   WS-broadcasts `sonar:stateChange`).
+> - **Writes/queries** flow `sonarService.ts` (now a thin facade) →
+>   `ServiceManager.sendCommand('gg-sonar', cmd, value)` → stdin `{id, cmd, value}` →
+>   correlated `{type:'response', id, ok, data}` reply.
+> - The renderer/web contract is **unchanged**: the package's Pydantic models round-trip to
+>   the original camelCase wire shape via `model_dump(by_alias=True)`, so `SonarState` and all
+>   IPC signatures are identical. `SonarState` gained read-only `deviceOut` + `linkAllEnabled`.
+> - Requires Python + `steelseries_gg` installed (opt-in service, disabled by default).
+>
+> The HTTP-client details below are retained for historical/endpoint reference only — the
+> endpoint paths still match what the package calls. For the full REST reference see
+> [GGSonarHttpRestApi.md](GGSonarHttpRestApi.md).
 
-The GG Sonar integration is complete. This document describes what was built, how it works,
-and key decisions made during implementation.
+## Status: Implemented (Python service)
 
 For the full REST API reference, see [GGSonarHttpRestApi.md](GGSonarHttpRestApi.md).
 
