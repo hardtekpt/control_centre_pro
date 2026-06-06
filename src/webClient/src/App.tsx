@@ -3,12 +3,13 @@ import { useWebSocket } from './api/websocket'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
 import { useDiscordStore } from './stores/discordStore'
+import { useHaStore } from './stores/haStore'
 import { Home } from './pages/Home'
 import { Arctis } from './pages/Arctis'
 import { Sonar } from './pages/Sonar'
 import { getAuthToken, onAuthFailed } from './api/auth'
 import { get } from './api/http'
-import type { ArctisState, SonarState, DdcMonitor, DiscordState } from '@shared/types'
+import type { ArctisState, SonarState, DdcMonitor, DiscordState, HaState, HaHomeCardEntity } from '@shared/types'
 
 type Tab = 'home' | 'arctis' | 'sonar'
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
@@ -39,13 +40,16 @@ export function App(): JSX.Element {
 
   const { setArctisConnected, setArctisDisconnected, updateArctisState, setDdcMonitors } = useServiceStore()
   const setDiscordState = useDiscordStore((s) => s.setDiscordState)
+  const setHaData = useHaStore((s) => s.setHaData)
+  const setHaState = useHaStore((s) => s.setHaState)
 
   const handleInit = useCallback((payload: unknown) => {
-    const { arctis, sonar, ddc, discord } = payload as {
+    const { arctis, sonar, ddc, discord, ha } = payload as {
       arctis: ArctisState | null
       sonar: SonarState | null
       ddc?: DdcMonitor[]
       discord?: DiscordState
+      ha?: { state: HaState; cardEntities: HaHomeCardEntity[]; cardEnabled: boolean }
     }
     if (arctis) {
       setArctisConnected(arctis)
@@ -61,11 +65,18 @@ export function App(): JSX.Element {
     if (discord) {
       setDiscordState(discord)
     }
-  }, [setArctisConnected, setArctisDisconnected, setDdcMonitors, setDiscordState])
+    if (ha) {
+      setHaData(ha.state, ha.cardEntities, ha.cardEnabled)
+    }
+  }, [setArctisConnected, setArctisDisconnected, setDdcMonitors, setDiscordState, setHaData])
 
   const handleDiscordStateChange = useCallback((payload: unknown) => {
     setDiscordState(payload as DiscordState)
   }, [setDiscordState])
+
+  const handleHaStateChange = useCallback((payload: unknown) => {
+    setHaState(payload as HaState)
+  }, [setHaState])
 
   const handleArctisConnected = useCallback((payload: unknown) => {
     setArctisConnected(payload as ArctisState)
@@ -97,6 +108,7 @@ export function App(): JSX.Element {
       'sonar:stateChange': handleSonarStateChange,
       'ddc:update': handleDdcUpdate,
       'discord:stateChange': handleDiscordStateChange,
+      'ha:stateChange': handleHaStateChange,
     },
     onStatusChange: setWsStatus,
   })

@@ -510,7 +510,7 @@ function registerIpcHandlers(): void {
       if (settings.remoteEnabled) {
         const ready = ensureValidRemoteToken(settings)
         settings = ready
-        httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService })
+        httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService, haService, getHaCardConfig: () => { const s = loadAppSettings(); return { cardEntities: s.haHomeCardEntities ?? [], cardEnabled: s.haHomeCardEnabled ?? false } } })
         httpApiServer.setAuthToken(ready.remoteAuthToken, ready.remoteTokenExpiresAt)
         httpApiServer.start(ready.remotePort ?? 8080)
         const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
@@ -1049,6 +1049,7 @@ app.whenReady().then(() => {
   })
   haService.setStateChangeNotifier(() => {
     serviceManager.broadcastServiceState()
+    httpApiServer?.broadcast('ha:stateChange', haService.getState())
   })
   serviceManager.registerNativeService({
     id: 'home-assistant',
@@ -1119,7 +1120,7 @@ app.whenReady().then(() => {
   let bootSettings = loadAppSettings()
   if (bootSettings.remoteEnabled) {
     bootSettings = ensureValidRemoteToken(bootSettings)
-    httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService })
+    httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService, haService, getHaCardConfig: () => { const s = loadAppSettings(); return { cardEntities: s.haHomeCardEntities ?? [], cardEnabled: s.haHomeCardEnabled ?? false } } })
     httpApiServer.setAuthToken(bootSettings.remoteAuthToken, bootSettings.remoteTokenExpiresAt)
     httpApiServer.start(bootSettings.remotePort ?? 8080)
     const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)

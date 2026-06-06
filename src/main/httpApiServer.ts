@@ -9,13 +9,16 @@ import type { ServiceManager } from './services/serviceManager'
 import type { SonarService } from './services/sonarService'
 import type { DdcService } from './services/apis/ddc/service'
 import type { DiscordService } from './services/discordService'
-import type { SonarChannel, SonarMode } from '../shared/types'
+import type { HomeAssistantService } from './services/homeAssistantService'
+import type { SonarChannel, SonarMode, HaHomeCardEntity } from '../shared/types'
 
 interface ServerDeps {
   serviceManager: ServiceManager
   sonarService: SonarService
   ddcService: DdcService
   discordService: DiscordService
+  haService: HomeAssistantService
+  getHaCardConfig: () => { cardEntities: HaHomeCardEntity[]; cardEnabled: boolean }
 }
 
 function getLanIp(): string {
@@ -112,7 +115,9 @@ export class HttpApiServer {
       const sonar = this.deps.sonarService.getState()
       const ddc = this.deps.ddcService.getCachedMonitors()
       const discord = this.deps.discordService.getState()
-      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord } }))
+      const { cardEntities, cardEnabled } = this.deps.getHaCardConfig()
+      const ha = { state: this.deps.haService.getState(), cardEntities, cardEnabled }
+      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord, ha } }))
       ws.on('close', () => this.clients.delete(ws))
       ws.on('error', () => this.clients.delete(ws))
     })
@@ -410,6 +415,25 @@ export class HttpApiServer {
       try {
         const body = await readBody(req)
         await this.deps.discordService.setLocalMute(body.userId as string, body.muted as boolean)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/ha/state' && method === 'GET') {
+      const { cardEntities, cardEnabled } = this.deps.getHaCardConfig()
+      return jsonResponse(res, 200, { state: this.deps.haService.getState(), cardEntities, cardEnabled })
+    }
+
+    if (path === '/api/ha/call' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.haService.callService({
+          domain: body.domain as string,
+          service: body.service as string,
+          serviceData: body.serviceData as Record<string, unknown> | undefined,
+        })
         return jsonResponse(res, 200, { ok: true })
       } catch {
         return jsonResponse(res, 400, { error: 'Bad request' })
