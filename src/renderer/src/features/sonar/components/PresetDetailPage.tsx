@@ -657,29 +657,106 @@ function NoisePanel({ data, onChange, disabled }: {
 }): JSX.Element {
   const nr = data.noiseReductionState ?? { enabled: false, value: 0 }
   const ng = data.noiseGateState ?? { enabled: false, value: -38.8 }
+  const autoGate = data.automaticNoiseGateState ?? { enabled: false, value: 0 }
   const vs = data.volumeStabilizerState ?? { enabled: false, value: 0 }
   const inc = data.impactNoiseReductionState ?? { enabled: false, value: 0 }
   const nc = data.noiseCancelingState ?? { enabled: false, value: 0 }
+  const aec = data.acousticEchoCancelingState ?? false
 
   return (
-    <section className="cpp-sec">
-      <SectionHead label="Noise processing" sub="reduction · gate · stabilizer" />
-      <ParamSlider label="Reduction" value={nr.value} min={0} max={3} step={0.1}
-        format={(v) => v.toFixed(1)} disabled={disabled}
-        onChange={(v) => onChange({ noiseReductionState: { enabled: v > 0, value: v } })} />
-      <ParamSlider label="Noise gate" value={ng.value} min={-60} max={0} step={0.5}
-        format={fmtDb} disabled={disabled}
-        onChange={(v) => onChange({ noiseGateState: { enabled: v < -0.1, value: v } })} />
-      <ParamSlider label="Stabilizer" value={vs.value} min={0} max={3} step={0.1}
-        format={(v) => v.toFixed(1)} disabled={disabled}
-        onChange={(v) => onChange({ volumeStabilizerState: { enabled: v > 0, value: v } })} />
-      <ParamSlider label="Impact NR" value={inc.value} min={0} max={3} step={0.1}
-        format={(v) => v.toFixed(1)} disabled={disabled}
-        onChange={(v) => onChange({ impactNoiseReductionState: { enabled: v > 0, value: v } })} />
-      <ParamSlider label="AI cancel" value={nc.value} min={0} max={3} step={0.1}
-        format={(v) => v.toFixed(1)} disabled={disabled}
-        onChange={(v) => onChange({ noiseCancelingState: { enabled: v > 0, value: v } })} />
-    </section>
+    <>
+      {/* ClearCast AI Noise Cancellation banner */}
+      <section className="cpp-sec">
+        <SectionHead
+          label="ClearCast AI Noise Cancellation"
+          toggle toggleValue={nc.enabled} disabled={disabled}
+          onToggle={(en) => onChange({ noiseCancelingState: { ...nc, enabled: en } })}
+        />
+        <div className="cpp-noise-range">
+          <span className="cpp-noise-endpoint">Min</span>
+          <ParamSlider label="" value={nc.value} min={0} max={3} step={0.1}
+            format={(v) => v.toFixed(1)} disabled={disabled || !nc.enabled}
+            onChange={(v) => onChange({ noiseCancelingState: { ...nc, value: v } })} />
+          <span className="cpp-noise-endpoint">Max</span>
+        </div>
+      </section>
+
+      {/* Card grid: Noise Reduction · Noise Gate · Compressor · Echo Canceling */}
+      <div className="cpp-noise-grid">
+
+        {/* Noise Reduction */}
+        <div className="cpp-card">
+          <div className="cpp-card-h">
+            <span className="ds-label">Noise Reduction</span>
+          </div>
+          <div className="cpp-card-body">
+            <div className="cpp-card-row">
+              <ToggleSwitch on={nr.enabled} size="sm" disabled={disabled}
+                onChange={(en) => onChange({ noiseReductionState: { ...nr, enabled: en } })} />
+              <span className="cpp-card-row-label">Background</span>
+            </div>
+            <ParamSlider label="" value={nr.value} min={0} max={3} step={0.1}
+              format={(v) => v.toFixed(1)} disabled={disabled || !nr.enabled}
+              onChange={(v) => onChange({ noiseReductionState: { ...nr, value: v } })} />
+            <div className="cpp-card-row">
+              <ToggleSwitch on={inc.enabled} size="sm" disabled={disabled}
+                onChange={(en) => onChange({ impactNoiseReductionState: { ...inc, enabled: en } })} />
+              <span className="cpp-card-row-label">Impact</span>
+            </div>
+            <ParamSlider label="" value={inc.value} min={0} max={3} step={0.1}
+              format={(v) => v.toFixed(1)} disabled={disabled || !inc.enabled}
+              onChange={(v) => onChange({ impactNoiseReductionState: { ...inc, value: v } })} />
+          </div>
+        </div>
+
+        {/* Noise Gate */}
+        <div className="cpp-card">
+          <div className="cpp-card-h">
+            <ToggleSwitch on={ng.enabled} size="sm" disabled={disabled}
+              onChange={(en) => onChange({ noiseGateState: { ...ng, enabled: en } })} />
+            <span className="ds-label">Noise Gate</span>
+          </div>
+          <div className="cpp-card-body">
+            <ParamSlider label="Threshold" value={ng.value} min={-60} max={0} step={0.5}
+              format={fmtDb} disabled={disabled || !ng.enabled}
+              onChange={(v) => onChange({ noiseGateState: { ...ng, value: v } })} />
+            <label className="cpp-card-check" style={{ pointerEvents: disabled ? 'none' : undefined, opacity: disabled ? 0.5 : undefined }}>
+              <input
+                type="checkbox"
+                checked={autoGate.enabled}
+                disabled={disabled}
+                onChange={(e) => onChange({ automaticNoiseGateState: { ...autoGate, enabled: e.target.checked } })}
+              />
+              <span>Automatically compute threshold for the noise gate effect</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Compressor (Volume Stabilizer) */}
+        <div className="cpp-card">
+          <div className="cpp-card-h">
+            <ToggleSwitch on={vs.enabled} size="sm" disabled={disabled}
+              onChange={(en) => onChange({ volumeStabilizerState: { ...vs, enabled: en } })} />
+            <span className="ds-label">Compressor</span>
+          </div>
+          <div className="cpp-card-body">
+            <ParamSlider label="Level" value={vs.value} min={0} max={3} step={0.1}
+              format={(v) => v.toFixed(1)} disabled={disabled || !vs.enabled}
+              onChange={(v) => onChange({ volumeStabilizerState: { ...vs, value: v } })} />
+          </div>
+        </div>
+
+        {/* Echo Canceling */}
+        <div className="cpp-card">
+          <div className="cpp-card-h">
+            <ToggleSwitch on={aec} size="sm" disabled={disabled}
+              onChange={(v) => onChange({ acousticEchoCancelingState: v })} />
+            <span className="ds-label">Echo Canceling</span>
+          </div>
+        </div>
+
+      </div>
+    </>
   )
 }
 
