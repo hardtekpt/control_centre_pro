@@ -571,73 +571,118 @@ function VoiceEditForm({
   onChange: (patch: Partial<SonarConfigData>) => void
   disabled?: boolean
 }): JSX.Element {
+  const nc = draft.noiseCancelingState ?? { enabled: false, value: 0 }
+  const gate = draft.noiseGateState ?? { enabled: false, value: -38.8 }
+  const autoGate = draft.automaticNoiseGateState ?? { enabled: false, value: 0 }
+  const volStab = draft.volumeStabilizerState ?? { enabled: false, value: 0 }
+
   return (
     <>
       <Section title="Processing">
         <ToggleRow label="Global Enable" value={draft.globalEnableState ?? false} disabled={disabled} onChange={(v) => onChange({ globalEnableState: v })} last />
       </Section>
 
-      <Section title="Noise Processing">
-        <ToggleSliderRow
-          label="Noise Reduction"
-          state={draft.noiseReductionState}
-          min={0}
-          max={3}
-          step={0.1}
-          disabled={disabled}
-          onChange={(next) => onChange({ noiseReductionState: next })}
-        />
-        <ToggleSliderRow
-          label="Noise Gate"
-          state={draft.noiseGateState}
-          min={-60}
-          max={0}
-          step={0.1}
-          format={fmtDb}
-          disabled={disabled}
-          onChange={(next) => onChange({ noiseGateState: next })}
-        />
-        <ToggleSliderRow
-          label="Volume Stabilizer"
-          state={draft.volumeStabilizerState}
-          min={0}
-          max={3}
-          step={0.1}
-          disabled={disabled}
-          onChange={(next) => onChange({ volumeStabilizerState: next })}
-        />
-        <ToggleSliderRow
-          label="Impact Noise Reduction"
-          state={draft.impactNoiseReductionState}
-          min={0}
-          max={3}
-          step={0.1}
-          disabled={disabled}
-          onChange={(next) => onChange({ impactNoiseReductionState: next })}
-        />
-        <ToggleSliderRow
-          label="Noise Canceling"
-          state={draft.noiseCancelingState}
-          min={0}
-          max={3}
-          step={0.1}
-          disabled={disabled}
-          onChange={(next) => onChange({ noiseCancelingState: next })}
-        />
-        <ToggleRow
-          label="Auto Noise Gate"
-          value={draft.automaticNoiseGateState?.enabled ?? false}
-          disabled={disabled}
-          onChange={(en) => onChange({ automaticNoiseGateState: { ...(draft.automaticNoiseGateState ?? { value: 0 }), enabled: en } })}
-        />
-        <ToggleRow
-          label="Echo Canceling"
-          value={draft.acousticEchoCancelingState ?? false}
-          disabled={disabled}
-          onChange={(v) => onChange({ acousticEchoCancelingState: v })}
-          last
-        />
-      </Section>
+      {/* ClearCast AI Noise Cancellation — prominent banner */}
+      <div className="mb-4 rounded-md overflow-hidden" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-raised)' }}>
+        <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <Toggle value={nc.enabled} disabled={disabled} onChange={(en) => onChange({ noiseCancelingState: { ...nc, enabled: en } })} />
+          <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--color-text-primary)' }}>
+            ClearCast AI Noise Cancellation
+          </span>
+        </div>
+        <div className="px-3 py-2.5">
+          <div className="flex items-center gap-3">
+            <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', minWidth: 22 }}>Min</span>
+            <SliderInput
+              value={nc.value / 3}
+              onChange={(v) => onChange({ noiseCancelingState: { ...nc, value: parseFloat((v * 3).toFixed(1)) } })}
+              disabled={disabled || !nc.enabled}
+            />
+            <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)', minWidth: 22, textAlign: 'right' }}>Max</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2-column card grid */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Noise Reduction */}
+        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-raised)' }}>
+          <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--color-text-secondary)' }}>Noise Reduction</h3>
+          </div>
+          <div className="px-3">
+            <ToggleSliderRow
+              label="Background"
+              state={draft.noiseReductionState}
+              min={0} max={3} step={0.1}
+              disabled={disabled}
+              onChange={(next) => onChange({ noiseReductionState: next })}
+            />
+            <ToggleSliderRow
+              label="Impact"
+              state={draft.impactNoiseReductionState}
+              min={0} max={3} step={0.1}
+              disabled={disabled}
+              onChange={(next) => onChange({ impactNoiseReductionState: next })}
+              last
+            />
+          </div>
+        </div>
+
+        {/* Noise Gate */}
+        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-raised)' }}>
+          <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <Toggle value={gate.enabled} disabled={disabled} onChange={(en) => onChange({ noiseGateState: { ...gate, enabled: en } })} />
+            <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--color-text-secondary)' }}>Noise Gate</h3>
+          </div>
+          <div className="px-3">
+            <RowShell>
+              <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Threshold</span>
+              <div className="mt-2">
+                <RangeSlider value={gate.value} min={-60} max={0} step={0.1} format={fmtDb} disabled={disabled} onChange={(v) => onChange({ noiseGateState: { ...gate, value: v } })} />
+              </div>
+            </RowShell>
+            <RowShell last>
+              <label className="flex items-start gap-2" style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={autoGate.enabled}
+                  disabled={disabled}
+                  onChange={(e) => onChange({ automaticNoiseGateState: { ...autoGate, enabled: e.target.checked } })}
+                  style={{ marginTop: 2, accentColor: 'var(--color-accent)', cursor: disabled ? 'not-allowed' : 'pointer' }}
+                />
+                <span className="text-xs" style={{ color: 'var(--color-text-secondary)', lineHeight: '1.3' }}>
+                  Auto compute threshold
+                </span>
+              </label>
+            </RowShell>
+          </div>
+        </div>
+
+        {/* Compressor (Volume Stabilizer) */}
+        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-raised)' }}>
+          <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <Toggle value={volStab.enabled} disabled={disabled} onChange={(en) => onChange({ volumeStabilizerState: { ...volStab, enabled: en } })} />
+            <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--color-text-secondary)' }}>Compressor</h3>
+          </div>
+          <div className="px-3">
+            <RowShell last>
+              <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Level</span>
+              <div className="mt-2">
+                <RangeSlider value={volStab.value} min={0} max={3} step={0.1} disabled={disabled} onChange={(v) => onChange({ volumeStabilizerState: { ...volStab, value: v } })} />
+              </div>
+            </RowShell>
+          </div>
+        </div>
+
+        {/* Echo Canceling */}
+        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface-raised)' }}>
+          <div className="flex items-center gap-2 px-3 py-2">
+            <Toggle value={draft.acousticEchoCancelingState ?? false} disabled={disabled} onChange={(v) => onChange({ acousticEchoCancelingState: v })} />
+            <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--color-text-secondary)' }}>Echo Canceling</h3>
+          </div>
+        </div>
+      </div>
 
       <EQEditor eq={draft.parametricEQ} disabled={disabled} onChange={(eq) => onChange({ parametricEQ: eq })} />
     </>
