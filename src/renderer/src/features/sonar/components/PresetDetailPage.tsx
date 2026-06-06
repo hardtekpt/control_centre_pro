@@ -307,9 +307,14 @@ function SectionHead({ label, sub, toggle, toggleValue, onToggle, disabled }: {
 
 const SAMPLE_ICONS: Record<string, string> = {
   bass: '🎵', pinkNoise: '〰', footsteps: '👣', dialogueClip: '💬', musicExcerpt: '🎶',
+  communication: '🗣', communicationNoise: '📢',
+}
+const SAMPLE_LABELS: Record<string, string> = {
+  communication: 'Play communication',
+  communicationNoise: 'Play communication + noise',
 }
 function sampleLabel(id: string): string {
-  return id.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase())
+  return SAMPLE_LABELS[id] ?? id.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase())
 }
 
 function TestSounds({ channel }: { channel: SonarDeviceChannel }): JSX.Element | null {
@@ -806,7 +811,7 @@ export function PresetDetailPage({
 
         {/* RIGHT — per-section controls */}
         <div className="cpp-col-settings">
-          <TestSounds channel={channel} />
+          {channel !== 'chatCapture' && <TestSounds channel={channel} />}
           {!mic ? (
             <>
               <TonePanel data={working?.data ?? DEFAULT_OUTPUT} onChange={patchData} disabled={disabled} />
