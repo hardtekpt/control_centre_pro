@@ -174,6 +174,15 @@ const api = {
   sonarPlayAudioSample: (role: string, id: string): Promise<SonarAudioSample[]> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_PLAY_AUDIO_SAMPLE, role, id),
 
+  sonarMicStartRecord: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_MIC_START_RECORD),
+
+  sonarMicStopRecord: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_MIC_STOP_RECORD),
+
+  sonarMicSetPlayback: (isPlaying: boolean): Promise<SonarAudioSample[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_MIC_SET_PLAYBACK, isPlaying),
+
   onSonarStateChange: (callback: (state: SonarState) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: SonarState): void => callback(state)
     ipcRenderer.on(IPC_CHANNELS.SONAR_STATE_CHANGE, handler)

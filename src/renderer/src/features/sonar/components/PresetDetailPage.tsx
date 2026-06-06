@@ -317,6 +317,50 @@ function sampleLabel(id: string): string {
   return SAMPLE_LABELS[id] ?? id.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase())
 }
 
+function MicTestSounds(): JSX.Element {
+  const [isRecording, setIsRecording] = useState(false)
+  const [isPlayingBack, setIsPlayingBack] = useState(false)
+
+  async function toggleRecord(): Promise<void> {
+    try {
+      if (isRecording) {
+        await window.api.sonarMicStopRecord()
+        setIsRecording(false)
+      } else {
+        await window.api.sonarMicStartRecord()
+        setIsRecording(true)
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function togglePlayback(): Promise<void> {
+    const next = !isPlayingBack
+    try {
+      const samples = await window.api.sonarMicSetPlayback(next)
+      const rec = samples.find((s) => s.id === 'record')
+      setIsPlayingBack(rec?.isPlaying ?? next)
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <section className="cpp-sec">
+      <SectionHead label="Test sounds" sub="routed to Mic" />
+      <div className="ts-row">
+        <button className={`ts-pill${isRecording ? ' on' : ''}`} onClick={() => void toggleRecord()}>
+          <span className="ts-pill-ic">⏺</span>
+          <span className="ts-pill-name">Record</span>
+          {isRecording && <span className="ts-bars" aria-hidden="true"><span /><span /><span /><span /></span>}
+        </button>
+        <button className={`ts-pill${isPlayingBack ? ' on' : ''}`} onClick={() => void togglePlayback()}>
+          <span className="ts-pill-ic">▶</span>
+          <span className="ts-pill-name">Playback</span>
+          {isPlayingBack && <span className="ts-bars" aria-hidden="true"><span /><span /><span /><span /></span>}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function TestSounds({ channel }: { channel: SonarDeviceChannel }): JSX.Element | null {
   const [samples, setSamples] = useState<SonarAudioSample[]>([])
   useEffect(() => {
@@ -811,7 +855,7 @@ export function PresetDetailPage({
 
         {/* RIGHT — per-section controls */}
         <div className="cpp-col-settings">
-          {channel !== 'chatCapture' && <TestSounds channel={channel} />}
+          {channel === 'chatCapture' ? <MicTestSounds /> : <TestSounds channel={channel} />}
           {!mic ? (
             <>
               <TonePanel data={working?.data ?? DEFAULT_OUTPUT} onChange={patchData} disabled={disabled} />

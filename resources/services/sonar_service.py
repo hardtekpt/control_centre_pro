@@ -425,6 +425,21 @@ class SonarService:
                 res = s.play_audio_sample(pkg_role, value["id"])
             return [x.model_dump(by_alias=True, exclude_none=True) for x in res]
 
+        if cmd == "micStartRecord":
+            with self._lock:
+                s.start_recording()
+            return None
+
+        if cmd == "micStopRecord":
+            with self._lock:
+                s.stop_recording()
+            return None
+
+        if cmd == "micSetPlayback":
+            with self._lock:
+                samples = s.set_mic_sample_playback(bool(value["isPlaying"]))
+            return [x.model_dump(by_alias=True, exclude_none=True) for x in samples]
+
         raise RuntimeError(f"Unknown command: {cmd}")
 
     def _trigger(self, slow: bool) -> None:

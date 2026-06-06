@@ -71,6 +71,9 @@ declare global {
     sonarToggleFavorite: (id: string, isFavorite: boolean) => Promise<void>
     sonarGetAudioSamples: (role: string) => Promise<SonarAudioSample[]>
     sonarPlayAudioSample: (role: string, id: string) => Promise<SonarAudioSample[]>
+    sonarMicStartRecord: () => Promise<void>
+    sonarMicStopRecord: () => Promise<void>
+    sonarMicSetPlayback: (isPlaying: boolean) => Promise<SonarAudioSample[]>
     onSonarStateChange: (callback: (state: SonarState) => void) => () => void
 
     // Discord Voice Control

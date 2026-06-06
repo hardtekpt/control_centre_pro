@@ -60,6 +60,9 @@ export const IPC_CHANNELS = {
   SONAR_TOGGLE_FAVORITE:  'sonar:toggleFavorite',   // renderer → main: (id, bool) → void
   SONAR_GET_AUDIO_SAMPLES: 'sonar:getAudioSamples', // renderer → main: role → SonarAudioSample[]
   SONAR_PLAY_AUDIO_SAMPLE: 'sonar:playAudioSample', // renderer → main: (role, id) → SonarAudioSample[]
+  SONAR_MIC_START_RECORD:  'sonar:micStartRecord',  // renderer → main invoke → void
+  SONAR_MIC_STOP_RECORD:   'sonar:micStopRecord',   // renderer → main invoke → void
+  SONAR_MIC_SET_PLAYBACK:  'sonar:micSetPlayback',  // renderer → main: isPlaying → SonarAudioSample[]
 
   // Preset Switcher — auto-switch presets by active app
   ACTIVE_WINDOW_CHANGE: 'activeWindow:change',          // main → renderer push

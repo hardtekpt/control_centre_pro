@@ -120,6 +120,18 @@ export class SonarService {
     return (await this.send('playAudioSample', { role, id })) as SonarAudioSample[]
   }
 
+  async micStartRecord(): Promise<void> {
+    await this.send('micStartRecord', {})
+  }
+
+  async micStopRecord(): Promise<void> {
+    await this.send('micStopRecord', {})
+  }
+
+  async micSetPlayback(isPlaying: boolean): Promise<SonarAudioSample[]> {
+    return (await this.send('micSetPlayback', { isPlaying })) as SonarAudioSample[]
+  }
+
   private send(cmd: string, value: unknown): Promise<unknown> {
     return this.services.sendCommand('gg-sonar', cmd, value)
   }
