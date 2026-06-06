@@ -29,29 +29,16 @@ function ChevronIcon({ open }: { open: boolean }): JSX.Element {
 
 export function PresetSelector({ configs, activePresetId, channel, onSelect }: PresetSelectorProps): JSX.Element | null {
   const channelConfigs = configs.filter((c) => c.virtualAudioDevice === channel && c.isFavorite)
-  if (channelConfigs.length === 0) return null
+  const allChannelConfigs = configs.filter((c) => c.virtualAudioDevice === channel)
 
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ bottom: number; left: number; width: number } | null>(null)
 
-  const allChannelConfigs = configs.filter((c) => c.virtualAudioDevice === channel)
   const resolvedActiveId = activePresetId ?? channelConfigs.find((c) => c.isSelected)?.id
   // Look up active config from ALL configs (not just favorites) so the label always shows
   const activeConfig = allChannelConfigs.find((c) => c.id === resolvedActiveId)
-
-  function toggle(): void {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect()
-      setPos({
-        bottom: window.innerHeight - r.top + 4,
-        left: r.left,
-        width: Math.max(r.width, 160),
-      })
-    }
-    setOpen((o) => !o)
-  }
 
   useEffect(() => {
     if (!open) return
@@ -69,6 +56,20 @@ export function PresetSelector({ configs, activePresetId, channel, onSelect }: P
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [open])
+
+  if (channelConfigs.length === 0) return null
+
+  function toggle(): void {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({
+        bottom: window.innerHeight - r.top + 4,
+        left: r.left,
+        width: Math.max(r.width, 160),
+      })
+    }
+    setOpen((o) => !o)
+  }
 
   return (
     <div className="sn-preset-sel">
