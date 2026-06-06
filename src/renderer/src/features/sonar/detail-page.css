@@ -194,6 +194,31 @@
 .dd-opt-star { color: var(--color-warn); flex-shrink: 0; }
 .dd-opt-check { color: var(--color-text-primary); flex-shrink: 0; }
 
+.dd-search-wrap { padding: 4px 4px 2px; }
+.dd-search {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  outline: 0;
+  transition: border-color .1s;
+}
+[data-theme="dark"] .dd-search { background: rgba(0, 0, 0, 0.3); }
+.dd-search:focus { border-color: var(--color-text-primary); }
+.dd-search::placeholder { color: var(--color-text-tertiary); }
+.dd-empty {
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+}
+
 /* ── Favorite + actions buttons in header ─────────────────────────────────── */
 
 .pp-fav,

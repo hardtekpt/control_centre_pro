@@ -418,15 +418,18 @@ function PresetDropdown({ configs, activeId, onPick }: {
   configs: SonarConfig[]; activeId: string | undefined; onPick: (id: string) => void
 }): JSX.Element | null {
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const wrapRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
   const active = configs.find((c) => c.id === activeId)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) { setSearch(''); return }
     const onDoc = (e: MouseEvent): void => { if (!wrapRef.current?.contains(e.target as Node)) setOpen(false) }
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
+    setTimeout(() => searchRef.current?.focus(), 0)
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
   }, [open])
 
@@ -435,6 +438,9 @@ function PresetDropdown({ configs, activeId, onPick }: {
     if (a.isPreset !== b.isPreset) return a.isPreset ? -1 : 1
     return a.name.localeCompare(b.name)
   })
+
+  const q = search.trim().toLowerCase()
+  const filtered = q ? sorted.filter((c) => c.name.toLowerCase().includes(q)) : sorted
 
   if (!active) return null
 
@@ -451,8 +457,21 @@ function PresetDropdown({ configs, activeId, onPick }: {
       </button>
       {open && (
         <div className="pp-pdd-menu">
+          <div className="dd-search-wrap">
+            <input
+              ref={searchRef}
+              className="dd-search"
+              type="text"
+              placeholder="Search presets…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <div className="dd-menu-h mono">Preset for this channel</div>
-          {sorted.map((c) => {
+          {filtered.length === 0 && (
+            <div className="dd-empty">No results</div>
+          )}
+          {filtered.map((c) => {
             const sel = c.id === activeId
             return (
               <button
