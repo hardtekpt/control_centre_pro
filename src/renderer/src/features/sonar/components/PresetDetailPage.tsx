@@ -37,7 +37,7 @@ const FILTER_TYPE_SHORT: Record<SonarEQFilter['type'], string> = {
 }
 const FILTER_TYPES: SonarEQFilter['type'][] = ['peakingEQ', 'lowShelving', 'highShelving']
 
-function isMic(ch: string): boolean { return ch === 'chatCapture' }
+function isMic(ch: string): boolean { return ch === 'chatCapture' || ch === 'chatRender' }
 function clone<T>(x: T): T { return JSON.parse(JSON.stringify(x)) as T }
 
 function fmtDb(v: number): string {

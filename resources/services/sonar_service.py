@@ -414,13 +414,15 @@ class SonarService:
             return None
 
         if cmd == "getAudioSamples":
+            pkg_role = RENDERER_TO_PKG_CHANNEL.get(value["role"], value["role"])
             with self._lock:
-                samples = s.get_audio_samples(value["role"])
+                samples = s.get_audio_samples(pkg_role)
             return [x.model_dump(by_alias=True, exclude_none=True) for x in samples]
 
         if cmd == "playAudioSample":
+            pkg_role = RENDERER_TO_PKG_CHANNEL.get(value["role"], value["role"])
             with self._lock:
-                res = s.play_audio_sample(value["role"], value["id"])
+                res = s.play_audio_sample(pkg_role, value["id"])
             return [x.model_dump(by_alias=True, exclude_none=True) for x in res]
 
         raise RuntimeError(f"Unknown command: {cmd}")
