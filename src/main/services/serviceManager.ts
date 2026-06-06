@@ -223,6 +223,55 @@ export class ServiceManager {
     child.stdin.write(JSON.stringify({ cmd, value }) + '\n')
   }
 
+  /**
+   * Send an Arctis command and immediately push an optimistic state update to the
+   * renderer and WS clients. Used by the HTTP API: hardware writes don't reliably
+   * fire HID event callbacks back through the Python service, so the renderer would
+   * otherwise never see the change.
+   *
+   * The synthetic event uses the same names and shapes as real hardware events so
+   * the renderer's onArctisEvent switch handles it without any changes.
+   */
+  sendArctisCommandWithOptimisticUpdate(cmd: string, value: unknown): void {
+    this.sendArctisCmd(cmd, value)
+
+    if (!this.lastArctisState) return
+
+    const result = this.buildArctisEventFromCmd(cmd, value)
+    if (!result) return
+
+    const { eventName, data } = result
+    this.lastArctisState = { ...this.lastArctisState, ...data }
+    this.push(IPC_CHANNELS.ARCTIS_EVENT, eventName, data)
+    this.wsBroadcast?.('arctis:event', { eventName, data })
+  }
+
+  private buildArctisEventFromCmd(cmd: string, value: unknown): { eventName: string; data: Record<string, unknown> } | null {
+    switch (cmd) {
+      case 'setVolume':           return { eventName: 'VolumeEvent',       data: { volume: value } }
+      case 'setAncMode':          return { eventName: 'AncModeEvent',      data: { ancMode: value } }
+      case 'setTransparencyLevel':return { eventName: 'TransparencyEvent', data: { transparencyLevel: value } }
+      case 'setMicGain':          return { eventName: 'GainEvent',         data: { micGain: value } }
+      case 'setSidetone':         return { eventName: 'SidetoneEvent',     data: { sidetone: value } }
+      case 'setMicVolume':        return { eventName: 'MicVolumeEvent',    data: { micVolume: value } }
+      case 'setWirelessMode':     return { eventName: 'WirelessModeEvent', data: { wirelessMode: value } }
+      case 'setBtDefault':        return { eventName: 'BtDefaultEvent',    data: { btDefault: value } }
+      case 'setBtAutoMute':       return { eventName: 'BtAutoMuteEvent',   data: { btAutoMute: value } }
+      case 'setAudioOutput':      return { eventName: 'AudioOutputEvent',  data: { audioOutput: value } }
+      case 'setOledBrightness':   return { eventName: 'OledBrightnessEvent', data: { oledBrightness: value } }
+      case 'setDimTimeout':       return { eventName: 'DimTimeoutEvent',   data: { dimTimeout: value } }
+      case 'setMicLedBrightness': return { eventName: 'MicLedEvent',       data: { micLedBrightness: value } }
+      case 'setAutoOffTimeout':   return { eventName: 'AutoOffEvent',      data: { autoOffTimeout: value } }
+      case 'setHomescreenMode':   return { eventName: 'HomeScreenEvent',   data: { homescreenMode: value } }
+      case 'setStreamVolumes': {
+        const v = value as { main: number; aux: number; mic: number }
+        return { eventName: 'StreamVolumesEvent', data: { streamMain: v.main, streamAux: v.aux, streamMic: v.mic } }
+      }
+      default:
+        return null
+    }
+  }
+
   getSonarState(): SonarState | null {
     return this.lastSonarState
   }

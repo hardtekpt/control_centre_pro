@@ -277,10 +277,7 @@ export class HttpApiServer {
         const body = await readBody(req)
         const cmd = body.cmd as string
         const value = body.value
-        this.deps.serviceManager.sendArctisCmd(cmd, value)
-        // Hardware writes don't always fire event callbacks, so re-read state after
-        // a short delay so the renderer and WS clients stay in sync.
-        setTimeout(() => this.deps.serviceManager.sendArctisCmd('refresh', null), 300)
+        this.deps.serviceManager.sendArctisCommandWithOptimisticUpdate(cmd, value)
         return jsonResponse(res, 200, { ok: true })
       } catch {
         return jsonResponse(res, 400, { error: 'Bad request' })
