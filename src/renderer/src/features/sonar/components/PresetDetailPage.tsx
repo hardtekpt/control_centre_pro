@@ -785,17 +785,21 @@ export function PresetDetailPage({
               )}
             </div>
             <div className="peq-bands">
-              {eq && FILTER_KEYS.map((k, i) => (
-                <EQBandCard
-                  key={k}
-                  index={i + 1}
-                  filter={eq[k]}
-                  isActive={activeKey === k}
-                  disabled={disabled || !eq.enabled}
-                  onChange={(patch) => patchFilter(k, patch)}
-                  onClick={() => setActiveKey((prev) => (prev === k ? null : k))}
-                />
-              ))}
+              {eq && FILTER_KEYS.map((k, i) => {
+                const filter = eq[k]
+                if (!filter) return null
+                return (
+                  <EQBandCard
+                    key={k}
+                    index={i + 1}
+                    filter={filter}
+                    isActive={activeKey === k}
+                    disabled={disabled || !eq.enabled}
+                    onChange={(patch) => patchFilter(k, patch)}
+                    onClick={() => setActiveKey((prev) => (prev === k ? null : k))}
+                  />
+                )
+              })}
             </div>
           </section>
         </div>

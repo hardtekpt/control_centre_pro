@@ -39,8 +39,8 @@ function yToGain(y: number): number {
 
 // ── Biquad filter response (RBJ cookbook formulas) ────────────────────────────
 
-function filterDb(freq: number, f: SonarEQFilter): number {
-  if (!f.enabled || Math.abs(f.gain) < 0.001) return 0
+function filterDb(freq: number, f: SonarEQFilter | undefined): number {
+  if (!f || !f.enabled || Math.abs(f.gain) < 0.001) return 0
 
   const f0    = Math.max(1, f.frequency)
   const Q     = Math.max(0.1, f.qFactor)
@@ -277,6 +277,7 @@ export function EQCurveEditor({
       {/* Filter nodes — rendered last so they sit on top of the curve */}
       {FILTER_KEYS.map((key, idx) => {
         const flt    = eq[key]
+        if (!flt) return null
         const x      = freqToX(Math.max(MIN_FREQ, Math.min(MAX_FREQ, flt.frequency)))
         const y      = gainToY(Math.max(-MAX_GAIN, Math.min(MAX_GAIN, flt.gain)))
         const isAct  = key === active
