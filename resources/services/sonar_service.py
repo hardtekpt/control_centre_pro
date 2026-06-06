@@ -414,16 +414,21 @@ class SonarService:
             return None
 
         if cmd == "getAudioSamples":
-            pkg_role = RENDERER_TO_PKG_CHANNEL.get(value["role"], value["role"])
+            # Audio sample endpoints use renderer role names directly (chatRender,
+            # chatCapture, game, …) — do NOT remap through RENDERER_TO_PKG_CHANNEL.
             with self._lock:
-                samples = s.get_audio_samples(pkg_role)
+                samples = s.get_audio_samples(value["role"])
             return [x.model_dump(by_alias=True, exclude_none=True) for x in samples]
 
         if cmd == "playAudioSample":
-            pkg_role = RENDERER_TO_PKG_CHANNEL.get(value["role"], value["role"])
             with self._lock:
-                res = s.play_audio_sample(pkg_role, value["id"])
+                res = s.play_audio_sample(value["role"], value["id"])
             return [x.model_dump(by_alias=True, exclude_none=True) for x in res]
+
+        if cmd == "micIsRecording":
+            with self._lock:
+                result = s.get_is_recording()
+            return bool(result)
 
         if cmd == "micStartRecord":
             with self._lock:

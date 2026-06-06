@@ -120,6 +120,10 @@ export class SonarService {
     return (await this.send('playAudioSample', { role, id })) as SonarAudioSample[]
   }
 
+  async micIsRecording(): Promise<boolean> {
+    return (await this.send('micIsRecording', {})) as boolean
+  }
+
   async micStartRecord(): Promise<void> {
     await this.send('micStartRecord', {})
   }

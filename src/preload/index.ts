@@ -174,6 +174,9 @@ const api = {
   sonarPlayAudioSample: (role: string, id: string): Promise<SonarAudioSample[]> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_PLAY_AUDIO_SAMPLE, role, id),
 
+  sonarMicIsRecording: (): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SONAR_MIC_IS_RECORDING),
+
   sonarMicStartRecord: (): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.SONAR_MIC_START_RECORD),
 

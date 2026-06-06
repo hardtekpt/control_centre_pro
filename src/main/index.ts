@@ -676,6 +676,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SONAR_TOGGLE_FAVORITE,  (_, id, isFavorite) => sonarService.toggleFavorite(id, isFavorite))
   ipcMain.handle(IPC_CHANNELS.SONAR_GET_AUDIO_SAMPLES, (_, role: string) => sonarService.getAudioSamples(role))
   ipcMain.handle(IPC_CHANNELS.SONAR_PLAY_AUDIO_SAMPLE, (_, role: string, id: string) => sonarService.playAudioSample(role, id))
+  ipcMain.handle(IPC_CHANNELS.SONAR_MIC_IS_RECORDING,  () => sonarService.micIsRecording())
   ipcMain.handle(IPC_CHANNELS.SONAR_MIC_START_RECORD,  () => sonarService.micStartRecord())
   ipcMain.handle(IPC_CHANNELS.SONAR_MIC_STOP_RECORD,   () => sonarService.micStopRecord())
   ipcMain.handle(IPC_CHANNELS.SONAR_MIC_SET_PLAYBACK,  (_, isPlaying: boolean) => sonarService.micSetPlayback(isPlaying))

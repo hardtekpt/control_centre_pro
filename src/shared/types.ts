@@ -60,6 +60,7 @@ export const IPC_CHANNELS = {
   SONAR_TOGGLE_FAVORITE:  'sonar:toggleFavorite',   // renderer → main: (id, bool) → void
   SONAR_GET_AUDIO_SAMPLES: 'sonar:getAudioSamples', // renderer → main: role → SonarAudioSample[]
   SONAR_PLAY_AUDIO_SAMPLE: 'sonar:playAudioSample', // renderer → main: (role, id) → SonarAudioSample[]
+  SONAR_MIC_IS_RECORDING:  'sonar:micIsRecording',  // renderer → main invoke → boolean
   SONAR_MIC_START_RECORD:  'sonar:micStartRecord',  // renderer → main invoke → void
   SONAR_MIC_STOP_RECORD:   'sonar:micStopRecord',   // renderer → main invoke → void
   SONAR_MIC_SET_PLAYBACK:  'sonar:micSetPlayback',  // renderer → main: isPlaying → SonarAudioSample[]

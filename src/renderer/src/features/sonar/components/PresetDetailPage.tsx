@@ -307,11 +307,11 @@ function SectionHead({ label, sub, toggle, toggleValue, onToggle, disabled }: {
 
 const SAMPLE_ICONS: Record<string, string> = {
   bass: '🎵', pinkNoise: '〰', footsteps: '👣', dialogueClip: '💬', musicExcerpt: '🎶',
-  communication: '🗣', communicationNoise: '📢',
+  chat: '🗣', chatNoisy: '📢',
 }
 const SAMPLE_LABELS: Record<string, string> = {
-  communication: 'Play communication',
-  communicationNoise: 'Play communication + noise',
+  chat: 'Play communication',
+  chatNoisy: 'Play communication + noise',
 }
 function sampleLabel(id: string): string {
   return SAMPLE_LABELS[id] ?? id.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase())
@@ -320,6 +320,19 @@ function sampleLabel(id: string): string {
 function MicTestSounds(): JSX.Element {
   const [isRecording, setIsRecording] = useState(false)
   const [isPlayingBack, setIsPlayingBack] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      window.api.sonarMicIsRecording().catch(() => false),
+      window.api.sonarGetAudioSamples('chatCapture').catch((): SonarAudioSample[] => []),
+    ]).then(([recording, samples]) => {
+      if (cancelled) return
+      setIsRecording(recording)
+      setIsPlayingBack(samples.find((s) => s.id === 'record')?.isPlaying ?? false)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   async function toggleRecord(): Promise<void> {
     try {
