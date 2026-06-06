@@ -234,12 +234,46 @@ npm run build            # Build for production
 npm run package          # Build + Windows installer
 npm run typecheck        # TypeScript validation
 
-# Arctis HID service setup
-python -m pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development
+# Arctis HID service setup — install into the app venv (see below)
+<venv>\Scripts\pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development
 
-# GG Sonar service setup (Python subprocess wrapping the steelseries_gg package)
-python -m pip install git+https://github.com/hardtekpt/steelseries_gg_py.git
+# GG Sonar service setup — install into the app venv (see below)
+<venv>\Scripts\pip install git+https://github.com/hardtekpt/steelseries_gg_py.git
+
+# To install from a local clone instead of git:
+<venv>\Scripts\pip install C:\path\to\steelseries_gg_py
 ```
+
+---
+
+## Python Services — Virtual Environment
+
+**Critical**: the app stores a custom Python interpreter path in `%APPDATA%\mission-control\services.json`. All Python services run under **that** interpreter, not the system `python`. Installing or updating a package with the system `python` / `pip` has no effect on the running services.
+
+**Find the configured venv:**
+```powershell
+# Read the interpreter path
+(Get-Content "$env:APPDATA\mission-control\services.json" | ConvertFrom-Json).pythonPath
+# → e.g. C:\Users\ffvd\Documents\arctis_nova_pro_hid\arctis_env\Scripts\python.exe
+```
+
+**Install / update a package for the app:**
+```powershell
+# Use the pip that belongs to the same venv
+C:\Users\ffvd\Documents\arctis_nova_pro_hid\arctis_env\Scripts\pip install <package>
+
+# To reinstall from a local directory (picks up source changes):
+C:\Users\ffvd\Documents\arctis_nova_pro_hid\arctis_env\Scripts\pip uninstall <package> -y
+C:\Users\ffvd\Documents\arctis_nova_pro_hid\arctis_env\Scripts\pip install C:\path\to\local\package
+```
+
+**Verify a package in the venv:**
+```powershell
+C:\Users\ffvd\Documents\arctis_nova_pro_hid\arctis_env\Scripts\python.exe -c `
+  "from steelseries_gg import SonarClient; print(hasattr(SonarClient, 'start_recording'))"
+```
+
+**After updating a package**, restart the app (or stop/start the affected service from the Services page) so the subprocess reloads the new code. Python loads module code once at process start — a running subprocess never picks up on-disk changes automatically.
 
 ---
 
