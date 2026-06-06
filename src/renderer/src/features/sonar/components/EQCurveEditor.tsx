@@ -127,10 +127,15 @@ interface EQCurveEditorProps {
   /** Externally controlled active (selected) key — if undefined, component self-manages */
   selectedKey?: FilterKey | null
   onNodeClick?: (key: FilterKey) => void
+  /** Hue the curve/fill/nodes follow. Defaults to the gray accent. */
+  curveColor?: string
+  /** When true, the SVG draws no border/background of its own (parent frames it). */
+  bare?: boolean
 }
 
 export function EQCurveEditor({
   eq, onChange, disabled = false, selectedKey, onNodeClick,
+  curveColor = 'var(--color-accent)', bare = false,
 }: EQCurveEditorProps): JSX.Element {
   const svgRef              = useRef<SVGSVGElement>(null)
   const [internalActive, setInternalActive] = useState<FilterKey | null>(null)
@@ -199,16 +204,20 @@ export function EQCurveEditor({
       style={{
         display: 'block', width: '100%', aspectRatio: `${VW} / ${VH}`,
         cursor: disabled ? 'not-allowed' : active ? 'grabbing' : 'crosshair',
-        background: 'var(--color-bg)',
-        borderRadius: 8,
-        border: '1px solid var(--color-border)',
+        color: curveColor,
+        overflow: 'visible',
+        ...(bare ? {} : {
+          background: 'var(--color-bg)',
+          borderRadius: 8,
+          border: '1px solid var(--color-border)',
+        }),
       }}
       aria-label="EQ frequency response"
     >
       <defs>
         <linearGradient id="sn-eq-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="var(--color-accent)" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+          <stop offset="0%"   stopColor="currentColor" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
         <clipPath id="sn-eq-clip">
           <rect x={0} y={0} width={VW} height={VH} />
@@ -243,7 +252,7 @@ export function EQCurveEditor({
       {/* Curve line */}
       <path
         d={curvePath} fill="none"
-        stroke="var(--color-accent)" strokeWidth={1.75}
+        stroke="currentColor" strokeWidth={2}
         strokeLinecap="round" strokeLinejoin="round"
         clipPath="url(#sn-eq-clip)"
         style={{ opacity: disabled ? 0.4 : 1 }}
@@ -266,13 +275,15 @@ export function EQCurveEditor({
       ))}
 
       {/* Filter nodes — rendered last so they sit on top of the curve */}
-      {FILTER_KEYS.map((key) => {
-        const flt   = eq[key]
-        const x     = freqToX(Math.max(MIN_FREQ, Math.min(MAX_FREQ, flt.frequency)))
-        const y     = gainToY(Math.max(-MAX_GAIN, Math.min(MAX_GAIN, flt.gain)))
-        const isAct = key === active
-        const isHov = key === hover
-        const r     = isAct ? 8 : isHov ? 6.5 : flt.enabled ? 5 : 4
+      {FILTER_KEYS.map((key, idx) => {
+        const flt    = eq[key]
+        const x      = freqToX(Math.max(MIN_FREQ, Math.min(MAX_FREQ, flt.frequency)))
+        const y      = gainToY(Math.max(-MAX_GAIN, Math.min(MAX_GAIN, flt.gain)))
+        const isAct  = key === active
+        const isHov  = key === hover
+        const lit     = isAct || isHov
+        const haloR   = lit ? 10 : 7
+        const coreR   = isAct ? 5 : 4
 
         return (
           <g key={key}>
@@ -289,19 +300,32 @@ export function EQCurveEditor({
               onMouseLeave={() => setHover(null)}
             />
 
-            {/* Visual node */}
+            {/* Halo */}
             <circle
-              cx={x} cy={y} r={r}
-              fill={flt.enabled
-                ? (isAct ? 'var(--color-text-primary)' : 'var(--color-accent)')
-                : 'var(--color-border-strong)'}
-              stroke="var(--color-bg)"
-              strokeWidth={1.75}
-              style={{
-                pointerEvents: 'none',
-                transition: isAct ? 'none' : 'r 0.1s, fill 0.1s',
-              }}
+              cx={x} cy={y} r={haloR}
+              fill="currentColor" fillOpacity={lit ? 0.16 : 0.06}
+              stroke="currentColor" strokeOpacity={lit ? 0.4 : 0.18}
+              style={{ pointerEvents: 'none', transition: 'fill-opacity .12s, stroke-opacity .12s' }}
             />
+
+            {/* Core */}
+            <circle
+              cx={x} cy={y} r={coreR}
+              fill={flt.enabled ? 'currentColor' : 'var(--color-border-strong)'}
+              stroke="var(--color-bg)" strokeWidth={1.5}
+              style={{ pointerEvents: 'none', transition: isAct ? 'none' : 'r 0.1s, fill 0.1s' }}
+            />
+
+            {/* Band number */}
+            <text
+              x={x} y={y + 2.5} textAnchor="middle"
+              style={{
+                fontFamily: 'JetBrains Mono,monospace', fontSize: 8, fontWeight: 600,
+                fill: 'var(--color-bg)', pointerEvents: 'none',
+              }}
+            >
+              {idx + 1}
+            </text>
 
             {/* Tooltip on hover or active drag */}
             {tipKey === key && (() => {
