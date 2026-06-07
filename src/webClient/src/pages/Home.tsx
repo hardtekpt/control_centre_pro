@@ -59,7 +59,21 @@ export function Home(): JSX.Element {
       </Card>
 
       {/* ── Sonar card ── */}
-      <Card title="GG Sonar">
+      <Card
+        title="GG Sonar"
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <AudioWaveIcon
+              color={sonarState?.available ? 'var(--color-ok)' : 'var(--color-text-secondary)'}
+              size={12}
+              title={sonarState?.available ? 'Active' : 'Inactive'}
+            />
+            <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+              {sonarState?.available ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        }
+      >
         {sonarState?.available ? (
           <SonarCard
             sonarState={sonarState}
@@ -396,17 +410,30 @@ function ArctisCard({ arctis }: { arctis: ArctisState }): JSX.Element {
         </span>
       </div>
 
-      {/* Status chips */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        <Chip label={`ANC: ${formatAnc(arctis)}`} />
-        <Chip label={`Sidetone: ${capitalize(arctis.sidetone)}`} />
-        {arctis.chatmixEnabled && (
-          <Chip label={`ChatMix: G${arctis.chatmixGame} / C${arctis.chatmixChat}`} />
-        )}
-        <Chip
-          label={`Mic: ${arctis.micMuted ? 'Muted' : 'Active'}`}
-          color={arctis.micMuted ? 'var(--color-warn)' : undefined}
-        />
+      {/* ANC mode */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>ANC</span>
+        <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+          {(['OFF', 'TRANSPARENCY', 'ANC'] as ArctisState['ancMode'][]).map((m) => (
+            <button
+              key={m}
+              onClick={() => { updateArctis({ ancMode: m }); void sendCmd('setAncMode', m) }}
+              style={{
+                flex: 1,
+                padding: '5px 0',
+                borderRadius: 6,
+                border: '1px solid var(--color-border)',
+                background: arctis.ancMode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                color: arctis.ancMode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                fontSize: 11,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {m === 'OFF' ? 'Off' : m === 'TRANSPARENCY' ? 'Transp.' : 'ANC'}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -430,13 +457,6 @@ function SonarCard({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Header: active indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <AudioWaveIcon color="var(--color-ok)" size={14} title="Active" />
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Active</span>
-      </div>
-
-      {/* Channel blocks — slider on its own row, controls below */}
       {classic && CHANNEL_ORDER.map((ch) => {
         const vol = ch === 'master'
           ? classic.masters.classic
@@ -447,55 +467,76 @@ function SonarCard({
         const favorites = getFavoritesForChannel(configs, device)
         const activeId = activePresetIds[device] ?? configs.find(c => c.virtualAudioDevice === device && c.isSelected)?.id
 
-        return (
-          <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {/* Row 1: volume slider only */}
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(vol.volume * 100)}
-              onChange={(e) => void sonarSetVolume(ch, Number(e.target.value) / 100)}
-              onMouseDown={beginDrag}
-              onTouchStart={beginDrag}
-              onMouseUp={endDrag}
-              onTouchEnd={endDrag}
-              style={{
-                width: '100%',
-                accentColor: vol.muted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
-                cursor: 'pointer',
-                opacity: vol.muted ? 0.5 : 1,
-              }}
-            />
-            {/* Row 2: label · % · mute · preset */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        const muteBtn = (
+          <button
+            onClick={() => void sonarSetMute(ch, !vol.muted)}
+            title={vol.muted ? 'Unmute' : 'Mute'}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 6,
+              border: '1px solid var(--color-border)',
+              background: vol.muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+              color: vol.muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            M
+          </button>
+        )
+
+        const slider = (
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(vol.volume * 100)}
+            onChange={(e) => void sonarSetVolume(ch, Number(e.target.value) / 100)}
+            onMouseDown={beginDrag}
+            onTouchStart={beginDrag}
+            onMouseUp={endDrag}
+            onTouchEnd={endDrag}
+            style={{
+              flex: 1,
+              accentColor: vol.muted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
+              cursor: 'pointer',
+              opacity: vol.muted ? 0.5 : 1,
+            }}
+          />
+        )
+
+        if (ch === 'master') {
+          return (
+            <div key={ch} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>
                 {CHANNEL_LABELS[ch]}
               </span>
+              {slider}
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 34, textAlign: 'right' }}>
+                {Math.round(vol.volume * 100)}%
+              </span>
+              {muteBtn}
+            </div>
+          )
+        }
+
+        return (
+          <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              {CHANNEL_LABELS[ch]}
+            </span>
+            {slider}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 34 }}>
                 {Math.round(vol.volume * 100)}%
               </span>
-              <button
-                onClick={() => void sonarSetMute(ch, !vol.muted)}
-                title={vol.muted ? 'Unmute' : 'Mute'}
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 6,
-                  border: '1px solid var(--color-border)',
-                  background: vol.muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                  color: vol.muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                  fontSize: 11,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                M
-              </button>
+              {muteBtn}
               {favorites.length > 0 && (
                 <div style={{ marginLeft: 'auto', maxWidth: 160, flex: 1 }}>
                   <Select
