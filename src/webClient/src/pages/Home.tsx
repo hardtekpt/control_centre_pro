@@ -161,8 +161,8 @@ function DiscordCard({ discordState }: { discordState: ReturnType<typeof useDisc
               height: 28,
               borderRadius: 4,
               border: '1px solid var(--color-border)',
-              background: selfMuted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-              color: selfMuted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              background: selfMuted ? 'var(--segment-active-bg)' : 'var(--color-surface-raised)',
+              color: selfMuted ? 'var(--segment-active-color)' : 'var(--color-text-secondary)',
               fontSize: 10,
               cursor: 'pointer',
               fontFamily: 'inherit',
@@ -183,8 +183,8 @@ function DiscordCard({ discordState }: { discordState: ReturnType<typeof useDisc
               height: 28,
               borderRadius: 4,
               border: '1px solid var(--color-border)',
-              background: selfDeafened ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-              color: selfDeafened ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              background: selfDeafened ? 'var(--segment-active-bg)' : 'var(--color-surface-raised)',
+              color: selfDeafened ? 'var(--segment-active-color)' : 'var(--color-text-secondary)',
               fontSize: 10,
               cursor: 'pointer',
               fontFamily: 'inherit',
@@ -333,8 +333,8 @@ function ParticipantRow({
           height: 24,
           borderRadius: 4,
           border: '1px solid var(--color-border)',
-          background: participant.localMuted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-          color: participant.localMuted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+          background: participant.localMuted ? 'var(--segment-active-bg)' : 'var(--color-surface-raised)',
+          color: participant.localMuted ? 'var(--segment-active-color)' : 'var(--color-text-secondary)',
           fontSize: 10,
           cursor: 'pointer',
           fontFamily: 'inherit',
@@ -417,22 +417,12 @@ function ArctisCard({ arctis }: { arctis: ArctisState }): JSX.Element {
       {/* ANC mode */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>ANC</span>
-        <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+        <div className="segment-group" style={{ flex: 1 }}>
           {(['OFF', 'TRANSPARENCY', 'ANC'] as ArctisState['ancMode'][]).map((m) => (
             <button
               key={m}
               onClick={() => { updateArctis({ ancMode: m }); void sendCmd('setAncMode', m) }}
-              style={{
-                flex: 1,
-                padding: '5px 0',
-                borderRadius: 6,
-                border: '1px solid var(--color-border)',
-                background: arctis.ancMode === m ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                color: arctis.ancMode === m ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                fontSize: 11,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
+              className={`flex-1 segment-btn${arctis.ancMode === m ? ' active' : ''}`}
             >
               {m === 'OFF' ? 'Off' : m === 'TRANSPARENCY' ? 'Transp.' : 'ANC'}
             </button>
@@ -480,8 +470,8 @@ function SonarCard({
               height: 30,
               borderRadius: 6,
               border: '1px solid var(--color-border)',
-              background: vol.muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-              color: vol.muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+              background: vol.muted ? 'var(--segment-active-bg)' : 'var(--color-surface-raised)',
+              color: vol.muted ? 'var(--segment-active-color)' : 'var(--color-text-secondary)',
               fontSize: 11,
               cursor: 'pointer',
               fontFamily: 'inherit',
