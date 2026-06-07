@@ -185,11 +185,12 @@
   gap: 1px;
 }
 
+/* Canonical "icon + value" template for level-indicator ring notifications */
 .notif-circ.ring .ring-badge {
   font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   line-height: 1;
   letter-spacing: 0.02em;
 }

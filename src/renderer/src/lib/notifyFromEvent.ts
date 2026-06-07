@@ -251,7 +251,7 @@ export function notifyArctisEvent(eventName: string, data: unknown): void {
       if (cfg.volume.shape === 'volume') {
         push({ kind: 'volume', key: 'headset-volume', iconId: 'volume', label: 'Headset volume', value: d.volume, ttl: 1800 })
       } else {
-        push({ kind: 'ring', key: 'headset-volume', iconId: 'volume', value: d.volume, ttl: 1800 })
+        push({ kind: 'ring', key: 'headset-volume', iconId: 'volume', value: d.volume, badge: String(Math.round(d.volume)), ttl: 1800 })
       }
       break
     }
