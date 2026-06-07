@@ -40,6 +40,31 @@
   /* Shadows */
   --shadow-panel:    0 8px 24px rgba(0, 0, 0, 0.18);
   --shadow-dropdown: 0 10px 28px rgba(0, 0, 0, 0.10), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  --shadow-thumb:    0 1px 4px rgba(0, 0, 0, 0.20);
+
+  /* Interactive highlight (matches renderer) */
+  --color-highlight:    var(--color-accent);
+  --color-on-highlight: var(--color-text-primary);
+
+  /* Segment / selector tokens */
+  --segment-active-bg:      var(--color-highlight);
+  --segment-active-color:   var(--color-on-highlight);
+  --segment-inactive-bg:    var(--color-surface-raised);
+  --segment-inactive-color: var(--color-text-secondary);
+
+  /* Card component tokens */
+  --card-bg:                  transparent;
+  --card-bg-surface:          var(--color-surface);
+  --card-border-color:        var(--color-border);
+  --card-radius:              8px;
+  --card-padding-x:           16px;
+  --card-padding-y:           12px;
+  --card-title-size:          13px;
+  --card-title-weight:        500;
+  --card-field-label-size:    10px;
+  --card-field-label-weight:  600;
+  --card-field-label-tracking: 0.08em;
+  --card-row-label-size:      11px;
 }
 
 [data-theme="dark"] {
@@ -68,6 +93,7 @@
   /* Shadows (stronger in dark mode) */
   --shadow-panel:    0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-dropdown: 0 10px 28px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-thumb:    0 1px 4px rgba(0, 0, 0, 0.50);
 }
 
 /* ── Reset & base ─────────────────────────────────────────────────────────── */
@@ -119,4 +145,65 @@ body {
 /* Native select restyle helper: hide the default arrow (Select.tsx draws its own
    chevron) on engines that don't honor `appearance: none` inline. */
 select { background-image: none; }
+
+/* ── Card components ────────────────────────────────────────────────────────── */
+
+.card {
+  border-radius: var(--card-radius);
+  padding: var(--card-padding-y) var(--card-padding-x);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: var(--card-title-size);
+  font-weight: var(--card-title-weight);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.card-field-label {
+  font-size: var(--card-field-label-size);
+  font-weight: var(--card-field-label-weight);
+  letter-spacing: var(--card-field-label-tracking);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.card-row-label {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: var(--card-row-label-size);
+  color: var(--color-text-secondary);
+}
+
+/* ── Segment group (connected multi-button selector) ─────────────────────── */
+
+.segment-group {
+  display: flex;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+}
+
+.segment-btn {
+  font-size: 12px;
+  padding: 5px 8px;
+  background: var(--segment-inactive-bg);
+  color: var(--segment-inactive-color);
+  border: none;
+  cursor: pointer;
+  transition: background 0.08s, color 0.08s;
+  font-family: inherit;
+}
+
+.segment-btn:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.segment-btn.active {
+  background: var(--segment-active-bg);
+  color: var(--segment-active-color);
+}
 
