@@ -387,17 +387,15 @@ function CompactHeadsetCardComponent({ state }: { state: ArctisState }): JSX.Ele
               on={state.btStatus === 'ON'}
               title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
             />
+          </div>
+          {state.micMuted && (
             <span
-              title={state.micMuted ? 'Microphone muted' : 'Microphone active'}
-              style={{
-                color: state.micMuted ? 'var(--color-status-error)' : 'var(--color-status-ok)',
-                display: 'flex',
-                alignItems: 'center',
-              }}
+              title="Microphone muted"
+              style={{ color: 'var(--color-status-error)', display: 'flex', alignItems: 'center' }}
             >
               <MicIcon />
             </span>
-          </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {state.headsetPowered !== false && (
