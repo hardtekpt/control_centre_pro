@@ -3,6 +3,8 @@ import {
   useSonarStore,
   sonarSetVolume,
   sonarSetMute,
+  sonarSelectPreset,
+  sonarSetRedirection,
   sonarRouteProcess,
 } from '../stores/sonarStore'
 import { usePresetSwitcherStore } from '../stores/presetSwitcherStore'
@@ -147,8 +149,20 @@ function MuteGlyph({ muted }: { muted: boolean }): JSX.Element {
 
 // ── Card 2: per-channel settings (preset · output · routed apps) ────────────────
 
+function Labeled({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 56, flexShrink: 0 }}>
+        {label}
+      </span>
+      <div style={{ flex: 1 }}>{children}</div>
+    </div>
+  )
+}
+
 function ChannelsCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
-  // Group routed audio sessions by channel role
+  const activePresetIds = useSonarStore((s) => s.activePresetIds)
+
   const sessionsByRole = useMemo(() => {
     const map: Record<string, SonarAudioSession[]> = {}
     for (const route of sonarState.routing) {
@@ -159,23 +173,54 @@ function ChannelsCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
     return map
   }, [sonarState.routing])
 
-  const activeChannels = DEVICE_CHANNELS.filter((ch) => (sessionsByRole[ch] ?? []).length > 0)
-
   return (
     <Card title="Channels">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {activeChannels.length === 0 ? (
-          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>No active apps</span>
-        ) : (
-          activeChannels.map((ch) => (
+        {DEVICE_CHANNELS.map((ch) => {
+          const favorites = getFavoritesForChannel(sonarState.configs, ch)
+          const activeId = activePresetIds[ch] ?? sonarState.configs.find((c) => c.virtualAudioDevice === ch && c.isSelected)?.id
+          const currentDevice = sonarState.redirections[ch]
+          const activeSessions = sessionsByRole[ch] ?? []
+
+          return (
             <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>
                 {CHANNEL_LABELS[ch]}
               </span>
-              <RoutedApps channel={ch} sessions={sessionsByRole[ch] ?? []} />
+
+              {favorites.length > 0 && (
+                <Labeled label="Preset">
+                  <Select
+                    compact
+                    ariaLabel={`${CHANNEL_LABELS[ch]} preset`}
+                    value={activeId ?? ''}
+                    placeholder="Preset"
+                    onChange={(v) => void sonarSelectPreset(v, ch)}
+                    options={favorites.map((f) => ({ value: f.id, label: f.name }))}
+                  />
+                </Labeled>
+              )}
+
+              {sonarState.audioDevices.length > 0 && (
+                <Labeled label="Output">
+                  <Select
+                    compact
+                    ariaLabel={`${CHANNEL_LABELS[ch]} output`}
+                    value={currentDevice?.id ?? ''}
+                    placeholder="Device"
+                    onChange={(v) => {
+                      const device = sonarState.audioDevices.find((d) => d.id === v)
+                      if (device) void sonarSetRedirection(ch, device)
+                    }}
+                    options={sonarState.audioDevices.map((d) => ({ value: d.id, label: d.name }))}
+                  />
+                </Labeled>
+              )}
+
+              <RoutedApps channel={ch} sessions={activeSessions} />
             </div>
-          ))
-        )}
+          )
+        })}
       </div>
     </Card>
   )

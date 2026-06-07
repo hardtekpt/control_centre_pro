@@ -571,11 +571,22 @@ function DisplayCard({ monitor }: { monitor: DdcMonitor }): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* Monitor name + primary tag */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{monitor.name}</span>
+      {/* Monitor name + primary tag + input selector on same row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>{monitor.name}</span>
         {monitor.is_primary && (
           <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Primary</span>
+        )}
+        {supportsInput && (
+          <div style={{ width: 130 }}>
+            <Select
+              compact
+              ariaLabel={`${monitor.name} input`}
+              value={monitor.input_source}
+              onChange={(v) => void post('/api/ddc/input', { monitorId: monitor.monitor_id, input: v })}
+              options={monitor.available_inputs.map((inp) => ({ value: inp, label: DDC_INPUT_NAMES[inp] ?? inp }))}
+            />
+          </div>
         )}
       </div>
       {supportsBrightness && (
@@ -594,20 +605,6 @@ function DisplayCard({ monitor }: { monitor: DdcMonitor }): JSX.Element {
           <span style={{ fontSize: 12, color: 'var(--color-text-primary)', minWidth: 32, textAlign: 'right' }}>
             {monitor.brightness}%
           </span>
-        </div>
-      )}
-      {supportsInput && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 72 }}>Input</span>
-          <div style={{ flex: 1 }}>
-            <Select
-              compact
-              ariaLabel={`${monitor.name} input`}
-              value={monitor.input_source}
-              onChange={(v) => void post('/api/ddc/input', { monitorId: monitor.monitor_id, input: v })}
-              options={monitor.available_inputs.map((inp) => ({ value: inp, label: DDC_INPUT_NAMES[inp] ?? inp }))}
-            />
-          </div>
         </div>
       )}
     </div>
