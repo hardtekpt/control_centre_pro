@@ -7,7 +7,7 @@ import { useHaStore } from '../stores/haStore'
 import { post } from '../api/http'
 import { Card } from '../components/Card'
 import { Select } from '../components/Select'
-import { WifiIcon, BluetoothIcon, PowerIcon, AudioWaveIcon, LinkIcon } from '../components/icons'
+import { WifiIcon, BluetoothIcon, PowerIcon, AudioWaveIcon, LinkIcon, MicIcon } from '../components/icons'
 import type { ArctisState, SonarChannel, SonarConfig, DdcMonitor, DiscordParticipant, HaHomeCardEntity, HaEntity } from '@shared/types'
 import { DDC_INPUT_NAMES } from '@shared/types'
 
@@ -386,6 +386,10 @@ function ArctisCard({ arctis }: { arctis: ArctisState }): JSX.Element {
           <PowerIcon
             color={arctis.headsetPowered === true ? 'var(--color-ok)' : 'var(--color-text-secondary)'}
             title="Power"
+          />
+          <MicIcon
+            color={arctis.micMuted ? 'var(--color-warn)' : 'var(--color-ok)'}
+            title={arctis.micMuted ? 'Mic muted' : 'Mic active'}
           />
         </div>
       </div>

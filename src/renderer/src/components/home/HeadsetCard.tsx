@@ -245,6 +245,17 @@ function VolumeLimiterIcon(): JSX.Element {
   )
 }
 
+function MicIcon(): JSX.Element {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  )
+}
+
 function ConnectivityIcon({
   icon,
   active,
@@ -318,6 +329,24 @@ function VolumeLimiterIndicator({ on }: { on: boolean }): JSX.Element {
       }}
     >
       <VolumeLimiterIcon />
+    </div>
+  )
+}
+
+// ─── Mic mute indicator ───────────────────────────────────────────────────────
+
+function MicMuteIndicator({ muted }: { muted: boolean }): JSX.Element {
+  return (
+    <div
+      title={muted ? 'Microphone muted' : 'Microphone active'}
+      className="w-5 h-5 rounded flex items-center justify-center"
+      style={{
+        background: muted ? 'var(--color-status-error-bg)' : 'var(--color-status-ok-bg)',
+        border: `1px solid ${muted ? 'var(--color-status-error)' : 'var(--color-status-ok)'}`,
+        color: muted ? 'var(--color-status-error)' : 'var(--color-status-ok)',
+      }}
+    >
+      <MicIcon />
     </div>
   )
 }
@@ -531,6 +560,7 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
               </div>
               <SonarIndicator connected={state.sonarConnected} />
               <VolumeLimiterIndicator on={state.volumeLimiterOn} />
+              <MicMuteIndicator muted={state.micMuted} />
               <UsbInputTag
                 value={state.usbInput}
                 onChange={(v) => cmd('setUsbInput', v, { usbInput: v })}
