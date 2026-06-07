@@ -5,6 +5,9 @@ import { useSonarStore, sonarSetVolume, sonarSetMute, sonarSelectPreset } from '
 import { useDiscordStore } from '../stores/discordStore'
 import { useHaStore } from '../stores/haStore'
 import { post } from '../api/http'
+import { Card } from '../components/Card'
+import { Select } from '../components/Select'
+import { WifiIcon, BluetoothIcon, PowerIcon, AudioWaveIcon, LinkIcon } from '../components/icons'
 import type { ArctisState, SonarChannel, SonarConfig, DdcMonitor, DiscordParticipant, HaHomeCardEntity, HaEntity } from '@shared/types'
 import { DDC_INPUT_NAMES } from '@shared/types'
 
@@ -69,22 +72,22 @@ export function Home(): JSX.Element {
         )}
       </Card>
 
-      {/* ── Discord card ── */}
-      <Card title="Discord">
-        <DiscordCard discordState={discordState} />
-      </Card>
+      {/* ── Discord card (hidden unless Discord is running) ── */}
+      {discordState?.available && (
+        <Card title="Discord">
+          <DiscordCard discordState={discordState} />
+        </Card>
+      )}
 
-      {/* ── Display cards ── */}
+      {/* ── Display card (all monitors combined) ── */}
       {ddcMonitors.length > 0 && (
-        <>
+        <Card title="Display" bodyStyle={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[...ddcMonitors]
             .sort((a, b) => (a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1))
             .map((m) => (
-              <Card key={m.monitor_id} title={m.name}>
-                <DisplayCard monitor={m} />
-              </Card>
+              <DisplayCard key={m.monitor_id} monitor={m} />
             ))}
-        </>
+        </Card>
       )}
 
       {/* ── Home Assistant card ── */}
@@ -102,7 +105,7 @@ function DiscordCard({ discordState }: { discordState: ReturnType<typeof useDisc
   if (!connected) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <StatusDot color="var(--color-text-secondary)" title="Not connected" />
+        <LinkIcon color="var(--color-text-secondary)" size={14} title="Not connected" />
         <span style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
           {discordState?.error ?? 'Not connected'}
         </span>
@@ -121,7 +124,7 @@ function DiscordCard({ discordState }: { discordState: ReturnType<typeof useDisc
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* Status row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <StatusDot color="var(--color-ok)" title="Connected" />
+        <LinkIcon color="var(--color-ok)" size={14} title="Connected" />
         {channelName && (
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{channelName}</span>
         )}
@@ -363,10 +366,10 @@ function ArctisCard({ arctis }: { arctis: ArctisState }): JSX.Element {
             </span>
           </>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
-          <StatusDot color={arctis.wirelessConnected ? 'var(--color-ok)' : 'var(--color-text-secondary)'} title="2.4 GHz" />
-          <StatusDot color={btColor} title={`BT: ${arctis.btStatus}`} />
-          <StatusDot
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+          <WifiIcon color={arctis.wirelessConnected ? 'var(--color-ok)' : 'var(--color-text-secondary)'} title="2.4 GHz" />
+          <BluetoothIcon color={btColor} title={`BT: ${arctis.btStatus}`} />
+          <PowerIcon
             color={arctis.headsetPowered === true ? 'var(--color-ok)' : 'var(--color-text-secondary)'}
             title="Power"
           />
@@ -426,16 +429,14 @@ function SonarCard({
   const configs = sonarState.configs
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* Header: mode chip */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Header: active indicator */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <StatusDot color="var(--color-ok)" title="Active" />
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-          {sonarState.mode === 'classic' ? 'Classic' : 'Streamer'}
-        </span>
+        <AudioWaveIcon color="var(--color-ok)" size={14} title="Active" />
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Active</span>
       </div>
 
-      {/* Channel rows */}
+      {/* Channel blocks — slider on its own row, controls below */}
       {classic && CHANNEL_ORDER.map((ch) => {
         const vol = ch === 'master'
           ? classic.masters.classic
@@ -447,10 +448,8 @@ function SonarCard({
         const activeId = activePresetIds[device] ?? configs.find(c => c.virtualAudioDevice === device && c.isSelected)?.id
 
         return (
-          <div key={ch} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>
-              {CHANNEL_LABELS[ch]}
-            </span>
+          <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* Row 1: volume slider only */}
             <input
               type="range"
               min={0}
@@ -462,58 +461,54 @@ function SonarCard({
               onMouseUp={endDrag}
               onTouchEnd={endDrag}
               style={{
-                flex: 1,
+                width: '100%',
                 accentColor: vol.muted ? 'var(--color-text-secondary)' : 'var(--color-accent)',
                 cursor: 'pointer',
                 opacity: vol.muted ? 0.5 : 1,
               }}
             />
-            <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 32, textAlign: 'right' }}>
-              {Math.round(vol.volume * 100)}%
-            </span>
-            <button
-              onClick={() => void sonarSetMute(ch, !vol.muted)}
-              title={vol.muted ? 'Unmute' : 'Mute'}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 4,
-                border: '1px solid var(--color-border)',
-                background: vol.muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                color: vol.muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
-                fontSize: 10,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              M
-            </button>
-            {favorites.length > 0 && (
-              <select
-                value={activeId ?? ''}
-                onChange={(e) => void sonarSelectPreset(e.target.value, device)}
+            {/* Row 2: label · % · mute · preset */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>
+                {CHANNEL_LABELS[ch]}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 34 }}>
+                {Math.round(vol.volume * 100)}%
+              </span>
+              <button
+                onClick={() => void sonarSetMute(ch, !vol.muted)}
+                title={vol.muted ? 'Unmute' : 'Mute'}
                 style={{
-                  fontSize: 10,
-                  background: 'var(--color-surface-raised)',
-                  color: 'var(--color-text-primary)',
+                  width: 30,
+                  height: 30,
+                  borderRadius: 6,
                   border: '1px solid var(--color-border)',
-                  borderRadius: 4,
-                  padding: '2px 4px',
+                  background: vol.muted ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                  color: vol.muted ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                  fontSize: 11,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
-                  maxWidth: 80,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
-                <option value="" disabled>Preset</option>
-                {favorites.map((f) => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
-                ))}
-              </select>
-            )}
+                M
+              </button>
+              {favorites.length > 0 && (
+                <div style={{ marginLeft: 'auto', maxWidth: 160, flex: 1 }}>
+                  <Select
+                    compact
+                    ariaLabel={`${CHANNEL_LABELS[ch]} preset`}
+                    value={activeId ?? ''}
+                    placeholder="Preset"
+                    onChange={(v) => void sonarSelectPreset(v, device)}
+                    options={favorites.map((f) => ({ value: f.id, label: f.name }))}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )
       })}
@@ -529,9 +524,13 @@ function DisplayCard({ monitor }: { monitor: DdcMonitor }): JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {monitor.is_primary && (
-        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Primary</span>
-      )}
+      {/* Monitor name + primary tag */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{monitor.name}</span>
+        {monitor.is_primary && (
+          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Primary</span>
+        )}
+      </div>
       {supportsBrightness && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 72 }}>Brightness</span>
@@ -553,29 +552,15 @@ function DisplayCard({ monitor }: { monitor: DdcMonitor }): JSX.Element {
       {supportsInput && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 72 }}>Input</span>
-          <select
-            value={monitor.input_source}
-            onChange={(e) => {
-              void post('/api/ddc/input', { monitorId: monitor.monitor_id, input: e.target.value })
-            }}
-            style={{
-              flex: 1,
-              fontSize: 12,
-              background: 'var(--color-surface-raised)',
-              color: 'var(--color-text-primary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 4,
-              padding: '3px 6px',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {monitor.available_inputs.map((inp) => (
-              <option key={inp} value={inp}>
-                {DDC_INPUT_NAMES[inp] ?? inp}
-              </option>
-            ))}
-          </select>
+          <div style={{ flex: 1 }}>
+            <Select
+              compact
+              ariaLabel={`${monitor.name} input`}
+              value={monitor.input_source}
+              onChange={(v) => void post('/api/ddc/input', { monitorId: monitor.monitor_id, input: v })}
+              options={monitor.available_inputs.map((inp) => ({ value: inp, label: DDC_INPUT_NAMES[inp] ?? inp }))}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -601,33 +586,6 @@ function capitalize(s: string): string {
 
 // ── Reusable primitives ───────────────────────────────────────────────────────
 
-function Card({ title, children }: { title: string; children: React.ReactNode }): JSX.Element {
-  return (
-    <div
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 8,
-        padding: '12px 14px',
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: 'var(--color-text-secondary)',
-          marginBottom: 10,
-        }}
-      >
-        {title}
-      </div>
-      {children}
-    </div>
-  )
-}
-
 function BatterySegments({ value }: { value: number }): JSX.Element {
   const segments = 4
   const filled = Math.round((value / 100) * segments)
@@ -647,21 +605,6 @@ function BatterySegments({ value }: { value: number }): JSX.Element {
         />
       ))}
     </div>
-  )
-}
-
-function StatusDot({ color, title }: { color: string; title: string }): JSX.Element {
-  return (
-    <div
-      title={title}
-      style={{
-        width: 7,
-        height: 7,
-        borderRadius: '50%',
-        background: color,
-        flexShrink: 0,
-      }}
-    />
   )
 }
 
@@ -1041,7 +984,9 @@ function HaCard({ haState, cardEntities }: { haState: ReturnType<typeof useHaSto
           <polyline points="9 22 9 12 15 12 15 22" />
         </svg>
         <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>Home Assistant</span>
-        <div title={isConnected ? 'Connected' : 'Disconnected'} style={{ width: 6, height: 6, borderRadius: '50%', background: isConnected ? 'var(--color-status-ok)' : 'var(--color-text-secondary)', opacity: isConnected ? 1 : 0.4, flexShrink: 0 }} />
+        <span style={{ marginLeft: 'auto', display: 'flex' }}>
+          <LinkIcon color={isConnected ? 'var(--color-ok)' : 'var(--color-text-secondary)'} size={14} title={isConnected ? 'Connected' : 'Disconnected'} />
+        </span>
       </div>
       {favourites.length > 0 && <HaFavouritesRow cfgs={favourites} entities={liveEntities} />}
       <div>

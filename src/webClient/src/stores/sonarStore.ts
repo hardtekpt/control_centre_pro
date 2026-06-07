@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { SonarState, SonarChannel, SonarAudioDevice, SonarDeviceChannel, SonarChannelVolume } from '@shared/types'
+import type { SonarState, SonarChannel, SonarAudioDevice, SonarDeviceChannel, SonarChannelVolume, SonarAudioSession } from '@shared/types'
 import { get, post } from '../api/http'
 
 // Module-level drag tracking (same pattern as renderer store)
@@ -13,6 +13,7 @@ interface SonarStoreState {
   setSonarState: (state: SonarState) => void
   patchClassicVolume: (channel: SonarChannel, patch: Partial<SonarChannelVolume>) => void
   patchRedirection: (channel: SonarDeviceChannel, device: SonarAudioDevice) => void
+  patchRouting: (processId: number, toChannel: string) => void
   setActivePreset: (virtualAudioDevice: string, presetId: string) => void
   fetchSonarState: () => Promise<void>
   beginDrag: () => void
@@ -78,6 +79,31 @@ export const useSonarStore = create<SonarStoreState>((set) => ({
       }
     }),
 
+  patchRouting: (processId, toChannel) =>
+    set((s) => {
+      if (!s.sonarState) return s
+      // Find the session to move
+      let session: SonarAudioSession | undefined
+      for (const route of s.sonarState.routing) {
+        session = route.audioSessions.find((ss) => ss.processId === processId)
+        if (session) break
+      }
+      if (!session) return s
+      // Remove it from all routes, then add to the route matching the target role
+      const newRouting = s.sonarState.routing.map((r) => ({
+        ...r,
+        audioSessions: r.audioSessions.filter((ss) => ss.processId !== processId),
+      }))
+      const targetIdx = newRouting.findIndex((r) => r.role === toChannel)
+      if (targetIdx >= 0) {
+        newRouting[targetIdx] = {
+          ...newRouting[targetIdx],
+          audioSessions: [...newRouting[targetIdx].audioSessions, session],
+        }
+      }
+      return { sonarState: { ...s.sonarState, routing: newRouting } }
+    }),
+
   setActivePreset: (virtualAudioDevice, presetId) =>
     set((s) => ({ activePresetIds: { ...s.activePresetIds, [virtualAudioDevice]: presetId } })),
 
@@ -119,4 +145,14 @@ export async function sonarSelectPreset(presetId: string, virtualAudioDevice: st
 
 export async function sonarSetMode(mode: string): Promise<void> {
   await post('/api/sonar/mode', { mode })
+}
+
+export async function sonarSetRedirection(channel: SonarDeviceChannel, device: SonarAudioDevice): Promise<void> {
+  useSonarStore.getState().patchRedirection(channel, device)
+  await post('/api/sonar/redirection', { channel, deviceId: device.id })
+}
+
+export async function sonarRouteProcess(processId: number, targetChannel: string): Promise<void> {
+  useSonarStore.getState().patchRouting(processId, targetChannel)
+  await post('/api/sonar/route', { processId, targetChannel })
 }

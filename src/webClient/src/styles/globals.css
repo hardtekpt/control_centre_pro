@@ -106,3 +106,17 @@ body {
     height: 28px !important;
   }
 }
+
+/* Larger native range tracks/thumbs on touch devices for easier dragging. */
+@media (pointer: coarse) {
+  input[type="range"] { height: 28px; }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Native select restyle helper: hide the default arrow (Select.tsx draws its own
+   chevron) on engines that don't honor `appearance: none` inline. */
+select { background-image: none; }
+

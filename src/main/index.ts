@@ -5,7 +5,7 @@ import { spawn } from 'child_process'
 import { randomBytes } from 'crypto'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, OpenApp, AppSettings, DdcMonitor, SerializedNotification, Shortcut } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, AppSettings, DdcMonitor, SerializedNotification, Shortcut } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
@@ -17,6 +17,37 @@ import { HomeAssistantService } from './services/homeAssistantService'
 import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
 import { HttpApiServer } from './httpApiServer'
+import { readRules, writeRules, readEnabled, writeEnabled, getOpenApps } from './services/presetSwitcherStore'
+
+/** Assemble the dependency bundle the remote HTTP server needs. Shared by the
+ *  boot path and the settings-toggle path so the two stay in sync. */
+function buildServerDeps(): ConstructorParameters<typeof HttpApiServer>[0] {
+  return {
+    serviceManager,
+    sonarService,
+    ddcService,
+    discordService,
+    haService,
+    getHaCardConfig: () => {
+      const s = loadAppSettings()
+      return { cardEntities: s.haHomeCardEntities ?? [], cardEnabled: s.haHomeCardEnabled ?? false }
+    },
+    getPresetSwitcherRules: readRules,
+    setPresetSwitcherRules: (rules) => {
+      writeRules(rules)
+      activeWindowMonitor?.setRules(rules)
+    },
+    getPresetSwitcherEnabled: readEnabled,
+    setPresetSwitcherEnabled: (enabled) => {
+      writeEnabled(enabled)
+      activeWindowMonitor?.setEnabled(enabled)
+      mainWindow?.webContents.send(IPC_CHANNELS.PRESET_SWITCHER_ENABLED_CHANGE, enabled)
+      httpApiServer?.broadcast('presetSwitcher:enabledChange', enabled)
+    },
+    getOpenApps,
+    getActiveProcessName: () => activeWindowMonitor?.getCurrentProcessName() ?? '',
+  }
+}
 
 const settingsFilePath = join(app.getPath('userData'), 'settings.json')
 function loadAppSettings(): AppSettings {
@@ -507,15 +538,17 @@ function registerIpcHandlers(): void {
       httpApiServer = null
       serviceManager.setWsBroadcast(null)
       ddcService.setWsBroadcast(null)
+      activeWindowMonitor?.setWsBroadcast(null)
       if (settings.remoteEnabled) {
         const ready = ensureValidRemoteToken(settings)
         settings = ready
-        httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService, haService, getHaCardConfig: () => { const s = loadAppSettings(); return { cardEntities: s.haHomeCardEntities ?? [], cardEnabled: s.haHomeCardEnabled ?? false } } })
+        httpApiServer = new HttpApiServer(buildServerDeps())
         httpApiServer.setAuthToken(ready.remoteAuthToken, ready.remoteTokenExpiresAt)
         httpApiServer.start(ready.remotePort ?? 8080)
         const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
         serviceManager.setWsBroadcast(broadcast)
         ddcService.setWsBroadcast(broadcast)
+        activeWindowMonitor?.setWsBroadcast(broadcast)
       }
     } else if (httpApiServer && (durationChanged || prevSettings.remoteAuthToken !== settings.remoteAuthToken)) {
       // Server still running but token rotated — push the new token in-place.
@@ -720,55 +753,13 @@ function registerIpcHandlers(): void {
     openSteelSeriesGG()
   )
 
-  ipcMain.handle(IPC_CHANNELS.ACTIVE_WINDOW_GET_OPEN_APPS, async () => {
-    try {
-      const script = `Get-Process | Where-Object { $_.MainWindowTitle -ne '' } | Select-Object -Unique Name, MainWindowTitle | ConvertTo-Json`
-      const { execSync } = await import('child_process')
-      const result = execSync(`powershell -NoProfile -Command "${script}"`, {
-        encoding: 'utf-8',
-      })
-      const procs = JSON.parse(result) as Array<{ Name: string; MainWindowTitle: string }>
-      return (Array.isArray(procs) ? procs : [procs])
-        .map((p) => ({
-          processName: p.Name,
-          displayName: p.Name,
-        }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName))
-    } catch (err) {
-      console.error('[getOpenApps] error:', err)
-      return [] as OpenApp[]
-    }
-  })
+  ipcMain.handle(IPC_CHANNELS.ACTIVE_WINDOW_GET_OPEN_APPS, () => getOpenApps())
 
-  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_RULES, () => {
-    try {
-      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-      if (!existsSync(rulesPath)) return []
-      const content = readFileSync(rulesPath, 'utf-8')
-      const data = JSON.parse(content)
-      return (Array.isArray(data) ? data : data.rules || []) as PresetSwitcherRule[]
-    } catch (err) {
-      console.error('[getRules] error:', err)
-      return [] as PresetSwitcherRule[]
-    }
-  })
+  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_RULES, () => readRules())
 
   ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_SET_RULES, (_, rules: PresetSwitcherRule[]) => {
     try {
-      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-      let data: Record<string, unknown> = {}
-      if (existsSync(rulesPath)) {
-        const content = readFileSync(rulesPath, 'utf-8')
-        const parsed = JSON.parse(content)
-        // Handle both old format (array) and new format (object)
-        if (Array.isArray(parsed)) {
-          data = { enabled: true }  // Old array format, preserve default enabled state
-        } else {
-          data = parsed as Record<string, unknown>
-        }
-      }
-      data.rules = rules
-      writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
+      writeRules(rules)
       activeWindowMonitor?.setRules(rules)
     } catch (err) {
       console.error('[setRules] error:', err)
@@ -776,42 +767,14 @@ function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_ENABLED, () => {
-    try {
-      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-      if (!existsSync(rulesPath)) return true
-      const content = readFileSync(rulesPath, 'utf-8')
-      const parsed = JSON.parse(content)
-
-      // Handle both old format (array) and new format (object with rules)
-      if (Array.isArray(parsed)) {
-        return true  // Old format defaults to enabled
-      }
-      return (parsed as Record<string, unknown>).enabled !== false
-    } catch (err) {
-      console.error('[getEnabled] error:', err)
-      return true
-    }
-  })
+  ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_GET_ENABLED, () => readEnabled())
 
   ipcMain.handle(IPC_CHANNELS.PRESET_SWITCHER_SET_ENABLED, (_, enabled: boolean) => {
     try {
-      const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-      const content = existsSync(rulesPath) ? readFileSync(rulesPath, 'utf-8') : '{}'
-      const parsed = JSON.parse(content)
-
-      // Handle both old format (array) and new format (object with rules)
-      let data: Record<string, unknown>
-      if (Array.isArray(parsed)) {
-        data = { rules: parsed, enabled }
-      } else {
-        data = parsed as Record<string, unknown>
-        data.enabled = enabled
-      }
-
-      writeFileSync(rulesPath, JSON.stringify(data, null, 2), 'utf-8')
+      writeEnabled(enabled)
       activeWindowMonitor?.setEnabled(enabled)
       mainWindow?.webContents.send(IPC_CHANNELS.PRESET_SWITCHER_ENABLED_CHANGE, enabled)
+      httpApiServer?.broadcast('presetSwitcher:enabledChange', enabled)
     } catch (err) {
       console.error('[setEnabled] error:', err)
       throw err
@@ -1120,7 +1083,7 @@ app.whenReady().then(() => {
   let bootSettings = loadAppSettings()
   if (bootSettings.remoteEnabled) {
     bootSettings = ensureValidRemoteToken(bootSettings)
-    httpApiServer = new HttpApiServer({ serviceManager, sonarService, ddcService, discordService, haService, getHaCardConfig: () => { const s = loadAppSettings(); return { cardEntities: s.haHomeCardEntities ?? [], cardEnabled: s.haHomeCardEnabled ?? false } } })
+    httpApiServer = new HttpApiServer(buildServerDeps())
     httpApiServer.setAuthToken(bootSettings.remoteAuthToken, bootSettings.remoteTokenExpiresAt)
     httpApiServer.start(bootSettings.remotePort ?? 8080)
     const broadcast = (type: string, payload: unknown): void => httpApiServer?.broadcast(type, payload)
@@ -1141,17 +1104,12 @@ app.whenReady().then(() => {
   activeWindowMonitor.setMonitorInputHandler((monitorId, inputValue) => {
     ddcService.setInputSource(monitorId, inputValue)
   })
-  try {
-    const rulesPath = join(app.getPath('userData'), 'preset-switcher.json')
-    if (existsSync(rulesPath)) {
-      const content = readFileSync(rulesPath, 'utf-8')
-      const data = JSON.parse(content)
-      const rules = (Array.isArray(data) ? data : data.rules || []) as PresetSwitcherRule[]
-      activeWindowMonitor.setRules(rules)
-      activeWindowMonitor.setEnabled(data.enabled !== false)
-    }
-  } catch (err) {
-    console.error('[app init] failed to load preset switcher rules:', err)
+  activeWindowMonitor.setRules(readRules())
+  activeWindowMonitor.setEnabled(readEnabled())
+  // If the remote server is already running (boot path), wire foreground-app
+  // broadcasts now that the monitor exists.
+  if (httpApiServer) {
+    activeWindowMonitor.setWsBroadcast((type, payload) => httpApiServer?.broadcast(type, payload))
   }
   activeWindowMonitor.start()
 

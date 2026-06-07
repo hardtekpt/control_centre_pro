@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useWebSocket } from './api/websocket'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
+import { usePresetSwitcherStore } from './stores/presetSwitcherStore'
 import { useDiscordStore } from './stores/discordStore'
 import { useHaStore } from './stores/haStore'
 import { Home } from './pages/Home'
@@ -9,7 +10,8 @@ import { Arctis } from './pages/Arctis'
 import { Sonar } from './pages/Sonar'
 import { getAuthToken, onAuthFailed } from './api/auth'
 import { get } from './api/http'
-import type { ArctisState, SonarState, DdcMonitor, DiscordState, HaState, HaHomeCardEntity } from '@shared/types'
+import { LinkIcon } from './components/icons'
+import type { ArctisState, SonarState, DdcMonitor, DiscordState, HaState, HaHomeCardEntity, PresetSwitcherRule } from '@shared/types'
 
 type Tab = 'home' | 'arctis' | 'sonar'
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected'
@@ -44,12 +46,14 @@ export function App(): JSX.Element {
   const setHaState = useHaStore((s) => s.setHaState)
 
   const handleInit = useCallback((payload: unknown) => {
-    const { arctis, sonar, ddc, discord, ha } = payload as {
+    const { arctis, sonar, ddc, discord, ha, presetSwitcher, activeWindow } = payload as {
       arctis: ArctisState | null
       sonar: SonarState | null
       ddc?: DdcMonitor[]
       discord?: DiscordState
       ha?: { state: HaState; cardEntities: HaHomeCardEntity[]; cardEnabled: boolean }
+      presetSwitcher?: { rules: PresetSwitcherRule[]; enabled: boolean }
+      activeWindow?: { processName: string }
     }
     if (arctis) {
       setArctisConnected(arctis)
@@ -67,6 +71,12 @@ export function App(): JSX.Element {
     }
     if (ha) {
       setHaData(ha.state, ha.cardEntities, ha.cardEnabled)
+    }
+    if (presetSwitcher) {
+      usePresetSwitcherStore.getState().initFromSnapshot(presetSwitcher.rules, presetSwitcher.enabled)
+    }
+    if (activeWindow) {
+      usePresetSwitcherStore.getState().setActiveProcessName(activeWindow.processName)
     }
   }, [setArctisConnected, setArctisDisconnected, setDdcMonitors, setDiscordState, setHaData])
 
@@ -99,6 +109,15 @@ export function App(): JSX.Element {
     setDdcMonitors(payload as DdcMonitor[])
   }, [setDdcMonitors])
 
+  const handleActiveWindowChange = useCallback((payload: unknown) => {
+    const { processName } = payload as { processName: string }
+    usePresetSwitcherStore.getState().setActiveProcessName(processName)
+  }, [])
+
+  const handlePresetSwitcherEnabledChange = useCallback((payload: unknown) => {
+    usePresetSwitcherStore.getState().setEnabledFromWs(payload as boolean)
+  }, [])
+
   useWebSocket({
     handlers: {
       'init': handleInit,
@@ -109,21 +128,18 @@ export function App(): JSX.Element {
       'ddc:update': handleDdcUpdate,
       'discord:stateChange': handleDiscordStateChange,
       'ha:stateChange': handleHaStateChange,
+      'activeWindow:change': handleActiveWindowChange,
+      'presetSwitcher:enabledChange': handlePresetSwitcherEnabledChange,
     },
     onStatusChange: setWsStatus,
   })
 
-  const dotStyle: React.CSSProperties = {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background:
-      wsStatus === 'connected'
-        ? 'var(--color-ok)'
-        : wsStatus === 'reconnecting'
-          ? 'var(--color-warn)'
-          : 'var(--color-text-secondary)',
-  }
+  const wsColor =
+    wsStatus === 'connected'
+      ? 'var(--color-ok)'
+      : wsStatus === 'reconnecting'
+        ? 'var(--color-warn)'
+        : 'var(--color-text-secondary)'
 
   if (unauthorized) {
     return (
@@ -188,9 +204,9 @@ export function App(): JSX.Element {
         fontSize: 14,
       }}
     >
-      {/* Connection status dot — fixed top right */}
-      <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
-        <div style={dotStyle} title={wsStatus} />
+      {/* Connection status icon — fixed top right */}
+      <div style={{ position: 'fixed', top: 10, right: 14, zIndex: 100, display: 'flex' }}>
+        <LinkIcon color={wsColor} size={16} title={wsStatus} />
       </div>
 
       {/* Page content */}

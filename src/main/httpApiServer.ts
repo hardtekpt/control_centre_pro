@@ -10,7 +10,7 @@ import type { SonarService } from './services/sonarService'
 import type { DdcService } from './services/apis/ddc/service'
 import type { DiscordService } from './services/discordService'
 import type { HomeAssistantService } from './services/homeAssistantService'
-import type { SonarChannel, SonarMode, HaHomeCardEntity } from '../shared/types'
+import type { SonarChannel, SonarMode, SonarDeviceChannel, HaHomeCardEntity, PresetSwitcherRule } from '../shared/types'
 
 interface ServerDeps {
   serviceManager: ServiceManager
@@ -19,6 +19,13 @@ interface ServerDeps {
   discordService: DiscordService
   haService: HomeAssistantService
   getHaCardConfig: () => { cardEntities: HaHomeCardEntity[]; cardEnabled: boolean }
+  // Preset switcher (shared with the desktop IPC handlers via presetSwitcherStore)
+  getPresetSwitcherRules: () => PresetSwitcherRule[]
+  setPresetSwitcherRules: (rules: PresetSwitcherRule[]) => void
+  getPresetSwitcherEnabled: () => boolean
+  setPresetSwitcherEnabled: (enabled: boolean) => void
+  getOpenApps: () => Array<{ processName: string; displayName: string }>
+  getActiveProcessName: () => string
 }
 
 function getLanIp(): string {
@@ -117,7 +124,12 @@ export class HttpApiServer {
       const discord = this.deps.discordService.getState()
       const { cardEntities, cardEnabled } = this.deps.getHaCardConfig()
       const ha = { state: this.deps.haService.getState(), cardEntities, cardEnabled }
-      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord, ha } }))
+      const presetSwitcher = {
+        rules: this.deps.getPresetSwitcherRules(),
+        enabled: this.deps.getPresetSwitcherEnabled(),
+      }
+      const activeWindow = { processName: this.deps.getActiveProcessName() }
+      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord, ha, presetSwitcher, activeWindow } }))
       ws.on('close', () => this.clients.delete(ws))
       ws.on('error', () => this.clients.delete(ws))
     })
@@ -327,6 +339,58 @@ export class HttpApiServer {
       try {
         const body = await readBody(req)
         await this.deps.sonarService.setMode(body.mode as SonarMode)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/sonar/redirection' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.sonarService.setRedirection(body.channel as SonarDeviceChannel, body.deviceId as string)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/sonar/route' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        await this.deps.sonarService.routeProcess(body.processId as number, body.targetChannel as string)
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/sonar/openapps' && method === 'GET') {
+      return jsonResponse(res, 200, this.deps.getOpenApps())
+    }
+
+    if (path === '/api/presetswitcher/rules' && method === 'GET') {
+      return jsonResponse(res, 200, this.deps.getPresetSwitcherRules())
+    }
+
+    if (path === '/api/presetswitcher/rules' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        this.deps.setPresetSwitcherRules(body.rules as PresetSwitcherRule[])
+        return jsonResponse(res, 200, { ok: true })
+      } catch {
+        return jsonResponse(res, 400, { error: 'Bad request' })
+      }
+    }
+
+    if (path === '/api/presetswitcher/enabled' && method === 'GET') {
+      return jsonResponse(res, 200, { enabled: this.deps.getPresetSwitcherEnabled() })
+    }
+
+    if (path === '/api/presetswitcher/enabled' && method === 'POST') {
+      try {
+        const body = await readBody(req)
+        this.deps.setPresetSwitcherEnabled(body.enabled as boolean)
         return jsonResponse(res, 200, { ok: true })
       } catch {
         return jsonResponse(res, 400, { error: 'Bad request' })

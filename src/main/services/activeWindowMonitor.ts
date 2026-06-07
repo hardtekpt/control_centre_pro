@@ -17,6 +17,7 @@ export class ActiveWindowMonitor {
   private appliedMonitorRules = new Set<string>()
   private enabled = true
   private applyMonitorInput: ((monitorId: number, inputValue: string) => void) | null = null
+  private wsBroadcast: ((type: string, payload: unknown) => void) | null = null
 
   constructor(
     private window: BrowserWindow,
@@ -25,6 +26,16 @@ export class ActiveWindowMonitor {
 
   setMonitorInputHandler(handler: (monitorId: number, inputValue: string) => void): void {
     this.applyMonitorInput = handler
+  }
+
+  /** Wire (or clear) the remote web-client broadcast so foreground-app changes
+   *  reach phone clients as well as the desktop renderer. */
+  setWsBroadcast(fn: ((type: string, payload: unknown) => void) | null): void {
+    this.wsBroadcast = fn
+  }
+
+  getCurrentProcessName(): string {
+    return this.currentProcessName
   }
 
   start(): void {
@@ -117,6 +128,7 @@ while ($true) {
     this.window.webContents.send(IPC_CHANNELS.ACTIVE_WINDOW_CHANGE, {
       processName,
     })
+    this.wsBroadcast?.('activeWindow:change', { processName })
 
     if (!this.enabled) return
 
