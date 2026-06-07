@@ -46,6 +46,10 @@ function buildServerDeps(): ConstructorParameters<typeof HttpApiServer>[0] {
     },
     getOpenApps,
     getActiveProcessName: () => activeWindowMonitor?.getCurrentProcessName() ?? '',
+    getThemeSettings: () => {
+      const s = loadAppSettings()
+      return { theme: s.theme ?? '', accentColor: s.accentColor ?? '', highlightColor: s.highlightColor ?? '' }
+    },
   }
 }
 

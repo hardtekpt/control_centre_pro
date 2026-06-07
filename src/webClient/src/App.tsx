@@ -46,7 +46,7 @@ export function App(): JSX.Element {
   const setHaState = useHaStore((s) => s.setHaState)
 
   const handleInit = useCallback((payload: unknown) => {
-    const { arctis, sonar, ddc, discord, ha, presetSwitcher, activeWindow } = payload as {
+    const { arctis, sonar, ddc, discord, ha, presetSwitcher, activeWindow, theme } = payload as {
       arctis: ArctisState | null
       sonar: SonarState | null
       ddc?: DdcMonitor[]
@@ -54,6 +54,18 @@ export function App(): JSX.Element {
       ha?: { state: HaState; cardEntities: HaHomeCardEntity[]; cardEnabled: boolean }
       presetSwitcher?: { rules: PresetSwitcherRule[]; enabled: boolean }
       activeWindow?: { processName: string }
+      theme?: { theme: string; accentColor: string; highlightColor: string }
+    }
+    if (theme) {
+      const root = document.documentElement
+      if (theme.highlightColor) {
+        root.style.setProperty('--color-highlight', theme.highlightColor)
+        const r = parseInt(theme.highlightColor.slice(1, 3), 16)
+        const g = parseInt(theme.highlightColor.slice(3, 5), 16)
+        const b = parseInt(theme.highlightColor.slice(5, 7), 16)
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        root.style.setProperty('--color-on-highlight', lum > 0.5 ? '#141414' : '#EBEBEB')
+      }
     }
     if (arctis) {
       setArctisConnected(arctis)

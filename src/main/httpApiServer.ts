@@ -26,6 +26,7 @@ interface ServerDeps {
   setPresetSwitcherEnabled: (enabled: boolean) => void
   getOpenApps: () => Array<{ processName: string; displayName: string }>
   getActiveProcessName: () => string
+  getThemeSettings: () => { theme: string; accentColor: string; highlightColor: string }
 }
 
 function getLanIp(): string {
@@ -129,7 +130,8 @@ export class HttpApiServer {
         enabled: this.deps.getPresetSwitcherEnabled(),
       }
       const activeWindow = { processName: this.deps.getActiveProcessName() }
-      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord, ha, presetSwitcher, activeWindow } }))
+      const theme = this.deps.getThemeSettings()
+      ws.send(JSON.stringify({ type: 'init', payload: { arctis, sonar, ddc, discord, ha, presetSwitcher, activeWindow, theme } }))
       ws.on('close', () => this.clients.delete(ws))
       ws.on('error', () => this.clients.delete(ws))
     })
