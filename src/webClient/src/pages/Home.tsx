@@ -528,12 +528,14 @@ function SonarCard({
 
         return (
           <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-              {CHANNEL_LABELS[ch]}
-            </span>
-            {slider}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 34 }}>
+              <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 48 }}>
+                {CHANNEL_LABELS[ch]}
+              </span>
+              {slider}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', minWidth: 34, marginLeft: 56 }}>
                 {Math.round(vol.volume * 100)}%
               </span>
               {muteBtn}
