@@ -3,7 +3,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall, ResourceSnapshot,
+  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics,
 } from '../../../shared/types'
 
 /**
@@ -156,7 +156,7 @@ declare global {
 
     // Resource Monitor
     resourceGetState: () => Promise<ResourceSnapshot | null>
-    resourceSetConfig: (config: { interval: number }) => Promise<void>
+    resourceSetConfig: (config: { interval?: number; metrics?: ResourceMonitorMetrics }) => Promise<void>
     onResourceStateChange: (callback: (snapshot: ResourceSnapshot) => void) => () => void
     }
   }

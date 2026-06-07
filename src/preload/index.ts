@@ -5,7 +5,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall, ResourceSnapshot,
+  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics,
 } from '../shared/types'
 
 /**
@@ -418,7 +418,7 @@ const api = {
   resourceGetState: (): Promise<ResourceSnapshot | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.RESOURCE_GET_STATE),
 
-  resourceSetConfig: (config: { interval: number }): Promise<void> =>
+  resourceSetConfig: (config: { interval?: number; metrics?: ResourceMonitorMetrics }): Promise<void> =>
     ipcRenderer.invoke(IPC_CHANNELS.RESOURCE_SET_CONFIG, config),
 
   onResourceStateChange: (cb: (snapshot: ResourceSnapshot) => void): (() => void) => {

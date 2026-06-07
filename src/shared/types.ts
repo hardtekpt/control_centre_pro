@@ -300,13 +300,30 @@ export interface ResourceNetInfo {
 }
 
 export interface ResourceSnapshot {
-  cpu: ResourceCpuInfo
-  ram: ResourceRamInfo
+  cpu: ResourceCpuInfo | null
+  ram: ResourceRamInfo | null
   gpu: ResourceGpuInfo | null
   disks: ResourceDiskInfo[]
   network: ResourceNetInfo[]
   gpuAvailable: boolean
   temperatureAvailable: boolean
+  enabledMetrics?: string[]
+}
+
+export interface ResourceMonitorMetrics {
+  cpu: boolean
+  ram: boolean
+  gpu: boolean
+  disk: boolean
+  network: boolean
+}
+
+export const DEFAULT_RESOURCE_MONITOR_METRICS: ResourceMonitorMetrics = {
+  cpu: true,
+  ram: true,
+  gpu: true,
+  disk: true,
+  network: true,
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -357,6 +374,8 @@ export interface AppSettings {
   resourceMonitorEnabled: boolean
   /** Poll interval in seconds for the resource monitor service (default 2) */
   resourceMonitorInterval: number
+  /** Which metric categories the resource monitor collects */
+  resourceMonitorMetrics: ResourceMonitorMetrics
   haHomeCardEnabled: boolean
   haHomeCardEntities: HaHomeCardEntity[]
 }
@@ -398,6 +417,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highlightColor: '',
   resourceMonitorEnabled: true,
   resourceMonitorInterval: 2,
+  resourceMonitorMetrics: DEFAULT_RESOURCE_MONITOR_METRICS,
   haHomeCardEnabled: false,
   haHomeCardEntities: [],
 }

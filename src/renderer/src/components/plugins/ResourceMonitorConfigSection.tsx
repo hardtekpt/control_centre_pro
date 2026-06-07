@@ -1,6 +1,9 @@
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useResourceStore } from '../../stores/resourceStore'
-import type { ResourceCpuInfo, ResourceRamInfo, ResourceGpuInfo, ResourceDiskInfo, ResourceNetInfo } from '@shared/types'
+import { useSettingsForm } from '../../contexts/settingsFormContext'
+import type { ResourceCpuInfo, ResourceRamInfo, ResourceGpuInfo, ResourceDiskInfo, ResourceNetInfo, ResourceMonitorMetrics } from '@shared/types'
+import { DEFAULT_RESOURCE_MONITOR_METRICS } from '@shared/types'
 
 const CARD: CSSProperties = {
   background: 'var(--color-surface-raised)',
@@ -149,36 +152,133 @@ function NetworkCard({ network }: { network: ResourceNetInfo[] }) {
   )
 }
 
+const METRIC_LABELS: { key: keyof ResourceMonitorMetrics; label: string; desc: string }[] = [
+  { key: 'cpu',     label: 'CPU',     desc: 'Processor usage, core bars, and temperature' },
+  { key: 'ram',     label: 'Memory',  desc: 'RAM and swap usage' },
+  { key: 'gpu',     label: 'GPU',     desc: 'GPU usage, VRAM, and temperature' },
+  { key: 'disk',    label: 'Storage', desc: 'Disk usage and I/O rates' },
+  { key: 'network', label: 'Network', desc: 'Network adapter throughput' },
+]
+
 export function ResourceMonitorConfigSection(): JSX.Element {
   const { snapshot } = useResourceStore()
+  const { setDirty, registerSave } = useSettingsForm()
 
-  if (!snapshot) {
-    return (
+  const [savedInterval, setSavedInterval] = useState(2)
+  const [draftInterval, setDraftInterval] = useState('2')
+  const [savedMetrics, setSavedMetrics] = useState<ResourceMonitorMetrics>(DEFAULT_RESOURCE_MONITOR_METRICS)
+  const [draftMetrics, setDraftMetrics] = useState<ResourceMonitorMetrics>(DEFAULT_RESOURCE_MONITOR_METRICS)
+
+  const draftIntervalRef = useRef(draftInterval)
+  const draftMetricsRef = useRef(draftMetrics)
+
+  useEffect(() => { draftIntervalRef.current = draftInterval }, [draftInterval])
+  useEffect(() => { draftMetricsRef.current = draftMetrics }, [draftMetrics])
+
+  useEffect(() => {
+    window.api.getSettings().then((s) => {
+      const interval = s.resourceMonitorInterval ?? 2
+      const metrics = { ...DEFAULT_RESOURCE_MONITOR_METRICS, ...s.resourceMonitorMetrics }
+      setSavedInterval(interval)
+      setDraftInterval(String(interval))
+      setSavedMetrics(metrics)
+      setDraftMetrics(metrics)
+    }).catch(console.error)
+  }, [])
+
+  // Mark dirty when draft diverges from saved
+  useEffect(() => {
+    const parsedInterval = parseFloat(draftInterval)
+    const intervalDirty = !isNaN(parsedInterval) && parsedInterval !== savedInterval
+    const metricsDirty = (Object.keys(draftMetrics) as (keyof ResourceMonitorMetrics)[])
+      .some((k) => draftMetrics[k] !== savedMetrics[k])
+    setDirty(intervalDirty || metricsDirty)
+  }, [draftInterval, savedInterval, draftMetrics, savedMetrics, setDirty])
+
+  useEffect(() => {
+    registerSave(async () => {
+      const raw = parseFloat(draftIntervalRef.current)
+      const interval = isNaN(raw) ? savedInterval : Math.max(0.5, Math.min(60, raw))
+      const metrics = draftMetricsRef.current
+
+      const current = await window.api.getSettings()
+      await window.api.setSettings({ ...current, resourceMonitorInterval: interval, resourceMonitorMetrics: metrics })
+      await window.api.resourceSetConfig({ interval, metrics })
+
+      setSavedInterval(interval)
+      setDraftInterval(String(interval))
+      setSavedMetrics(metrics)
+    })
+    return () => registerSave(null)
+  }, [registerSave, savedInterval])
+
+  return (
+    <>
+      {/* Configuration section */}
+      <div className="cfg-section">
+        <div className="cfg-section-h">
+          <h3>Configuration</h3>
+          <span className="desc">Metrics and refresh rate</span>
+        </div>
+
+        {/* Refresh interval */}
+        <div className="ff">
+          <div className="ff-label">
+            <div className="ff-label-title">Refresh interval</div>
+            <div className="ff-label-desc">How often metrics are collected (0.5 – 60 s)</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input
+              type="number"
+              min={0.5}
+              max={60}
+              step={0.5}
+              value={draftInterval}
+              onChange={(e) => setDraftInterval(e.target.value)}
+              className="input mono"
+              style={{ width: '64px', textAlign: 'right' }}
+            />
+            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>s</span>
+          </div>
+        </div>
+
+        {/* Metric toggles */}
+        {METRIC_LABELS.map(({ key, label, desc }) => (
+          <div key={key} className="ff">
+            <div className="ff-label">
+              <div className="ff-label-title">{label}</div>
+              <div className="ff-label-desc">{desc}</div>
+            </div>
+            <input
+              type="checkbox"
+              checked={draftMetrics[key]}
+              onChange={(e) => setDraftMetrics((prev) => ({ ...prev, [key]: e.target.checked }))}
+              style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-accent)' }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Live stats section */}
       <div className="cfg-section">
         <div className="cfg-section-h">
           <h3>Statistics</h3>
-          <span className="desc">Enable the plugin to see live data</span>
+          <span className="desc">{snapshot ? `Live · updates every ${savedInterval} s` : 'Enable the plugin to see live data'}</span>
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', padding: '2px 0' }}>
-          Waiting for data…
-        </div>
+        {!snapshot ? (
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', padding: '2px 0' }}>
+            Waiting for data…
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {snapshot.cpu && <CpuCard cpu={snapshot.cpu} />}
+            {snapshot.ram && <RamCard ram={snapshot.ram} />}
+            {snapshot.gpu && <GpuCard gpu={snapshot.gpu} />}
+            {snapshot.disks.length > 0 && <StorageCard disks={snapshot.disks} />}
+            {snapshot.network.length > 0 && <NetworkCard network={snapshot.network} />}
+          </div>
+        )}
       </div>
-    )
-  }
-
-  return (
-    <div className="cfg-section">
-      <div className="cfg-section-h">
-        <h3>Statistics</h3>
-        <span className="desc">Live · updates every 2 s</span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        <CpuCard cpu={snapshot.cpu} />
-        <RamCard ram={snapshot.ram} />
-        {snapshot.gpu && <GpuCard gpu={snapshot.gpu} />}
-        <StorageCard disks={snapshot.disks} />
-        <NetworkCard network={snapshot.network} />
-      </div>
-    </div>
+    </>
   )
 }

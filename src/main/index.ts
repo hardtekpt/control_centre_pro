@@ -616,8 +616,9 @@ function registerIpcHandlers(): void {
   // ── Resource Monitor ───────────────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.RESOURCE_GET_STATE, () => serviceManager?.getResourceSnapshot() ?? null)
 
-  ipcMain.handle(IPC_CHANNELS.RESOURCE_SET_CONFIG, (_event, config: { interval: number }) => {
-    serviceManager?.sendResourceCmd('set-interval', config.interval)
+  ipcMain.handle(IPC_CHANNELS.RESOURCE_SET_CONFIG, (_event, config: { interval?: number; metrics?: Record<string, boolean> }) => {
+    if (config.interval !== undefined) serviceManager?.sendResourceCmd('set-interval', config.interval)
+    if (config.metrics !== undefined) serviceManager?.sendResourceCmd('set-metrics', config.metrics)
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize())

@@ -113,10 +113,12 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
         if (p.id !== 'resource-monitor') return p
 
         const status: Plugin['status'] = !enabled ? 'disabled' : snapshot ? 'connected' : 'installed'
+        const cpuPct = snapshot?.cpu?.usagePercent
+        const ramPct = snapshot?.ram?.usedPercent
         const statusLine = !enabled
           ? 'Disabled'
           : snapshot
-          ? `CPU ${snapshot.cpu.usagePercent.toFixed(0)} % · RAM ${snapshot.ram.usedPercent.toFixed(0)} %`
+          ? [cpuPct != null ? `CPU ${cpuPct.toFixed(0)} %` : null, ramPct != null ? `RAM ${ramPct.toFixed(0)} %` : null].filter(Boolean).join(' · ') || 'Running'
           : 'Starting…'
 
         if (!snapshot) {
@@ -126,11 +128,17 @@ export const usePluginStore = create<PluginStoreState>((set, get) => ({
         const fmt = (v: number | null | undefined, suffix: string, decimals = 0) =>
           v != null ? `${v.toFixed(decimals)} ${suffix}` : '—'
 
-        const cpuTemp = fmt(snapshot.cpu.temperatureCelsius, '°C', 1)
-        const cpuUsage = `${snapshot.cpu.usagePercent.toFixed(1)} %${cpuTemp !== '—' ? ` · ${cpuTemp}` : ''}`
+        const cpuTemp = snapshot.cpu ? fmt(snapshot.cpu.temperatureCelsius, '°C', 1) : '—'
+        const cpuUsage = snapshot.cpu
+          ? `${snapshot.cpu.usagePercent.toFixed(1)} %${cpuTemp !== '—' ? ` · ${cpuTemp}` : ''}`
+          : '—'
 
-        const ramUsed = `${snapshot.ram.usedGb.toFixed(1)} / ${snapshot.ram.totalGb.toFixed(1)} GB (${snapshot.ram.usedPercent.toFixed(0)} %)`
-        const ramSwap = snapshot.ram.swapUsedPercent > 0 ? `${snapshot.ram.swapUsedPercent.toFixed(0)} %` : '—'
+        const ramUsed = snapshot.ram
+          ? `${snapshot.ram.usedGb.toFixed(1)} / ${snapshot.ram.totalGb.toFixed(1)} GB (${snapshot.ram.usedPercent.toFixed(0)} %)`
+          : '—'
+        const ramSwap = snapshot.ram && snapshot.ram.swapUsedPercent > 0
+          ? `${snapshot.ram.swapUsedPercent.toFixed(0)} %`
+          : '—'
 
         const gpu = snapshot.gpu
         const gpuName = gpu?.name ?? '—'

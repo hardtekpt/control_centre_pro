@@ -43,6 +43,24 @@ def set_interval(val: float) -> None:
         _poll_interval = max(0.5, float(val))
 
 
+# ─── Metrics control ──────────────────────────────────────────────────────────
+
+_ALL_METRICS = {"cpu", "ram", "gpu", "disk", "network"}
+_enabled_metrics: set = set(_ALL_METRICS)
+_metrics_lock = threading.Lock()
+
+
+def get_enabled_metrics() -> set:
+    with _metrics_lock:
+        return set(_enabled_metrics)
+
+
+def set_metrics(metrics: dict) -> None:
+    global _enabled_metrics
+    with _metrics_lock:
+        _enabled_metrics = {k for k, v in metrics.items() if v} & _ALL_METRICS
+
+
 # ─── GPU detection ────────────────────────────────────────────────────────────
 
 _IS_WINDOWS = platform.system() == "Windows"
@@ -394,20 +412,45 @@ def _get_net_stats() -> list:
 # ─── Snapshot collection ──────────────────────────────────────────────────────
 
 def _collect_snapshot() -> dict:
-    cpu_percent = psutil.cpu_percent(interval=None)
-    core_usage = psutil.cpu_percent(interval=None, percpu=True)
-    cpu_temp = _get_cpu_temp()
+    enabled = get_enabled_metrics()
 
-    mem = psutil.virtual_memory()
-    swap = psutil.swap_memory()
+    # CPU
+    cpu_info: dict | None = None
+    cpu_temp: float | None = None
+    if "cpu" in enabled:
+        cpu_percent = psutil.cpu_percent(interval=None)
+        core_usage = psutil.cpu_percent(interval=None, percpu=True)
+        cpu_temp = _get_cpu_temp()
+        cpu_info = {
+            "usagePercent": round(cpu_percent, 1),
+            "coreUsage": [round(c, 1) for c in (core_usage if isinstance(core_usage, list) else [cpu_percent])],
+            "temperatureCelsius": cpu_temp,
+        }
+    else:
+        # Still drain psutil's internal counters so re-enabling gives valid deltas
+        psutil.cpu_percent(interval=None)
+        psutil.cpu_percent(interval=None, percpu=True)
 
-    gpu_usage = _get_gpu_usage()
-    gpu_vram_used = _get_gpu_vram_used()
-    gpu_temp = _get_gpu_temp()
+    # RAM
+    ram_info: dict | None = None
+    if "ram" in enabled:
+        mem = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        ram_info = {
+            "usedPercent": round(mem.percent, 1),
+            "usedGb": round(mem.used / (1024 ** 3), 2),
+            "totalGb": round(mem.total / (1024 ** 3), 2),
+            "swapUsedPercent": round(swap.percent, 1),
+        }
+
+    # GPU
+    gpu_temp: float | None = None
+    gpu_info: dict | None = None
     gpu_available = _gpu_name != "unknown" and _gpu_name != ""
-
-    gpu_info = None
-    if gpu_available:
+    if "gpu" in enabled and gpu_available:
+        gpu_usage = _get_gpu_usage()
+        gpu_vram_used = _get_gpu_vram_used()
+        gpu_temp = _get_gpu_temp()
         gpu_info = {
             "name": _gpu_name,
             "usagePercent": gpu_usage,
@@ -416,26 +459,21 @@ def _collect_snapshot() -> dict:
             "temperatureCelsius": gpu_temp,
         }
 
-    disks = _get_disk_stats()
-    network = _get_net_stats()
+    # Disk
+    disks = _get_disk_stats() if "disk" in enabled else []
+
+    # Network
+    network = _get_net_stats() if "network" in enabled else []
 
     return {
-        "cpu": {
-            "usagePercent": round(cpu_percent, 1),
-            "coreUsage": [round(c, 1) for c in (core_usage if isinstance(core_usage, list) else [cpu_percent])],
-            "temperatureCelsius": cpu_temp,
-        },
-        "ram": {
-            "usedPercent": round(mem.percent, 1),
-            "usedGb": round(mem.used / (1024 ** 3), 2),
-            "totalGb": round(mem.total / (1024 ** 3), 2),
-            "swapUsedPercent": round(swap.percent, 1),
-        },
+        "cpu": cpu_info,
+        "ram": ram_info,
         "gpu": gpu_info,
         "disks": disks,
         "network": network,
         "gpuAvailable": gpu_available,
         "temperatureAvailable": cpu_temp is not None or gpu_temp is not None,
+        "enabledMetrics": list(enabled),
     }
 
 
@@ -453,6 +491,9 @@ def _stdin_thread() -> None:
             if cmd == "set-interval" and val is not None:
                 set_interval(val)
                 log("info", f"Poll interval set to {get_interval()} s")
+            elif cmd == "set-metrics" and isinstance(val, dict):
+                set_metrics(val)
+                log("info", f"Enabled metrics: {sorted(get_enabled_metrics())}")
         except Exception:
             pass
 

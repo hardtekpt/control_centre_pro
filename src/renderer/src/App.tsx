@@ -404,6 +404,13 @@ export default function App(): JSX.Element {
   useEffect(() => {
     window.api.getSettings().then((s) => {
       const enabled = s.resourceMonitorEnabled ?? true
+      // Push saved config to the running service so it starts with the right interval/metrics
+      if (enabled) {
+        window.api.resourceSetConfig({
+          interval: s.resourceMonitorInterval ?? 2,
+          metrics: s.resourceMonitorMetrics,
+        }).catch(console.error)
+      }
       window.api.resourceGetState().then((snapshot) => {
         if (snapshot) {
           setResourceSnapshot(snapshot)
