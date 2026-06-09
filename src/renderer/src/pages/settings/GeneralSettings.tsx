@@ -261,7 +261,7 @@ export function GeneralSettings(): JSX.Element {
           />
         </SettingRow>
 
-        {services.filter((svc) => svc.id !== 'discord').map((svc, idx, arr) => (
+        {services.filter((svc) => !['discord', 'home-assistant', 'resource-monitor'].includes(svc.id)).map((svc, idx, arr) => (
           <SettingRow
             key={svc.id}
             label={svc.name}
