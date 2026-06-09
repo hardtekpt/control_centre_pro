@@ -1,6 +1,7 @@
 import { useRef, useState, memo } from 'react'
 import { useServiceStore } from '../stores/serviceStore'
 import { post } from '../api/http'
+import { haptic } from '../utils/haptic'
 import type { ArctisState, TimeoutStep } from '@shared/types'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ function SliderInputComponent({
     e.preventDefault()
     ;(e.target as Element).setPointerCapture(e.pointerId)
     isDragging.current = true
+    haptic()
     const v = valueFromPoint(e.clientX, e.clientY)
     setDragValue(v)
     onChange(v)
@@ -136,7 +138,7 @@ function OptionGroup<T extends string>({
       {options.map((opt) => (
         <button
           key={opt.value}
-          onClick={() => onChange(opt.value)}
+          onClick={() => { haptic(); onChange(opt.value) }}
           className={`flex-1 segment-btn${value === opt.value ? ' active' : ''}`}
         >
           {opt.label}
@@ -459,7 +461,7 @@ function HeadsetCard({ s, update }: { s: ArctisState; update: (p: Partial<Arctis
         style={{ opacity: s.baseStationConnected ? 1 : 0.4, pointerEvents: s.baseStationConnected ? 'auto' : 'none' }}
       >
         <button
-          onClick={() => { update({ chatmixEnabled: !s.chatmixEnabled }); cmd('setChatmixEnabled', !s.chatmixEnabled) }}
+          onClick={() => { haptic(); update({ chatmixEnabled: !s.chatmixEnabled }); cmd('setChatmixEnabled', !s.chatmixEnabled) }}
           className="card-row-label shrink-0 w-32 text-left"
           style={{
             textDecoration: s.chatmixEnabled ? 'none' : 'line-through',

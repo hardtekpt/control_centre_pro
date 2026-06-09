@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { haptic } from '../utils/haptic'
 import {
   useSonarStore,
   sonarSetVolume,
@@ -104,7 +105,7 @@ function MixerCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
                 {Math.round(vol.volume * 100)}%
               </span>
               <button
-                onClick={() => void sonarSetMute(ch, !vol.muted)}
+                onClick={() => { haptic(); void sonarSetMute(ch, !vol.muted) }}
                 title={vol.muted ? 'Unmute' : 'Mute'}
                 aria-label={`${CHANNEL_LABELS[ch]} ${vol.muted ? 'unmute' : 'mute'}`}
                 style={{
@@ -621,7 +622,7 @@ function AddRuleForm({
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {
   return (
     <div
-      onClick={onChange}
+      onClick={() => { haptic(); onChange() }}
       role="switch"
       aria-checked={checked}
       style={{

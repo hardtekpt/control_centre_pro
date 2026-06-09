@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { haptic } from '../utils/haptic'
 
 /**
  * Minimal touch vertical fader. Value is 0..1; the fill grows bottom-up.
@@ -37,6 +38,7 @@ export function VerticalFader({
     e.preventDefault()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     dragging.current = true
+    haptic()
     onDragStart?.()
     onChange(valueFromEvent(e.clientY))
   }

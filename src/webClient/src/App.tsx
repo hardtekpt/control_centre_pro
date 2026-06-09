@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { haptic } from './utils/haptic'
 import { useWebSocket } from './api/websocket'
 import { useServiceStore } from './stores/serviceStore'
 import { useSonarStore } from './stores/sonarStore'
@@ -247,7 +248,7 @@ export function App(): JSX.Element {
         {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { haptic(); setTab(t) }}
             style={{
               flex: 1,
               height: '100%',
