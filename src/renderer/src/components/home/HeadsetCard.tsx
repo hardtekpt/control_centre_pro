@@ -260,11 +260,15 @@ function ConnectivityIcon({
   icon,
   active,
   pairing,
+  on,
+  activeColor = 'var(--color-status-ok)',
   title,
 }: {
   icon: React.ReactNode
   active: boolean
   pairing?: boolean
+  on?: boolean
+  activeColor?: string
   title: string
 }): JSX.Element {
   const [visible, setVisible] = useState(true)
@@ -278,15 +282,19 @@ function ConnectivityIcon({
   const color = pairing
     ? 'var(--color-status-info)'
     : active
-      ? 'var(--color-status-ok)'
-      : 'var(--color-text-secondary)'
+      ? activeColor
+      : on
+        ? 'var(--color-status-ok)'
+        : 'var(--color-text-secondary)'
+
+  const lit = active || on || pairing
 
   return (
     <span
       title={title}
       style={{
         color,
-        opacity: pairing && !visible ? 0.15 : active ? 1 : 0.45,
+        opacity: pairing && !visible ? 0.15 : lit ? 1 : 0.45,
         transition: 'opacity 200ms ease',
         display: 'flex',
         alignItems: 'center',
@@ -554,7 +562,9 @@ export function HeadsetCard({ state, expandByDefault = false }: { state: ArctisS
                 <ConnectivityIcon
                   icon={<BluetoothIcon />}
                   active={state.btStatus === 'CONNECTED'}
+                  activeColor="var(--color-status-info)"
                   pairing={state.btStatus === 'PAIRING'}
+                  on={state.btStatus === 'ON'}
                   title={`Bluetooth — ${state.btStatus === 'CONNECTED' ? 'Connected' : state.btStatus === 'PAIRING' ? 'Pairing…' : state.btStatus === 'ON' ? 'On' : 'Off'}`}
                 />
               </div>
