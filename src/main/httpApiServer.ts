@@ -11,6 +11,7 @@ import type { DdcService } from './services/apis/ddc/service'
 import type { DiscordService } from './services/discordService'
 import type { HomeAssistantService } from './services/homeAssistantService'
 import type { SonarChannel, SonarMode, SonarDeviceChannel, HaHomeCardEntity, PresetSwitcherRule } from '../shared/types'
+import type { SystemControl } from './services/systemControl'
 
 interface ServerDeps {
   serviceManager: ServiceManager
@@ -27,6 +28,7 @@ interface ServerDeps {
   getOpenApps: () => Array<{ processName: string; displayName: string }>
   getActiveProcessName: () => string
   getThemeSettings: () => { theme: string; accentColor: string; highlightColor: string }
+  systemControl: SystemControl
 }
 
 function getLanIp(): string {
@@ -504,6 +506,43 @@ export class HttpApiServer {
       } catch {
         return jsonResponse(res, 400, { error: 'Bad request' })
       }
+    }
+
+    // ── System / media control ────────────────────────────────────────────────
+
+    if (path === '/api/system/poweroff' && method === 'POST') {
+      this.deps.systemControl.powerOff()
+      return jsonResponse(res, 200, { ok: true })
+    }
+
+    if (path === '/api/system/sleep' && method === 'POST') {
+      this.deps.systemControl.sleep()
+      return jsonResponse(res, 200, { ok: true })
+    }
+
+    if (path === '/api/system/lock' && method === 'POST') {
+      this.deps.systemControl.lock()
+      return jsonResponse(res, 200, { ok: true })
+    }
+
+    if (path === '/api/system/monitorsoff' && method === 'POST') {
+      this.deps.systemControl.monitorsOff()
+      return jsonResponse(res, 200, { ok: true })
+    }
+
+    if (path === '/api/media/playpause' && method === 'POST') {
+      this.deps.systemControl.mediaPlayPause()
+      return jsonResponse(res, 200, { ok: true })
+    }
+
+    if (path === '/api/media/next' && method === 'POST') {
+      this.deps.systemControl.mediaNext()
+      return jsonResponse(res, 200, { ok: true })
+    }
+
+    if (path === '/api/media/prev' && method === 'POST') {
+      this.deps.systemControl.mediaPrev()
+      return jsonResponse(res, 200, { ok: true })
     }
 
     // ── Static file serving ───────────────────────────────────────────────────

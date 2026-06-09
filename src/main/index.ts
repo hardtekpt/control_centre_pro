@@ -18,6 +18,7 @@ import { initDispatcher, dispatch } from './shortcuts/dispatcher'
 import { registerGlobalShortcuts, unregisterAllShortcuts } from './shortcuts/shortcutRegistry'
 import { HttpApiServer } from './httpApiServer'
 import { readRules, writeRules, readEnabled, writeEnabled, getOpenApps } from './services/presetSwitcherStore'
+import { systemControl } from './services/systemControl'
 
 /** Assemble the dependency bundle the remote HTTP server needs. Shared by the
  *  boot path and the settings-toggle path so the two stay in sync. */
@@ -46,6 +47,7 @@ function buildServerDeps(): ConstructorParameters<typeof HttpApiServer>[0] {
     },
     getOpenApps,
     getActiveProcessName: () => activeWindowMonitor?.getCurrentProcessName() ?? '',
+    systemControl,
     getThemeSettings: () => {
       const s = loadAppSettings()
       return { theme: s.theme ?? '', accentColor: s.accentColor ?? '', highlightColor: s.highlightColor ?? '' }

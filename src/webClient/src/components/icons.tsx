@@ -120,3 +120,66 @@ export function MicIcon({ color = 'currentColor', size = 15, title }: IconProps)
     </svg>
   )
 }
+
+export function SleepIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  )
+}
+
+export function LockIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  )
+}
+
+export function MonitorOffIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <path d="M17 17H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h13" />
+      <path d="M22 3 2 23" />
+      <path d="M22 15V5a2 2 0 0 0-2-2" />
+      <path d="M8 21h8" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  )
+}
+
+export function PlayPauseIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <line x1="10" y1="15" x2="10" y2="9" />
+      <line x1="6" y1="15" x2="6" y2="9" />
+      <polygon points="14 8 22 12 14 16 14 8" />
+    </svg>
+  )
+}
+
+export function SkipBackIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <polygon points="19 20 9 12 19 4 19 20" />
+      <line x1="5" y1="19" x2="5" y2="5" />
+    </svg>
+  )
+}
+
+export function SkipForwardIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <polygon points="5 4 15 12 5 20 5 4" />
+      <line x1="19" y1="5" x2="19" y2="19" />
+    </svg>
+  )
+}

@@ -7,7 +7,7 @@ import { useHaStore } from '../stores/haStore'
 import { post } from '../api/http'
 import { Card } from '../components/Card'
 import { Select } from '../components/Select'
-import { WifiIcon, BluetoothIcon, PowerIcon, AudioWaveIcon, LinkIcon, MicIcon } from '../components/icons'
+import { WifiIcon, BluetoothIcon, PowerIcon, AudioWaveIcon, LinkIcon, MicIcon, SleepIcon, LockIcon, MonitorOffIcon, PlayPauseIcon, SkipBackIcon, SkipForwardIcon } from '../components/icons'
 import type { ArctisState, SonarChannel, SonarConfig, DdcMonitor, DiscordParticipant, HaHomeCardEntity, HaEntity } from '@shared/types'
 import { DDC_INPUT_NAMES } from '@shared/types'
 
@@ -106,6 +106,11 @@ export function Home(): JSX.Element {
 
       {/* ── Home Assistant card ── */}
       {showHa && <HaCard haState={haState} cardEntities={cardEntities} />}
+
+      {/* ── PC Controls card ── */}
+      <Card title="PC Controls">
+        <PCControlsCard />
+      </Card>
     </div>
   )
 }
@@ -1029,5 +1034,79 @@ function HaCard({ haState, cardEntities }: { haState: ReturnType<typeof useHaSto
         ))}
       </div>
     </div>
+  )
+}
+
+// ── PC Controls card ─────────────────────────────────────────────────────────
+
+function PCControlsCard(): JSX.Element {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+          System
+        </span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <ControlButton label="Power Off" icon={<PowerIcon size={14} />} onClick={() => void post('/api/system/poweroff', {})} danger />
+          <ControlButton label="Sleep" icon={<SleepIcon size={14} />} onClick={() => void post('/api/system/sleep', {})} />
+          <ControlButton label="Lock" icon={<LockIcon size={14} />} onClick={() => void post('/api/system/lock', {})} />
+          <ControlButton label="Monitors Off" icon={<MonitorOffIcon size={14} />} onClick={() => void post('/api/system/monitorsoff', {})} />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
+          Media
+        </span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <ControlButton label="Previous" icon={<SkipBackIcon size={14} />} onClick={() => void post('/api/media/prev', {})} />
+          <ControlButton label="Play / Pause" icon={<PlayPauseIcon size={14} />} onClick={() => void post('/api/media/playpause', {})} wide />
+          <ControlButton label="Next" icon={<SkipForwardIcon size={14} />} onClick={() => void post('/api/media/next', {})} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ControlButton({
+  label,
+  icon,
+  onClick,
+  danger,
+  wide,
+}: {
+  label: string
+  icon: JSX.Element
+  onClick: () => void
+  danger?: boolean
+  wide?: boolean
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 5,
+        padding: '10px 6px',
+        flex: wide ? 2 : 1,
+        borderRadius: 6,
+        border: '1px solid var(--color-border)',
+        background: 'var(--color-surface-raised)',
+        color: danger ? '#c0392b' : 'var(--color-text-secondary)',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 10,
+        lineHeight: 1,
+        transition: 'all 150ms ease',
+        minWidth: 0,
+      }}
+    >
+      {icon}
+      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{label}</span>
+    </button>
   )
 }
