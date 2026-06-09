@@ -621,11 +621,18 @@ def main() -> None:
 
             try:
                 from arctis_hid import DeviceReconnectedEvent as _DRE  # noqa: F401
-                headset.on("DeviceReconnectedEvent", lambda e: (
-                    emit({"type": "event", "event": "DeviceReconnectedEvent",
-                          "data": {"baseStationConnected": True}}),
-                    log("info", "Base station USB reconnected"),
-                ))
+
+                def on_device_reconnected(e, _h=headset):
+                    log("info", "Base station USB reconnected — refreshing full state")
+                    try:
+                        fresh_state = _read_full_state(_h)
+                        emit({"type": "connected", "data": fresh_state})
+                    except Exception as exc:
+                        log("error", f"State refresh after reconnect failed: {exc}")
+                        emit({"type": "event", "event": "DeviceReconnectedEvent",
+                              "data": {"baseStationConnected": True}})
+
+                headset.on("DeviceReconnectedEvent", on_device_reconnected)
             except ImportError:
                 pass
 
