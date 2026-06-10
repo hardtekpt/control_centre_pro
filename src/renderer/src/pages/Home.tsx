@@ -51,7 +51,7 @@ export function Home(): JSX.Element {
     [ddcMonitors],
   )
 
-  const showDiscord = discordShowHomeCard && discordState !== null
+  const showDiscord = discordShowHomeCard && (discordState?.available ?? false)
   const showAudio   = arctisState || sonarAvailable || showDiscord
   const showHa      = haHomeCardEnabled && haHomeCardEntities.length > 0
 
