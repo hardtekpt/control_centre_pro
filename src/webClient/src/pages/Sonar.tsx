@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { haptic } from '../utils/haptic'
 import {
   useSonarStore,
   sonarSetVolume,
@@ -12,7 +11,8 @@ import { usePresetSwitcherStore } from '../stores/presetSwitcherStore'
 import { Card } from '../components/Card'
 import { Select } from '../components/Select'
 import { VerticalFader } from '../components/VerticalFader'
-import { LightningIcon } from '../components/icons'
+import { LightningIcon, MuteIcon, EditIcon, TrashIcon, RefreshIcon, PlusIcon } from '../components/icons'
+import { PageHeader, Field, Toggle, IconButton, Button, Chip, text, space } from '../theme'
 import type {
   SonarChannel,
   SonarDeviceChannel,
@@ -51,18 +51,16 @@ export function Sonar(): JSX.Element {
 
   if (!sonarState?.available) {
     return (
-      <div style={{ padding: 16 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-          GG Sonar
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>GG Sonar not available</p>
+      <div className="page">
+        <PageHeader title="GG Sonar" />
+        <p style={text.bodyMuted}>GG Sonar not available</p>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: 16, paddingBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>GG Sonar</h1>
+    <div className="page">
+      <PageHeader title="GG Sonar" />
       <MixerCard sonarState={sonarState} />
       <ChannelsCard sonarState={sonarState} />
       <AutoPresetCard sonarState={sonarState} />
@@ -90,10 +88,10 @@ function MixerCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
                 alignItems: 'center',
                 gap: 6,
                 flex: '1 0 auto',
-                minWidth: 52,
+                minWidth: 48,
               }}
             >
-              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{CHANNEL_LABELS[ch]}</span>
+              <span style={text.caption}>{CHANNEL_LABELS[ch]}</span>
               <VerticalFader
                 value={vol.volume}
                 muted={vol.muted}
@@ -101,29 +99,15 @@ function MixerCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
                 onDragStart={beginDrag}
                 onDragEnd={endDrag}
               />
-              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                {Math.round(vol.volume * 100)}%
-              </span>
-              <button
-                onClick={() => { haptic(); void sonarSetMute(ch, !vol.muted) }}
+              <span style={text.value}>{Math.round(vol.volume * 100)}%</span>
+              <IconButton
+                active={vol.muted}
                 title={vol.muted ? 'Unmute' : 'Mute'}
-                aria-label={`${CHANNEL_LABELS[ch]} ${vol.muted ? 'unmute' : 'mute'}`}
-                style={{
-                  width: 34,
-                  height: 32,
-                  borderRadius: 6,
-                  border: '1px solid var(--color-border)',
-                  background: vol.muted ? 'var(--segment-active-bg)' : 'var(--color-surface-raised)',
-                  color: vol.muted ? 'var(--segment-active-color)' : 'var(--color-text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
+                ariaLabel={`${CHANNEL_LABELS[ch]} ${vol.muted ? 'unmute' : 'mute'}`}
+                onClick={() => void sonarSetMute(ch, !vol.muted)}
               >
-                <MuteGlyph muted={vol.muted} />
-              </button>
+                <MuteIcon muted={vol.muted} size={15} />
+              </IconButton>
             </div>
           )
         })}
@@ -132,34 +116,7 @@ function MixerCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
   )
 }
 
-function MuteGlyph({ muted }: { muted: boolean }): JSX.Element {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-      {muted ? (
-        <>
-          <line x1="23" y1="9" x2="17" y2="15" />
-          <line x1="17" y1="9" x2="23" y2="15" />
-        </>
-      ) : (
-        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-      )}
-    </svg>
-  )
-}
-
 // ── Card 2: per-channel settings (preset · output · routed apps) ────────────────
-
-function Labeled({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 56, flexShrink: 0 }}>
-        {label}
-      </span>
-      <div style={{ flex: 1 }}>{children}</div>
-    </div>
-  )
-}
 
 function ChannelsCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
   const activePresetIds = useSonarStore((s) => s.activePresetIds)
@@ -184,13 +141,11 @@ function ChannelsCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
           const activeSessions = sessionsByRole[ch] ?? []
 
           return (
-            <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                {CHANNEL_LABELS[ch]}
-              </span>
+            <div key={ch} style={{ display: 'flex', flexDirection: 'column', gap: space.fieldGap }}>
+              <span style={text.subtitle}>{CHANNEL_LABELS[ch]}</span>
 
               {favorites.length > 0 && (
-                <Labeled label="Preset">
+                <Field label="Preset">
                   <Select
                     compact
                     ariaLabel={`${CHANNEL_LABELS[ch]} preset`}
@@ -199,11 +154,11 @@ function ChannelsCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
                     onChange={(v) => void sonarSelectPreset(v, ch)}
                     options={favorites.map((f) => ({ value: f.id, label: f.name }))}
                   />
-                </Labeled>
+                </Field>
               )}
 
               {sonarState.audioDevices.length > 0 && (
-                <Labeled label="Output">
+                <Field label="Output">
                   <Select
                     compact
                     ariaLabel={`${CHANNEL_LABELS[ch]} output`}
@@ -215,7 +170,7 @@ function ChannelsCard({ sonarState }: { sonarState: SonarState }): JSX.Element {
                     }}
                     options={sonarState.audioDevices.map((d) => ({ value: d.id, label: d.name }))}
                   />
-                </Labeled>
+                </Field>
               )}
 
               <RoutedApps channel={ch} sessions={activeSessions} />
@@ -232,11 +187,10 @@ function RoutedApps({ channel, sessions }: { channel: SonarDeviceChannel; sessio
   const [chooserFor, setChooserFor] = useState<number | null>(null)
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 56, flexShrink: 0, paddingTop: 6 }}>Apps</span>
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+    <Field label="Apps" align="start">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {sessions.length === 0 && (
-          <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', paddingTop: 4 }}>No apps</span>
+          <span style={{ ...text.caption, fontSize: 12, color: 'var(--color-text-tertiary)', paddingTop: 4 }}>No apps</span>
         )}
         {sessions.map((s) => (
           <div key={s.id} style={{ position: 'relative' }}>
@@ -274,7 +228,7 @@ function RoutedApps({ channel, sessions }: { channel: SonarDeviceChannel; sessio
           </div>
         ))}
       </div>
-    </div>
+    </Field>
   )
 }
 
@@ -307,7 +261,7 @@ function ChannelChooser({
           minWidth: 120,
         }}
       >
-        <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', padding: '4px 8px' }}>
+        <span style={{ ...text.sectionLabel, letterSpacing: '0.05em', padding: '4px 8px' }}>
           Move to
         </span>
         {DEVICE_CHANNELS.map((ch) => (
@@ -366,29 +320,20 @@ function AutoPresetCard({ sonarState }: { sonarState: SonarState }): JSX.Element
       title="Auto preset switch"
       right={
         <>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              padding: '2px 8px',
-              borderRadius: 10,
-              background: enabled ? 'var(--color-accent-subtle)' : 'transparent',
-              color: enabled ? 'var(--color-ok)' : 'var(--color-text-secondary)',
-              border: '1px solid var(--color-border)',
-            }}
-          >
-            {enabled ? 'AUTO ON' : 'AUTO OFF'}
-          </span>
-          <Toggle checked={enabled} onChange={() => void setEnabled(!enabled)} />
+          <Chip
+            label={enabled ? 'AUTO ON' : 'AUTO OFF'}
+            color={enabled ? 'var(--color-ok)' : undefined}
+            background={enabled ? 'var(--color-accent-subtle)' : undefined}
+          />
+          <Toggle checked={enabled} onChange={(v) => void setEnabled(v)} />
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space.rowGap }}>
         {/* Active app */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <LightningIcon color="var(--color-text-secondary)" size={13} />
-          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+          <span style={{ ...text.caption, fontSize: 12 }}>
             Active app:{' '}
             <span style={{ color: 'var(--color-text-primary)' }}>{activeDisplayName ?? '—'}</span>
           </span>
@@ -407,7 +352,7 @@ function AutoPresetCard({ sonarState }: { sonarState: SonarState }): JSX.Element
             />
           ))}
           {rules.length === 0 && !showAdd && (
-            <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No rules yet</span>
+            <span style={{ ...text.caption, fontSize: 12, color: 'var(--color-text-tertiary)' }}>No rules yet</span>
           )}
         </div>
 
@@ -421,31 +366,15 @@ function AutoPresetCard({ sonarState }: { sonarState: SonarState }): JSX.Element
             onRefresh={() => void fetchOpenApps()}
           />
         ) : (
-          <button
-            onClick={openAddForm}
+          <Button
+            variant="ghost"
             disabled={rules.length >= 10}
-            style={{
-              alignSelf: 'flex-start',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: '1px dashed var(--color-border-strong)',
-              background: 'transparent',
-              color: 'var(--color-text-secondary)',
-              fontSize: 12,
-              fontFamily: 'inherit',
-              cursor: rules.length >= 10 ? 'default' : 'pointer',
-              opacity: rules.length >= 10 ? 0.5 : 1,
-            }}
+            onClick={openAddForm}
+            style={{ alignSelf: 'flex-start' }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <PlusIcon size={12} />
             {rules.length >= 10 ? 'Limit reached' : 'Add rule'}
-          </button>
+          </Button>
         )}
       </div>
     </Card>
@@ -475,32 +404,26 @@ function RuleRow({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
+        gap: space.fieldGap,
         padding: '8px 10px',
         borderRadius: 8,
         border: `1px solid ${isActive ? 'var(--color-ok)' : 'var(--color-border)'}`,
         background: 'var(--color-surface-raised)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, color: 'var(--color-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: space.fieldGap }}>
+        <span style={{ ...text.body, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {rule.displayName}
         </span>
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
+        <span style={{ ...text.caption, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
           {channel ? `${CHANNEL_LABELS[channel as SonarChannel] ?? channel} · ${presetName}` : '—'}
         </span>
-        <button onClick={() => setEditing((e) => !e)} aria-label="Edit rule" style={iconBtnStyle}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" />
-          </svg>
-        </button>
-        <button onClick={onRemove} aria-label="Delete rule" style={iconBtnStyle}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-        </button>
+        <IconButton ariaLabel="Edit rule" onClick={() => setEditing((e) => !e)} style={{ background: 'var(--color-surface)' }}>
+          <EditIcon size={14} />
+        </IconButton>
+        <IconButton ariaLabel="Delete rule" onClick={onRemove} style={{ background: 'var(--color-surface)' }}>
+          <TrashIcon size={14} />
+        </IconButton>
       </div>
 
       {editing && (
@@ -556,14 +479,14 @@ function AddRuleForm({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        padding: '10px',
+        gap: space.fieldGap,
+        padding: 10,
         borderRadius: 8,
         border: '1px solid var(--color-border)',
         background: 'var(--color-surface-raised)',
       }}
     >
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: space.fieldGap, alignItems: 'center' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Select
             compact
@@ -574,12 +497,9 @@ function AddRuleForm({
             options={availableApps.map((a) => ({ value: a.processName, label: a.displayName }))}
           />
         </div>
-        <button onClick={onRefresh} aria-label="Refresh apps" style={iconBtnStyle}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-        </button>
+        <IconButton ariaLabel="Refresh apps" onClick={onRefresh} style={{ background: 'var(--color-surface)' }}>
+          <RefreshIcon size={14} />
+        </IconButton>
       </div>
       <Select
         compact
@@ -599,82 +519,20 @@ function AddRuleForm({
         onChange={setPresetId}
         options={favorites.map((f) => ({ value: f.id, label: f.name }))}
       />
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} style={textBtnStyle('secondary')}>Cancel</button>
-        <button
+      <div style={{ display: 'flex', gap: space.fieldGap, justifyContent: 'flex-end' }}>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button
+          variant="primary"
+          disabled={!canAdd}
           onClick={() => {
             if (!canAdd) return
             const display = availableApps.find((a) => a.processName === app)?.displayName ?? app
             onAdd({ appProcessName: app, displayName: display, channel, presetId, enabled: true })
           }}
-          disabled={!canAdd}
-          style={{ ...textBtnStyle('primary'), opacity: canAdd ? 1 : 0.5 }}
         >
           Add rule
-        </button>
+        </Button>
       </div>
     </div>
   )
-}
-
-// ── Small shared inline controls ────────────────────────────────────────────────
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }): JSX.Element {
-  return (
-    <div
-      onClick={() => { haptic(); onChange() }}
-      role="switch"
-      aria-checked={checked}
-      style={{
-        width: 38,
-        height: 22,
-        borderRadius: 11,
-        background: checked ? 'var(--segment-active-bg)' : 'var(--color-border)',
-        position: 'relative',
-        cursor: 'pointer',
-        flexShrink: 0,
-        transition: 'background 150ms',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 2,
-          left: checked ? 18 : 2,
-          width: 18,
-          height: 18,
-          borderRadius: '50%',
-          background: 'var(--segment-active-color)',
-          transition: 'left 150ms',
-        }}
-      />
-    </div>
-  )
-}
-
-const iconBtnStyle: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 6,
-  border: '1px solid var(--color-border)',
-  background: 'var(--color-surface)',
-  color: 'var(--color-text-secondary)',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-}
-
-function textBtnStyle(kind: 'primary' | 'secondary'): React.CSSProperties {
-  return {
-    padding: '8px 14px',
-    borderRadius: 8,
-    border: '1px solid var(--color-border)',
-    background: kind === 'primary' ? 'var(--segment-active-bg)' : 'var(--color-surface)',
-    color: kind === 'primary' ? 'var(--segment-active-color)' : 'var(--color-text-primary)',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-  }
 }

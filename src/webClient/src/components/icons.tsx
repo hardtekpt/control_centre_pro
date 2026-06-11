@@ -183,3 +183,87 @@ export function SkipForwardIcon({ color = 'currentColor', size = 15, title }: Ic
     </svg>
   )
 }
+
+/** Speaker glyph; crossed out when `muted`. Used on all mute buttons. */
+export function MuteIcon({ muted = true, color = 'currentColor', size = 15, title }: IconProps & { muted?: boolean }): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      {muted ? (
+        <>
+          <line x1="23" y1="9" x2="17" y2="15" />
+          <line x1="17" y1="9" x2="23" y2="15" />
+        </>
+      ) : (
+        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      )}
+    </svg>
+  )
+}
+
+export function MicOffIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  )
+}
+
+/** Headset with a slash — Discord "deafened" state. */
+export function HeadsetOffIcon({ color = 'currentColor', size = 15, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+      <path d="M4 14a2 2 0 0 1 2 2v2a2 2 0 0 1-4 0v-2a2 2 0 0 1 2-2z" />
+      <path d="M20 14a2 2 0 0 0-2 2v2a2 2 0 0 0 4 0v-2a2 2 0 0 0-2-2z" />
+      <line x1="3" y1="3" x2="21" y2="21" />
+    </svg>
+  )
+}
+
+export function EditIcon({ color = 'currentColor', size = 14, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" />
+    </svg>
+  )
+}
+
+export function TrashIcon({ color = 'currentColor', size = 14, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  )
+}
+
+export function RefreshIcon({ color = 'currentColor', size = 14, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)}>
+      {title && <title>{title}</title>}
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  )
+}
+
+export function PlusIcon({ color = 'currentColor', size = 12, title }: IconProps): JSX.Element {
+  return (
+    <svg {...base(size, color)} strokeWidth={2.5}>
+      {title && <title>{title}</title>}
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+}

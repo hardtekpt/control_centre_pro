@@ -124,27 +124,19 @@ body {
   font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
 }
 
-/* ── Touch targets ────────────────────────────────────────────────────────── */
-
-@media (pointer: coarse) {
-  .slider-thumb {
-    width: 20px !important;
-    height: 28px !important;
-  }
-}
-
-/* Larger native range tracks/thumbs on touch devices for easier dragging. */
-@media (pointer: coarse) {
-  input[type="range"] { height: 28px; }
-  input[type="range"]::-webkit-slider-thumb {
-    width: 20px;
-    height: 20px;
-  }
-}
-
 /* Native select restyle helper: hide the default arrow (Select.tsx draws its own
    chevron) on engines that don't honor `appearance: none` inline. */
 select { background-image: none; }
+
+/* ── Page layout ──────────────────────────────────────────────────────────── */
+
+/* Standard page container: edge padding + vertical card stack. */
+.page {
+  padding: 16px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 /* ── Card components ────────────────────────────────────────────────────────── */
 
@@ -188,8 +180,11 @@ select { background-image: none; }
 }
 
 .segment-btn {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
   font-size: 12px;
-  padding: 5px 8px;
+  padding: 7px 6px;
   background: var(--segment-inactive-bg);
   color: var(--segment-inactive-color);
   border: none;

@@ -112,14 +112,13 @@ export function VerticalFader({
         style={{
           position: 'absolute',
           left: '50%',
-          bottom: `calc(${pct}% - 7px)`,
+          bottom: `calc(${pct}% - 6px)`,
           transform: 'translateX(-50%)',
-          width: 24,
-          height: 14,
+          width: 22,
+          height: 12,
           borderRadius: 4,
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border-strong)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+          background: 'var(--color-highlight)',
+          boxShadow: 'var(--shadow-thumb)',
           pointerEvents: 'none',
         }}
       />
