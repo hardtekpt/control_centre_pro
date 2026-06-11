@@ -1,6 +1,6 @@
 {
   "name": "mission-control",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hardware device management and custom services runner for Windows",
   "repository": {
     "type": "git",
