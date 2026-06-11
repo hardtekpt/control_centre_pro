@@ -78,7 +78,7 @@ jobs:
           # Install from the GitHub repos (CI has git). The end-user update flow
           # uses release wheels instead — see docs/handoff/package-release-workflows.md
           Invoke-Checked $py @('-m', 'pip', 'install', 'git+https://github.com/hardtekpt/steelseries_gg_py.git')
-          Invoke-Checked $py @('-m', 'pip', 'install', 'git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development')
+          Invoke-Checked $py @('-m', 'pip', 'install', 'git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development#subdirectory=src/package')
 
           # Sanity: confirm both distributions resolve in the bundled interpreter
           Invoke-Checked $py @('-c', 'import importlib.metadata as m, importlib.util as u; assert u.find_spec("steelseries_gg") and u.find_spec("arctis_hid"); print("bundled packages OK")')

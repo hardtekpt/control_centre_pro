@@ -238,7 +238,7 @@ npm run package          # Build + Windows installer
 npm run typecheck        # TypeScript validation
 
 # Arctis HID service setup — install into the app venv (see below)
-<venv>\Scripts\pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development
+<venv>\Scripts\pip install git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development#subdirectory=src/package
 
 # GG Sonar service setup — install into the app venv (see below)
 <venv>\Scripts\pip install git+https://github.com/hardtekpt/steelseries_gg_py.git
