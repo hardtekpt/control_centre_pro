@@ -141,6 +141,12 @@ export const IPC_CHANNELS = {
   RESOURCE_GET_STATE:    'resource:getState',    // renderer → main invoke
   RESOURCE_STATE_CHANGE: 'resource:stateChange', // main → renderer push
   RESOURCE_SET_CONFIG:   'resource:setConfig',   // renderer → main invoke
+
+  // Auto-Updater
+  UPDATER_GET_STATE:    'updater:getState',    // renderer → main invoke
+  UPDATER_CHECK:        'updater:check',        // renderer → main invoke
+  UPDATER_INSTALL:      'updater:install',      // renderer → main invoke
+  UPDATER_STATE_CHANGE: 'updater:stateChange',  // main → renderer push
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -923,4 +929,23 @@ export interface HaHomeCardEntity {
   icon?: string
   iconColor?: string
   favorite?: boolean
+}
+
+// ─── Auto-Updater ─────────────────────────────────────────────────────────────
+
+export type UpdaterStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+
+export interface UpdaterState {
+  status: UpdaterStatus
+  currentVersion: string | null
+  availableVersion: string | null
+  progress: number | null    // 0–100 during download
+  error: string | null
 }

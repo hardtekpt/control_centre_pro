@@ -4,8 +4,9 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { spawn } from 'child_process'
 import { randomBytes } from 'crypto'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import { IPC_CHANNELS } from '../shared/types'
-import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, AppSettings, DdcMonitor, SerializedNotification, Shortcut } from '../shared/types'
+import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, AppSettings, DdcMonitor, SerializedNotification, Shortcut, UpdaterState } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
 import { SonarService } from './services/sonarService'
@@ -126,6 +127,16 @@ const multiMonitorToolPath = app.isPackaged
 
 // ─── Notifications Service State ──────────────────────────────────────────────
 let notificationsEnabled = true
+
+// ─── Auto-Updater State ───────────────────────────────────────────────────────
+let updaterState: UpdaterState = {
+  status: 'idle', currentVersion: null, availableVersion: null, progress: null, error: null,
+}
+
+function setUpdaterState(patch: Partial<UpdaterState>): void {
+  updaterState = { ...updaterState, ...patch }
+  mainWindow?.webContents.send(IPC_CHANNELS.UPDATER_STATE_CHANGE, updaterState)
+}
 
 // ─── DDC Service State ────────────────────────────────────────────────────────
 let ddcCache: DdcMonitor[] = []
@@ -496,6 +507,55 @@ function stopDdcPolling(): void {
     clearInterval(ddcPollTimer)
     ddcPollTimer = null
   }
+}
+
+// ─── Auto-Updater ─────────────────────────────────────────────────────────────
+
+function setupAutoUpdater(): void {
+  if (!app.isPackaged) return   // no app-update.yml in dev builds
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = false  // only install when user explicitly clicks "Restart"
+
+  setUpdaterState({ currentVersion: app.getVersion() })
+
+  autoUpdater.on('checking-for-update', () =>
+    setUpdaterState({ status: 'checking', error: null }))
+
+  autoUpdater.on('update-available', (info) => {
+    setUpdaterState({ status: 'available', availableVersion: info.version })
+    pushNotifFromMain({
+      kind: 'rect', key: 'update-available',
+      title: 'Update available',
+      subtitle: `v${info.version} — downloading in the background`,
+      ttl: 6000,
+    })
+  })
+
+  autoUpdater.on('update-not-available', () =>
+    setUpdaterState({ status: 'not-available' }))
+
+  autoUpdater.on('download-progress', (p) =>
+    setUpdaterState({ status: 'downloading', progress: Math.round(p.percent) }))
+
+  autoUpdater.on('update-downloaded', (event) => {
+    setUpdaterState({ status: 'downloaded', availableVersion: event.version, progress: null })
+    pushNotifFromMain({
+      kind: 'rect', key: 'update-downloaded',
+      title: 'Update ready',
+      subtitle: `v${event.version} downloaded — restart to install`,
+      ttl: 8000,
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    setUpdaterState({ status: 'error', error: err.message })
+    console.error('[autoUpdater]', err)
+  })
+
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(console.error)
+  }, 5000)
 }
 
 // ─── IPC Handlers ─────────────────────────────────────────────────────────────
@@ -936,6 +996,18 @@ function registerIpcHandlers(): void {
     // Forward to renderer for app-navigate actions (focused scope handled by renderer itself)
     mainWindow?.webContents.send(IPC_CHANNELS.SHORTCUTS_DISPATCH, { actionId, value })
   })
+
+  // ── Auto-Updater ─────────────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.UPDATER_GET_STATE, () => updaterState)
+
+  ipcMain.handle(IPC_CHANNELS.UPDATER_CHECK, async () => {
+    if (!app.isPackaged) return
+    await autoUpdater.checkForUpdates().catch(console.error)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.UPDATER_INSTALL, () => {
+    autoUpdater.quitAndInstall(false, true)
+  })
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -1086,6 +1158,7 @@ app.whenReady().then(() => {
     notificationsEnabled = notifSvc.enabled
   }
 
+  setupAutoUpdater()
   registerIpcHandlers()
   let bootSettings = loadAppSettings()
   if (bootSettings.remoteEnabled) {

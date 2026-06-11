@@ -2,6 +2,10 @@
   "name": "mission-control",
   "version": "0.1.0",
   "description": "Hardware device management and custom services runner for Windows",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hardtekpt/control_centre_pro"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

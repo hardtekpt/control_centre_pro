@@ -16,4 +16,11 @@ extraResources:
   # process can spawn them at process.resourcesPath/services — see serviceManager.servicesDir()
   - from: "resources/services"
     to: "services"
+nsis:
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
 buildDependenciesFromSource: false
+publish:
+  provider: github
+  releaseType: release

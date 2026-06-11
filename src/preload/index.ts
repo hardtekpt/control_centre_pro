@@ -5,7 +5,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics,
+  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics, UpdaterState,
 } from '../shared/types'
 
 /**
@@ -425,6 +425,23 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, snapshot: ResourceSnapshot): void => cb(snapshot)
     ipcRenderer.on(IPC_CHANNELS.RESOURCE_STATE_CHANGE, handler)
     return () => ipcRenderer.off(IPC_CHANNELS.RESOURCE_STATE_CHANGE, handler)
+  },
+
+  // ── Auto-Updater ─────────────────────────────────────────────────────────────
+
+  updaterGetState: (): Promise<UpdaterState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATER_GET_STATE),
+
+  updaterCheck: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATER_CHECK),
+
+  updaterInstall: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATER_INSTALL),
+
+  onUpdaterStateChange: (callback: (state: UpdaterState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: UpdaterState): void => callback(state)
+    ipcRenderer.on(IPC_CHANNELS.UPDATER_STATE_CHANGE, handler)
+    return () => ipcRenderer.off(IPC_CHANNELS.UPDATER_STATE_CHANGE, handler)
   },
 }
 
