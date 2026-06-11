@@ -28,22 +28,6 @@
   "optionalDependencies": {
     "@hensm/ddcci": "*"
   },
-  "build": {
-    "files": [
-      "out",
-      "resources"
-    ],
-    "asarUnpack": [
-      "**/node_modules/naudiodon2/**"
-    ],
-    "extraResources": [
-      {
-        "from": "resources/MultiMonitorTool.exe",
-        "to": "MultiMonitorTool.exe"
-      }
-    ],
-    "buildDependenciesFromSource": false
-  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",

@@ -108,10 +108,39 @@ export class ServiceManager {
       : join(process.resourcesPath, 'services')
   }
 
+  /**
+   * Absolute path to the bundled, relocatable Python interpreter shipped with the
+   * installer (CI-built, packages pre-installed). Returns null when it isn't on
+   * disk — e.g. in dev, or a build made without the CI bundling step — so callers
+   * can fall back to the system `python`.
+   */
+  bundledPythonPath(): string | null {
+    const candidate = is.dev
+      ? join(app.getAppPath(), 'resources', 'python', 'python.exe')
+      : join(process.resourcesPath, 'python', 'python.exe')
+    return existsSync(candidate) ? candidate : null
+  }
+
+  /** The interpreter to actually run: explicit user override wins, else the bundled one, else system `python`. */
+  private defaultPythonPath(): string {
+    return this.bundledPythonPath() ?? 'python'
+  }
+
+  /** Path of the interpreter currently used to spawn Python services. */
+  getPythonPath(): string {
+    return this.pythonPath
+  }
+
   private loadConfig(): void {
     if (existsSync(this.configPath)) {
       const saved = JSON.parse(readFileSync(this.configPath, 'utf-8')) as SavedConfig
-      this.pythonPath = saved.pythonPath ?? 'python'
+      // Honor an explicit user-chosen interpreter, but treat a missing value or the
+      // bare legacy default 'python' (the Windows Store stub on a clean PC) as "no
+      // choice" so we fall back to the bundled, package-equipped interpreter.
+      this.pythonPath =
+        saved.pythonPath && saved.pythonPath !== 'python'
+          ? saved.pythonPath
+          : this.defaultPythonPath()
       const svcMap = saved.services ?? {}
       // Load ALL saved service states so native services also restore their enabled/disabled flag
       for (const [id, val] of Object.entries(svcMap)) {
@@ -122,6 +151,7 @@ export class ServiceManager {
         if (!(def.id in this.enabled)) this.enabled[def.id] = DEFAULT_DISABLED.has(def.id) ? false : true
       }
     } else {
+      this.pythonPath = this.defaultPythonPath()
       for (const def of SERVICE_DEFS) {
         this.enabled[def.id] = DEFAULT_DISABLED.has(def.id) ? false : true
       }
@@ -348,6 +378,11 @@ export class ServiceManager {
       }
     }
     this.push(IPC_CHANNELS.SERVICES_STATE_CHANGE, this.getServiceList())
+  }
+
+  /** Restart a Python service only if it's currently enabled — used after a package update so the new code loads. */
+  restartIfEnabled(id: string): void {
+    if (this.enabled[id]) this.startService(id)
   }
 
   setPythonPath(path: string): void {

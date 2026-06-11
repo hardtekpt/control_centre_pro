@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useServiceStore } from '../../stores/serviceStore'
 import { PageHeader, SettingSection, SettingsPageWrapper } from '../../components/SettingsComponents'
-import type { LogEntry, UpdaterState } from '@shared/types'
+import type { LogEntry, PackagesState, PythonPackageInfo, UpdaterState } from '@shared/types'
 
 // ─── Log entry row ────────────────────────────────────────────────────────────
 
@@ -42,6 +42,76 @@ function LogRow({ entry }: { entry: LogEntry }): JSX.Element {
   )
 }
 
+// ─── Python dependency row ────────────────────────────────────────────────────
+
+function PackageRow({
+  pkg,
+  checking,
+  last,
+}: {
+  pkg: PythonPackageInfo
+  checking: boolean
+  last: boolean
+}): JSX.Element {
+  let status: string
+  if (pkg.busy) status = 'Updating…'
+  else if (pkg.error) status = pkg.error
+  else if (checking) status = 'Checking…'
+  else if (pkg.installed === null) status = 'Not installed'
+  else if (pkg.updateAvailable && pkg.latest) status = `v${pkg.latest} available`
+  else status = 'Up to date'
+
+  const canUpdate = pkg.updateAvailable && !pkg.busy
+
+  return (
+    <div
+      className="px-5 py-3.5"
+      style={{
+        borderBottom: last ? 'none' : '1px solid var(--color-border)',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        gap: '16px',
+        alignItems: 'center',
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+          {pkg.label}
+        </span>
+        <span
+          className="text-xs font-mono"
+          style={{ color: 'var(--color-text-secondary)', wordBreak: 'break-all' }}
+        >
+          {pkg.installed ? `installed ${pkg.installed}` : 'not installed'}
+          {pkg.repo ? ` · ${pkg.repo}` : ''}
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span
+          className="text-sm"
+          style={{ color: pkg.error ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}
+        >
+          {status}
+        </span>
+        {canUpdate && (
+          <button
+            onClick={() => window.api.packagesUpdate(pkg.id).catch(console.error)}
+            className="text-sm px-3 py-1.5 rounded font-medium"
+            style={{
+              background: 'var(--color-accent)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-bg)',
+              cursor: 'pointer',
+            }}
+          >
+            Update
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── About page ───────────────────────────────────────────────────────────────
 
 /** About page — version info and live service log */
@@ -52,6 +122,7 @@ export function About(): JSX.Element {
   const [updaterState, setUpdaterState] = useState<UpdaterState>({
     status: 'idle', currentVersion: null, availableVersion: null, progress: null, error: null,
   })
+  const [packagesState, setPackagesState] = useState<PackagesState>({ status: 'idle', packages: [] })
 
   // Auto-scroll to the latest entry within the log container (not the page)
   useEffect(() => {
@@ -63,6 +134,11 @@ export function About(): JSX.Element {
   useEffect(() => {
     window.api.updaterGetState().then(setUpdaterState).catch(console.error)
     return window.api.onUpdaterStateChange(setUpdaterState)
+  }, [])
+
+  useEffect(() => {
+    window.api.packagesGetState().then(setPackagesState).catch(console.error)
+    return window.api.onPackagesStateChange(setPackagesState)
   }, [])
 
   // Load log file path
@@ -80,8 +156,8 @@ export function About(): JSX.Element {
               {[
                 { label: 'Version', value: updaterState.currentVersion ?? '…' },
                 { label: 'Platform', value: 'Windows' },
-                { label: 'Framework', value: 'Electron + React' },
-                { label: 'Build', value: 'Development' },
+                { label: 'Electron', value: window.api.appInfo.electron },
+                { label: 'Build', value: window.api.appInfo.build },
               ].map((row, i, arr) => (
                 <div
                   key={row.label}
@@ -154,6 +230,48 @@ export function About(): JSX.Element {
                     background: 'var(--color-accent)', transition: 'width 0.3s ease',
                   }} />
                 </div>
+              )}
+            </div>
+          </SettingSection>
+          <SettingSection title="Python Dependencies">
+            <div>
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 20px', borderBottom: '1px solid var(--color-border)',
+                }}
+              >
+                <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  Hardware service packages installed in the bundled Python runtime
+                </span>
+                <button
+                  onClick={() => window.api.packagesCheck().catch(console.error)}
+                  disabled={packagesState.status !== 'idle'}
+                  className="text-sm px-3 py-1.5 rounded"
+                  style={{
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    cursor: packagesState.status !== 'idle' ? 'default' : 'pointer',
+                    opacity: packagesState.status !== 'idle' ? 0.5 : 1,
+                  }}
+                >
+                  {packagesState.status === 'checking' ? 'Checking…' : 'Check for updates'}
+                </button>
+              </div>
+              {packagesState.packages.length === 0 ? (
+                <div className="px-5 py-3.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  No managed packages
+                </div>
+              ) : (
+                packagesState.packages.map((pkg, i, arr) => (
+                  <PackageRow
+                    key={pkg.id}
+                    pkg={pkg}
+                    checking={packagesState.status === 'checking'}
+                    last={i === arr.length - 1}
+                  />
+                ))
               )}
             </div>
           </SettingSection>

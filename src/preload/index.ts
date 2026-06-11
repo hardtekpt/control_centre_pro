@@ -1,11 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics, UpdaterState,
+  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics, UpdaterState, PackagesState,
 } from '../shared/types'
 
 /**
@@ -13,6 +14,14 @@ import type {
  * Renderer calls window.api.xxx() — it never sees ipcRenderer directly.
  */
 const api = {
+  // ── Static app/runtime info (read once at preload time) ─────────────────────
+  appInfo: {
+    electron: process.versions.electron,
+    node: process.versions.node,
+    chrome: process.versions.chrome,
+    build: is.dev ? 'Development' : 'Production',
+  },
+
   // ── Window controls ────────────────────────────────────────────────────────
 
   minimize: (): Promise<void> =>
@@ -442,6 +451,23 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, state: UpdaterState): void => callback(state)
     ipcRenderer.on(IPC_CHANNELS.UPDATER_STATE_CHANGE, handler)
     return () => ipcRenderer.off(IPC_CHANNELS.UPDATER_STATE_CHANGE, handler)
+  },
+
+  // ── Python Package Manager ────────────────────────────────────────────────────
+
+  packagesGetState: (): Promise<PackagesState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PACKAGES_GET_STATE),
+
+  packagesCheck: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PACKAGES_CHECK),
+
+  packagesUpdate: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PACKAGES_UPDATE, id),
+
+  onPackagesStateChange: (callback: (state: PackagesState) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: PackagesState): void => callback(state)
+    ipcRenderer.on(IPC_CHANNELS.PACKAGES_STATE_CHANGE, handler)
+    return () => ipcRenderer.off(IPC_CHANNELS.PACKAGES_STATE_CHANGE, handler)
   },
 }
 

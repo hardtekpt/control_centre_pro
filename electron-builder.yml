@@ -20,6 +20,11 @@ extraResources:
   # process can spawn them at process.resourcesPath/services — see serviceManager.servicesDir()
   - from: "resources/services"
     to: "services"
+  # Bundled, relocatable Python runtime with the steelseries_gg / arctis_hid
+  # packages pre-installed. Built in CI (see .github/workflows/release.yml) and
+  # spawned at process.resourcesPath/python/python.exe — see serviceManager.bundledPythonPath()
+  - from: "resources/python"
+    to: "python"
 nsis:
   oneClick: true
   perMachine: false

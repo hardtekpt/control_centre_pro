@@ -9,6 +9,7 @@ import { IPC_CHANNELS } from '../shared/types'
 import type { NavigateTarget, SonarChannel, SonarMode, SonarDeviceChannel, PresetSwitcherRule, AppSettings, DdcMonitor, SerializedNotification, Shortcut, UpdaterState } from '../shared/types'
 import { DEFAULT_SETTINGS } from '../shared/types'
 import { ServiceManager } from './services/serviceManager'
+import { PythonPackageManager } from './services/pythonPackages'
 import { SonarService } from './services/sonarService'
 import { DiscordService } from './services/discordService'
 import { ActiveWindowMonitor } from './services/activeWindowMonitor'
@@ -113,6 +114,7 @@ let minimizeToTray = true
 let openOnActiveDisplay = false
 let isQuitting = false
 let serviceManager: ServiceManager
+let pythonPackageManager: PythonPackageManager
 let sonarService: SonarService
 let discordService: DiscordService
 let ddcService: DdcService
@@ -1008,6 +1010,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.UPDATER_INSTALL, () => {
     autoUpdater.quitAndInstall(false, true)
   })
+
+  // ── Python Package Manager ───────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.PACKAGES_GET_STATE, () => pythonPackageManager.getState())
+  ipcMain.handle(IPC_CHANNELS.PACKAGES_CHECK, () => pythonPackageManager.check())
+  ipcMain.handle(IPC_CHANNELS.PACKAGES_UPDATE, (_, id: string) => pythonPackageManager.update(id))
 }
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -1020,6 +1027,7 @@ app.whenReady().then(() => {
   })
 
   serviceManager = new ServiceManager()
+  pythonPackageManager = new PythonPackageManager(serviceManager)
   sonarService = new SonarService(serviceManager)
   ddcService = new DdcService()
   kvmDetector = new KvmDetector(
@@ -1175,6 +1183,8 @@ app.whenReady().then(() => {
   createWindow()
   kvmDetector.start(bootSettings)
   serviceManager.setWindow(mainWindow!)
+  pythonPackageManager.setWindow(mainWindow!)
+  void pythonPackageManager.refreshInstalled()
   initDispatcher(mainWindow!, serviceManager, sonarService, ddcService, showMainWindow, loadAppSettings, pushNotifFromMain)
   discordService.setWindow(mainWindow!)
   haService.setWindow(mainWindow!)

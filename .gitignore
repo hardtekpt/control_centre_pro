@@ -9,5 +9,8 @@ dist
 # TypeScript build info
 *.tsbuildinfo
 
+# CI-generated bundled Python runtime (built in release.yml, never committed)
+resources/python/
+
 # Claude Code settings
 .claude/settings.local.json

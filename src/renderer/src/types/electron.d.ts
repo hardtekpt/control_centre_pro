@@ -3,7 +3,7 @@ import type {
   SonarState, SonarChannel, SonarMode, SonarPollingConfig, SonarDeviceChannel, SonarConfig, SonarAudioSample,
   DiscordState, ActiveWindowInfo, OpenApp, PresetSwitcherRule, AppSettings, DdcMonitor,
   SerializedNotification, Shortcut, ShortcutDispatchEvent, KvmState, UsbDevice,
-  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics, UpdaterState,
+  HaState, HaServiceCall, ResourceSnapshot, ResourceMonitorMetrics, UpdaterState, PackagesState,
 } from '../../../shared/types'
 
 /**
@@ -21,6 +21,14 @@ declare module 'react' {
 declare global {
   interface Window {
     api: {
+      // Static app/runtime info
+      appInfo: {
+        electron: string
+        node: string
+        chrome: string
+        build: string
+      }
+
     // Window controls
     minimize: () => Promise<void>
     maximize: () => Promise<void>
@@ -164,6 +172,12 @@ declare global {
     updaterCheck: () => Promise<void>
     updaterInstall: () => Promise<void>
     onUpdaterStateChange: (callback: (state: UpdaterState) => void) => () => void
+
+    // Python Package Manager
+    packagesGetState: () => Promise<PackagesState>
+    packagesCheck: () => Promise<void>
+    packagesUpdate: (id: string) => Promise<void>
+    onPackagesStateChange: (callback: (state: PackagesState) => void) => () => void
     }
   }
 

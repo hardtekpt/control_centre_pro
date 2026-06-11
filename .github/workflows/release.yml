@@ -45,6 +45,46 @@ jobs:
       - name: Build Electron app
         run: npm run build
 
+      # Builds a fully relocatable CPython tree at resources/python with the two
+      # hardware packages pre-installed, so the installed app runs every Python
+      # service offline with zero user setup. extraResources ships it to
+      # process.resourcesPath/python — see serviceManager.bundledPythonPath().
+      - name: Build bundled Python runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-Checked {
+            param([string]$Exe, [string[]]$Args)
+            & $Exe @Args
+            if ($LASTEXITCODE -ne 0) { throw "Command failed ($LASTEXITCODE): $Exe $($Args -join ' ')" }
+          }
+
+          # python-build-standalone: relocatable CPython (install_only = normal layout with pip)
+          $pbsTag = '20240814'
+          $asset  = 'cpython-3.12.5+20240814-x86_64-pc-windows-msvc-install_only.tar.gz'
+          $url    = "https://github.com/astral-sh/python-build-standalone/releases/download/$pbsTag/$asset"
+          Write-Host "Downloading $url"
+          Invoke-Checked 'curl.exe' @('-L', '--fail', '-o', 'python-standalone.tar.gz', $url)
+
+          New-Item -ItemType Directory -Force -Path resources | Out-Null
+          if (Test-Path resources/python) { Remove-Item -Recurse -Force resources/python }
+          # Tarball extracts to a top-level 'python/' dir -> resources/python/
+          Invoke-Checked 'tar' @('-xzf', 'python-standalone.tar.gz', '-C', 'resources')
+
+          $py = Resolve-Path 'resources/python/python.exe'
+          if (-not (Test-Path $py)) { throw 'python.exe not found after extract' }
+
+          Invoke-Checked $py @('-m', 'pip', 'install', '--upgrade', 'pip')
+          # Install from the GitHub repos (CI has git). The end-user update flow
+          # uses release wheels instead — see docs/handoff/package-release-workflows.md
+          Invoke-Checked $py @('-m', 'pip', 'install', 'git+https://github.com/hardtekpt/steelseries_gg_py.git')
+          Invoke-Checked $py @('-m', 'pip', 'install', 'git+https://github.com/hardtekpt/arctis_nova_pro_hid.git@development')
+
+          # Sanity: confirm both distributions resolve in the bundled interpreter
+          Invoke-Checked $py @('-c', 'import importlib.metadata as m, importlib.util as u; assert u.find_spec("steelseries_gg") and u.find_spec("arctis_hid"); print("bundled packages OK")')
+
+          Remove-Item -Force python-standalone.tar.gz
+
       - name: Package and publish to GitHub Releases
         run: npx electron-builder --win --publish always
         env:

@@ -147,6 +147,12 @@ export const IPC_CHANNELS = {
   UPDATER_CHECK:        'updater:check',        // renderer → main invoke
   UPDATER_INSTALL:      'updater:install',      // renderer → main invoke
   UPDATER_STATE_CHANGE: 'updater:stateChange',  // main → renderer push
+
+  // Python package manager (bundled steelseries_gg / arctis_hid)
+  PACKAGES_GET_STATE:    'packages:getState',    // renderer → main invoke
+  PACKAGES_CHECK:        'packages:check',        // renderer → main invoke
+  PACKAGES_UPDATE:       'packages:update',       // renderer → main invoke (arg: package id)
+  PACKAGES_STATE_CHANGE: 'packages:stateChange',  // main → renderer push
 } as const
 
 /** Union of all valid IPC channel strings */
@@ -948,4 +954,24 @@ export interface UpdaterState {
   availableVersion: string | null
   progress: number | null    // 0–100 during download
   error: string | null
+}
+
+// ─── Python Package Manager ───────────────────────────────────────────────────
+
+/** One managed Python hardware package (steelseries_gg / arctis_hid) */
+export interface PythonPackageInfo {
+  id: string                 // stable manager id, e.g. 'steelseries-gg'
+  label: string              // display label
+  importName: string         // top-level import package, e.g. 'steelseries_gg'
+  repo: string               // GitHub 'owner/repo' that publishes release wheels
+  installed: string | null   // installed version, or null if missing/unreadable
+  latest: string | null      // latest published release version, or null if unknown
+  updateAvailable: boolean   // true when a newer release wheel is installable
+  busy: boolean              // true while this package is updating
+  error: string | null       // last error for this package, if any
+}
+
+export interface PackagesState {
+  status: 'idle' | 'checking' | 'updating'
+  packages: PythonPackageInfo[]
 }
