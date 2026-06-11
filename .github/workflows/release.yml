@@ -89,3 +89,13 @@ jobs:
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # electron-builder reuses an existing draft release as-is (electron-publish
+      # getOrCreateRelease) and never flips draft -> published, so a draft left by
+      # an earlier/failed run for this tag stays hidden from electron-updater
+      # (GET /releases/latest 404s). Force the release published + marked latest.
+      - name: Ensure release is published (not draft)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --latest
