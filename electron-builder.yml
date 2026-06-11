@@ -12,6 +12,10 @@ asarUnpack:
 extraResources:
   - from: "resources/MultiMonitorTool.exe"
     to: "MultiMonitorTool.exe"
+  # Tray icon must live on disk at process.resourcesPath (not inside app.asar)
+  # because createTray() resolves it there in packaged builds — see src/main/index.ts
+  - from: "resources/tray-icon.png"
+    to: "tray-icon.png"
   # Python subprocess services must live on disk (outside app.asar) so the main
   # process can spawn them at process.resourcesPath/services — see serviceManager.servicesDir()
   - from: "resources/services"
