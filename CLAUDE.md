@@ -190,11 +190,14 @@ A local-network web app served by `HttpApiServer` (main process). The phone brow
 - `src/webClient/src/api/websocket.ts` — Singleton WS with exponential backoff, `useWebSocket` hook
 - `src/webClient/src/api/auth.ts` — Token capture from URL, localStorage persistence, auth-failed signal
 - `src/webClient/src/stores/` — Zustand stores mirroring renderer (IPC → fetch/WS)
+- `src/webClient/src/theme/` — Web client design system: `tokens.ts` (typography/spacing/sizing presets) + `ui.tsx` (shared touch-first components: `PageHeader`, `Field`, `Slider`, `SliderInput`, `Toggle`, `IconButton`, `Button`, `OptionGroup`, `Chip`, `SectionLabel`, `BatteryIndicator`)
 - `src/renderer/src/pages/settings/RemoteAccessSettings.tsx` — Enable toggle, port, token duration, QR code
 
 **Architecture rules**:
 - `HttpApiServer` runs in main process only, never renderer
 - No `window.api.*` in web client — use `fetch` and WS
+- Web client pages build all controls from `src/webClient/src/theme/` — no ad-hoc inline-styled toggles/sliders/buttons, no native `input[type=range]`, no hardcoded font sizes (use `text`/`space`/`size` tokens; colors stay `var(--color-*)`)
+- Pages wrap content in the `.page` CSS class; rows that can exceed a phone viewport must wrap (`flexWrap`) or stack (`Field stack`), and text next to trailing controls needs `minWidth: 0` + ellipsis
 - Web client has its own tsconfig to avoid mixing with `electron.d.ts` augmentations
 - `build:web` script builds web client; it is NOT part of `npm run build` (run separately before packaging)
 - WS broadcast has a 16 KB backpressure guard (`client.bufferedAmount < 16384`)
