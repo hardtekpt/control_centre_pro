@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
 import type {
   NavigateTarget, ServiceInfo, ServiceConfig, LogEntry, ArctisState,
@@ -19,7 +18,7 @@ const api = {
     electron: process.versions.electron,
     node: process.versions.node,
     chrome: process.versions.chrome,
-    build: is.dev ? 'Development' : 'Production',
+    build: process.env.NODE_ENV === 'production' ? 'Production' : 'Development',
   },
 
   // ── Window controls ────────────────────────────────────────────────────────
